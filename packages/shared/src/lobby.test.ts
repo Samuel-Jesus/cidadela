@@ -9,8 +9,8 @@ describe("FR-05 Lobby", () => {
   it("aceita setup 2–8 com peões únicos e banqueiro", () => {
     const setup: LobbySetup = {
       seats: [
-        { name: "Ana", pawnId: "acaraje" },
-        { name: "Bia", pawnId: "fitinha" },
+        { name: "Ana", pawnId: "oobi" },
+        { name: "Bia", pawnId: "oodi" },
       ],
       bankerIndex: 1,
     };
@@ -27,8 +27,8 @@ describe("FR-05 Lobby", () => {
     expect(
       validateLobbySetup({
         seats: [
-          { name: "A", pawnId: "acaraje" },
-          { name: "B", pawnId: "acaraje" },
+          { name: "A", pawnId: "oobi" },
+          { name: "B", pawnId: "oobi" },
         ],
         bankerIndex: 0,
       }).ok,
@@ -36,8 +36,8 @@ describe("FR-05 Lobby", () => {
     expect(
       validateLobbySetup({
         seats: [
-          { name: "  ", pawnId: "acaraje" },
-          { name: "B", pawnId: "fitinha" },
+          { name: "  ", pawnId: "oobi" },
+          { name: "B", pawnId: "oodi" },
         ],
         bankerIndex: 0,
       }).ok,

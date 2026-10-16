@@ -5,9 +5,14 @@ import { Box3, Vector3, type Group, type Mesh } from "three";
 type Props = {
   url: string;
   targetHeight?: number;
+  maxSpan?: number;
 };
 
-export function BlockyPawnMesh({ url, targetHeight = 0.72 }: Props) {
+export function BlockyPawnMesh({
+  url,
+  targetHeight = 0.72,
+  maxSpan,
+}: Props) {
   const { scene } = useGLTF(url);
   const root = useRef<Group>(null);
   const source = useMemo(() => scene, [scene]);
@@ -24,8 +29,12 @@ export function BlockyPawnMesh({ url, targetHeight = 0.72 }: Props) {
     const box = new Box3().setFromObject(g);
     const size = new Vector3();
     box.getSize(size);
-    const h = Math.max(size.y, 1e-3);
-    const scale = targetHeight / h;
+
+    let scale = targetHeight / Math.max(size.y, 1e-3);
+    if (maxSpan != null) {
+      const span = Math.max(size.x, size.y, size.z, 1e-3);
+      scale = Math.min(scale, maxSpan / span);
+    }
     g.scale.setScalar(scale);
     g.updateMatrixWorld(true);
 
@@ -42,7 +51,7 @@ export function BlockyPawnMesh({ url, targetHeight = 0.72 }: Props) {
         mesh.receiveShadow = true;
       }
     });
-  }, [source, targetHeight]);
+  }, [source, targetHeight, maxSpan]);
 
   return (
     <group ref={root}>

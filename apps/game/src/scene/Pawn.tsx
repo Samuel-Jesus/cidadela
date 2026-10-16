@@ -195,7 +195,7 @@ export function Pawn({
         document.body.style.cursor = "default";
       }}
     >
-      <PawnVisual pawnId={pawnId} targetHeight={0.72} />
+      <PawnVisual pawnId={pawnId} />
 
       {active ? (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>

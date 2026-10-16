@@ -86,9 +86,9 @@ export function LobbyScreen({ onStart }: Props) {
   const [room, setRoom] = useState<RoomState | null>(null);
   const [roomIdInput, setRoomIdInput] = useState(initialRoom ?? "");
   const [hostName, setHostName] = useState("Anfitrião");
-  const [hostPawn, setHostPawn] = useState<PawnId>("acaraje");
+  const [hostPawn, setHostPawn] = useState<PawnId>("oobi");
   const [guestName, setGuestName] = useState("");
-  const [guestPawn, setGuestPawn] = useState<PawnId>("fitinha");
+  const [guestPawn, setGuestPawn] = useState<PawnId>("oodi");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);

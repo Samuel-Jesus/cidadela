@@ -1,14 +1,19 @@
 import { getSpace } from "./board";
 
 export type PawnId =
-  | "acaraje"
-  | "fitinha"
-  | "farol"
-  | "tambor"
-  | "coco"
-  | "barco"
-  | "sol"
-  | "concha";
+  | "oobi"
+  | "oodi"
+  | "ooli"
+  | "oopi"
+  | "oozi"
+  | "shipGhost"
+  | "shipLarge"
+  | "shipMedium"
+  | "shipPirateLarge"
+  | "shipPirateMedium"
+  | "shipPirateSmall"
+  | "shipSmall"
+  | "shipWreck";
 
 export type PawnDef = {
   id: PawnId;
@@ -18,14 +23,19 @@ export type PawnDef = {
 };
 
 export const PAWNS: readonly PawnDef[] = [
-  { id: "acaraje", label: "Acarajé", color: "#e67e22", accent: "#6e2c00" },
-  { id: "fitinha", label: "Fitinha", color: "#e74c3c", accent: "#f1c40f" },
-  { id: "farol", label: "Farol", color: "#ecf0f1", accent: "#c0392b" },
-  { id: "tambor", label: "Tambor", color: "#8e44ad", accent: "#f39c12" },
-  { id: "coco", label: "Coco", color: "#27ae60", accent: "#f5f5dc" },
-  { id: "barco", label: "Barco", color: "#2980b9", accent: "#85c1e9" },
-  { id: "sol", label: "Sol", color: "#f1c40f", accent: "#e67e22" },
-  { id: "concha", label: "Concha", color: "#e91e63", accent: "#fadbd8" },
+  { id: "oobi", label: "Kart Oobi", color: "#a78bfa", accent: "#f97316" },
+  { id: "oodi", label: "Kart Oodi", color: "#38bdf8", accent: "#fbbf24" },
+  { id: "ooli", label: "Kart Ooli", color: "#4ade80", accent: "#fb7185" },
+  { id: "oopi", label: "Kart Oopi", color: "#f472b6", accent: "#22d3ee" },
+  { id: "oozi", label: "Kart Oozi", color: "#facc15", accent: "#6366f1" },
+  { id: "shipGhost", label: "Nau Fantasma", color: "#94a3b8", accent: "#e2e8f0" },
+  { id: "shipLarge", label: "Nau Grande", color: "#92400e", accent: "#fef3c7" },
+  { id: "shipMedium", label: "Nau", color: "#a16207", accent: "#fde68a" },
+  { id: "shipPirateLarge", label: "Galeão", color: "#1e293b", accent: "#f8fafc" },
+  { id: "shipPirateMedium", label: "Corsário", color: "#334155", accent: "#f1f5f9" },
+  { id: "shipPirateSmall", label: "Escuna", color: "#78350f", accent: "#e7e5e4" },
+  { id: "shipSmall", label: "Barquinho", color: "#0ea5e9", accent: "#bae6fd" },
+  { id: "shipWreck", label: "Nauferro", color: "#57534e", accent: "#a8a29e" },
 ] as const;
 
 export const STARTING_CASH = 1500;

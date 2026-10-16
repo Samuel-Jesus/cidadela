@@ -26,7 +26,7 @@ function PreviewPawn({ pawnId }: { pawnId: PawnId }) {
   return (
     <>
       <group ref={group} position={[0, 0.05, 0]} scale={0.95}>
-        <PawnVisual key={pawnId} pawnId={pawnId} targetHeight={0.85} />
+        <PawnVisual key={pawnId} pawnId={pawnId} />
       </group>
       <OrbitControls
         makeDefault
