@@ -3,6 +3,7 @@ import {
   LANDMARK_MODELS,
   preloadLandmarkModels,
 } from "../landmarks/GltfLandmark";
+import { PAWN_MODEL_LIST, preloadPawnModels } from "../pawns/pawnModels";
 
 export type PreloadStage = "fonts" | "download" | "build" | "ready";
 
@@ -59,7 +60,11 @@ async function downloadModels(
   onBytes: (states: DownloadState[], activeLabel: string | null) => void,
 ): Promise<void> {
   Cache.enabled = true;
-  const states: DownloadState[] = LANDMARK_MODELS.map(() => ({
+  const downloads = [
+    ...LANDMARK_MODELS.map((m) => ({ url: m.url, label: m.label })),
+    ...PAWN_MODEL_LIST.map((m) => ({ url: m.url, label: `Peão ${m.label}` })),
+  ];
+  const states: DownloadState[] = downloads.map(() => ({
     loaded: 0,
     total: 0,
     done: false,
@@ -68,7 +73,7 @@ async function downloadModels(
   const activeLabel = () => {
     let best: string | null = null;
     let bestRemaining = -1;
-    LANDMARK_MODELS.forEach((m, i) => {
+    downloads.forEach((m, i) => {
       const s = states[i]!;
       if (s.done) return;
       const remaining = s.total ? s.total - s.loaded : Infinity;
@@ -83,7 +88,7 @@ async function downloadModels(
   const emit = () => onBytes(states, activeLabel());
 
   await Promise.all(
-    LANDMARK_MODELS.map(async (m, i) => {
+    downloads.map(async (m, i) => {
       const s = states[i]!;
       const key = `file:${m.url}`;
       if (Cache.get(key) !== undefined) {
@@ -161,6 +166,7 @@ function buildModels(onRatio: (r: number) => void): Promise<void> {
     mgr.onError = () => undefined;
 
     preloadLandmarkModels();
+    preloadPawnModels();
 
     window.setTimeout(() => {
       if (!started) finish();

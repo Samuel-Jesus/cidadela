@@ -1501,6 +1501,37 @@ canvas {
   color: #134e4a;
 }
 
+.sfx-mute {
+  flex-shrink: 0;
+  border: 3px solid #5c3d2e;
+  border-radius: 999px;
+  background: #fff7ed;
+  box-shadow: 3px 3px 0 #5c3d2e;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5c3d2e;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.sfx-mute:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 #5c3d2e;
+}
+
+.sfx-mute:active {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 #5c3d2e;
+}
+
+.sfx-mute--off {
+  background: #e7e5e4;
+  color: #78716c;
+}
+
 .lobby-identity {
   display: flex;
   width: min(100%, 16rem);

@@ -3,6 +3,8 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, OrbitControls } from "@react-three/drei";
 import type { Group } from "three";
 import { getPawnDef, type PawnId } from "@cidadela/shared";
+import { playSfx, unlockAudio } from "../audio/sfx";
+import { PawnVisual } from "../pawns/PawnVisual";
 
 type Props = {
   value: PawnId;
@@ -11,46 +13,6 @@ type Props = {
   taken?: ReadonlySet<PawnId>;
   hint?: string;
 };
-
-function PawnMesh({ pawnId }: { pawnId: PawnId }) {
-  const def = getPawnDef(pawnId);
-  return (
-    <group>
-      <mesh castShadow receiveShadow position={[0, 0.04, 0]}>
-        <cylinderGeometry args={[0.22, 0.26, 0.08, 16]} />
-        <meshStandardMaterial
-          color={def.accent}
-          roughness={0.55}
-          metalness={0.15}
-        />
-      </mesh>
-      <mesh castShadow position={[0, 0.28, 0]}>
-        <cylinderGeometry args={[0.1, 0.2, 0.42, 16]} />
-        <meshStandardMaterial
-          color={def.color}
-          roughness={0.45}
-          metalness={0.12}
-        />
-      </mesh>
-      <mesh castShadow position={[0, 0.58, 0]}>
-        <sphereGeometry args={[0.16, 16, 16]} />
-        <meshStandardMaterial
-          color={def.color}
-          roughness={0.4}
-          metalness={0.1}
-        />
-      </mesh>
-      <mesh castShadow position={[0, 0.74, 0]}>
-        <sphereGeometry args={[0.06, 12, 12]} />
-        <meshStandardMaterial
-          color={def.accent}
-          roughness={0.35}
-          metalness={0.2}
-        />
-      </mesh>
-    </group>
-  );
-}
 
 function PreviewPawn({ pawnId }: { pawnId: PawnId }) {
   const group = useRef<Group>(null);
@@ -63,8 +25,8 @@ function PreviewPawn({ pawnId }: { pawnId: PawnId }) {
 
   return (
     <>
-      <group ref={group} position={[0, 0.05, 0]} scale={0.78}>
-        <PawnMesh key={pawnId} pawnId={pawnId} />
+      <group ref={group} position={[0, 0.05, 0]} scale={0.95}>
+        <PawnVisual key={pawnId} pawnId={pawnId} targetHeight={0.85} />
       </group>
       <OrbitControls
         makeDefault
@@ -72,7 +34,7 @@ function PreviewPawn({ pawnId }: { pawnId: PawnId }) {
         enableZoom={false}
         minPolarAngle={0.35}
         maxPolarAngle={Math.PI / 2.05}
-        target={[0, 0.32, 0]}
+        target={[0, 0.35, 0]}
         onStart={() => {
           idle.current = false;
         }}
@@ -100,6 +62,8 @@ export function LobbyPawnCarousel({
 
   const step = (dir: -1 | 1) => {
     if (available.length === 0) return;
+    unlockAudio();
+    playSfx("switch");
     const next = available[(index + dir + available.length) % available.length]!;
     onChange(next);
   };

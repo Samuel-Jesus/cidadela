@@ -25,8 +25,25 @@ import {
   updateMemberProfile,
   type RoomState,
 } from "../session/room";
+import {
+  bindUiSfxHover,
+  playSfx,
+  preloadUiSfx,
+  unlockAudio,
+} from "../audio/sfx";
+import { SfxMuteButton } from "../audio/SfxMuteButton";
 import { LobbyPawnCarousel } from "./LobbyPawnCarousel";
 import { LobbyPawnPicker, LobbyPawnToken } from "./LobbyPawnToken";
+
+function playFormClick() {
+  unlockAudio();
+  playSfx("click");
+}
+
+function playBack() {
+  unlockAudio();
+  playSfx("back");
+}
 
 export type LobbyStartMeta = {
   mode: "local" | "online";
@@ -83,6 +100,16 @@ export function LobbyScreen({ onStart }: Props) {
   const startedRef = useRef(false);
 
   const joinUrl = room ? roomJoinUrl(room.roomId) : "";
+
+  useEffect(() => {
+    preloadUiSfx();
+    bindUiSfxHover();
+  }, []);
+
+  useEffect(() => {
+    if (!error) return;
+    playSfx("error");
+  }, [error]);
 
   useEffect(() => {
     if (!allowLocalHotSeat && phase === "local") {
@@ -212,6 +239,7 @@ export function LobbyScreen({ onStart }: Props) {
   };
 
   const startLocal = () => {
+    playFormClick();
     if (!allowLocalHotSeat) {
       setError("Hot-seat local não está disponível nesta versão.");
       return;
@@ -230,6 +258,7 @@ export function LobbyScreen({ onStart }: Props) {
   };
 
   const createAsHost = () => {
+    playFormClick();
     if (!clientId) {
       setError("Aguardando autenticação…");
       return;
@@ -263,6 +292,7 @@ export function LobbyScreen({ onStart }: Props) {
   };
 
   const enterAsGuest = () => {
+    playFormClick();
     setError(null);
     const id = roomIdInput.trim().toUpperCase();
     if (!id) {
@@ -304,6 +334,7 @@ export function LobbyScreen({ onStart }: Props) {
 
   const confirmGuestJoin = () => {
     if (!room || !clientId) return;
+    playFormClick();
     setError(null);
     setBusy(true);
     void joinRoom(room.roomId, {
@@ -323,6 +354,7 @@ export function LobbyScreen({ onStart }: Props) {
 
   const saveHostProfile = () => {
     if (!room || !clientId) return;
+    playFormClick();
     setBusy(true);
     void updateMemberProfile(room.roomId, clientId, {
       name: hostName,
@@ -341,6 +373,7 @@ export function LobbyScreen({ onStart }: Props) {
 
   const beginMatch = () => {
     if (!room || !clientId) return;
+    playFormClick();
     setBusy(true);
     void startRoom(room.roomId, clientId)
       .then((result) => {
@@ -375,6 +408,7 @@ export function LobbyScreen({ onStart }: Props) {
   };
 
   const leaveToHome = () => {
+    playBack();
     clearRoomParam();
     setRoom(null);
     setPhase("home");
@@ -404,16 +438,19 @@ export function LobbyScreen({ onStart }: Props) {
       <div className="lobby__bg" aria-hidden />
 
       <div className="lobby-shell relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:py-12">
-        <header className="text-center sm:text-left">
-          <p className="hud-kicker text-[#5eead4]">Tabuleiro da Bahia</p>
-          <h1 className="font-[family-name:var(--font-game)] text-5xl font-bold leading-none tracking-tight text-[#fff7ed] sm:text-6xl">
-            Cidadela
-          </h1>
-          <p className="mt-3 max-w-md text-sm font-semibold text-[#ffd7a8] sm:text-base">
-            {allowLocalHotSeat
-              ? "Dev: hot-seat local ou sala online com link e QR."
-              : "O anfitrião cria a sala; os outros entram pelo link ou QR Code."}
-          </p>
+        <header className="flex flex-col gap-3 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
+          <div>
+            <p className="hud-kicker text-[#5eead4]">Tabuleiro da Bahia</p>
+            <h1 className="font-[family-name:var(--font-game)] text-5xl font-bold leading-none tracking-tight text-[#fff7ed] sm:text-6xl">
+              Cidadela
+            </h1>
+            <p className="mt-3 max-w-md text-sm font-semibold text-[#ffd7a8] sm:text-base">
+              {allowLocalHotSeat
+                ? "Dev: hot-seat local ou sala online com link e QR."
+                : "O anfitrião cria a sala; os outros entram pelo link ou QR Code."}
+            </p>
+          </div>
+          <SfxMuteButton className="mx-auto sm:mx-0 sm:mt-1" />
         </header>
 
         <div className="mx-auto flex w-full min-w-0 flex-1 flex-col items-stretch justify-center gap-6 lg:flex-row lg:items-center">
@@ -447,6 +484,7 @@ export function LobbyScreen({ onStart }: Props) {
                     type="button"
                     className="lobby-cta lobby-cta--dev"
                     onClick={() => {
+                      playFormClick();
                       setError(null);
                       setHomePanel(null);
                       setPhase("local");
@@ -466,6 +504,7 @@ export function LobbyScreen({ onStart }: Props) {
                       className="lobby-cta lobby-cta--create"
                       disabled={!online}
                       onClick={() => {
+                        playFormClick();
                         setError(null);
                         setHomePanel("host");
                       }}
@@ -481,6 +520,7 @@ export function LobbyScreen({ onStart }: Props) {
                       type="button"
                       className="lobby-cta lobby-cta--join"
                       onClick={() => {
+                        playFormClick();
                         setError(null);
                         setHomePanel("join");
                       }}
@@ -529,7 +569,10 @@ export function LobbyScreen({ onStart }: Props) {
                       <button
                         type="button"
                         className="deed-btn deed-btn--soft flex-1"
-                        onClick={() => setHomePanel(null)}
+                        onClick={() => {
+                          playBack();
+                          setHomePanel(null);
+                        }}
                       >
                         Voltar
                       </button>
@@ -568,7 +611,10 @@ export function LobbyScreen({ onStart }: Props) {
                       <button
                         type="button"
                         className="deed-btn deed-btn--soft flex-1"
-                        onClick={() => setHomePanel(null)}
+                        onClick={() => {
+                          playBack();
+                          setHomePanel(null);
+                        }}
                       >
                         Voltar
                       </button>

@@ -1,4 +1,5 @@
 import { getPawnDef, type PawnId } from "@cidadela/shared";
+import { playSfx, unlockAudio } from "../audio/sfx";
 
 type Props = {
   pawnId: PawnId;
@@ -105,7 +106,10 @@ export function LobbyPawnPicker({
             disabled={unavailable}
             showLabel
             onClick={() => {
-              if (!unavailable) onChange(id);
+              if (unavailable) return;
+              unlockAudio();
+              playSfx("select");
+              onChange(id);
             }}
           />
         );
