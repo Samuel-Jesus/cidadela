@@ -1437,6 +1437,28 @@ export function App() {
   const localControlsTurn =
     !onlineSession || onlineSession.localPlayerId === activePlayerId;
 
+  const localPlayerId = onlineSession?.localPlayerId ?? null;
+
+  const showEventToLocal =
+    showEventModal &&
+    (!localPlayerId || localPlayerId === activePlayerId);
+
+  const pendingRentForLocal =
+    pendingRent &&
+      (!localPlayerId || pendingRent.ownerId === localPlayerId)
+      ? pendingRent
+      : null;
+
+  const pendingDebtForLocal =
+    pendingDebt &&
+      (!localPlayerId || pendingDebt.debtorId === localPlayerId)
+      ? pendingDebt
+      : null;
+
+  const showTradeToLocal =
+    showTrade &&
+    (!localPlayerId || localPlayerId === activePlayerId);
+
   const walletPlayer =
     onlineSession != null
       ? (players.find((p) => p.id === onlineSession.localPlayerId) ??
@@ -1606,8 +1628,8 @@ export function App() {
         turnPhase={turnPhase}
         turnHint={turnLabel}
         jailError={jailError}
-        pendingDebt={pendingDebt}
-        pendingRent={pendingRent}
+        pendingDebt={pendingDebtForLocal}
+        pendingRent={pendingRentForLocal}
         debtRaisable={debtRaisable}
         auctionQueueCount={auctionQueueCount}
         onSelectPlayer={() => { }}
@@ -1636,7 +1658,7 @@ export function App() {
         }
         onClaimRent={() => sendIntent({ type: "claimRent" }, onClaimRent)}
       />
-      {showEventModal ? (
+      {showEventToLocal ? (
         <DrawnCardModal
           card={drawnCard}
           notes={cardNotes}
@@ -1646,7 +1668,10 @@ export function App() {
           }
         />
       ) : null}
-      {showTrade && activePlayerId && !winnerId && !showEventModal ? (
+      {showTradeToLocal &&
+        activePlayerId &&
+        !winnerId &&
+        !showEventToLocal ? (
         <TradeOverlay
           initiatorId={
             onlineSession?.localPlayerId ?? activePlayerId
@@ -1675,7 +1700,10 @@ export function App() {
           }}
         />
       ) : null}
-      {auction && turnPhase === "auction" && !showEventModal && !winnerId ? (
+      {auction &&
+        turnPhase === "auction" &&
+        !showEventToLocal &&
+        !winnerId ? (
         <AuctionOverlay
           key={`${auction.lot.kind}-${auction.lot.spaceIndex}`}
           lot={auction.lot}
@@ -1719,7 +1747,7 @@ export function App() {
           }
         />
       ) : null}
-      {winner && !showEventModal ? (
+      {winner && !showEventToLocal ? (
         <VictoryOverlay
           winner={winner}
           players={players}
