@@ -11,12 +11,14 @@ import {
   type Mesh,
   type Object3D,
 } from "three";
-import { fitToSlot } from "./FitToSlot";
+import { fitToSlot, hideOversizedMeshes } from "./FitToSlot";
 
 type Props = {
   url: string;
   fitWidth?: number;
   fitDepth?: number;
+  fitIncludesPads?: boolean;
+  hideFootprintAbove?: number;
   targetHeight?: number;
   maxFootprint?: number;
   rotationY?: number;
@@ -28,6 +30,8 @@ export function GltfLandmark({
   url,
   fitWidth,
   fitDepth,
+  fitIncludesPads = false,
+  hideFootprintAbove,
   targetHeight = 1.35,
   maxFootprint = 2.4,
   rotationY = 0,
@@ -59,12 +63,24 @@ export function GltfLandmark({
       }
     });
 
+    if (hideFootprintAbove != null) hideOversizedMeshes(root, hideFootprintAbove);
+
     if (fitWidth != null) {
-      fitToSlot(root, fitWidth, fitDepth);
+      fitToSlot(root, fitWidth, fitDepth, !fitIncludesPads);
     } else {
       fitOnTile(root, targetHeight, maxFootprint);
     }
-  }, [source, fitWidth, fitDepth, targetHeight, maxFootprint, rotationY, polish]);
+  }, [
+    source,
+    fitWidth,
+    fitDepth,
+    fitIncludesPads,
+    hideFootprintAbove,
+    targetHeight,
+    maxFootprint,
+    rotationY,
+    polish,
+  ]);
 
   useFrame((_, dt) => {
     const g = wrap.current;
@@ -156,4 +172,5 @@ function polishMaterials(object: Object3D) {
 
 export function preloadLandmarkModels() {
   useGLTF.preload("/models/elevador-lacerda.gltf");
+  useGLTF.preload("/models/forte-sao-marcelo.gltf");
 }

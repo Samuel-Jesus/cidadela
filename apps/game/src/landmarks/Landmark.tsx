@@ -11,9 +11,14 @@ type Props = {
 };
 
 export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props) {
-  const fitWidth = (slotWidth ?? 1.2) * 0.95;
-  const fitDepth = (slotDepth ?? 1.2) * 0.55;
+  const isGltf = index === 10 || index === 15;
+  const fitWidth = (slotWidth ?? 1.2) * (isGltf ? 0.98 : 0.95);
+  const fitDepth = (slotDepth ?? 1.2) * (isGltf ? 0.98 : 0.55);
 
+  if (index === 10) {
+    const forteFit = Math.min(slotWidth ?? 1.2, slotDepth ?? 1.2) * 0.85;
+    return <ForteSaoMarcelo accent={accent} fitWidth={forteFit} fitDepth={forteFit} />;
+  }
   if (index === 15) {
     return <ElevadorLacerda accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
@@ -51,8 +56,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
       return <Cachoeira />;
     case 9:
       return <Valenca />;
-    case 10:
-      return <ForteSaoMarcelo />;
     case 11:
       return <Ilheus />;
     case 12:
@@ -227,7 +230,7 @@ function Valenca() {
   );
 }
 
-function ForteSaoMarcelo() {
+function ForteSaoMarceloFallback() {
   return (
     <Group>
       <Cyl args={[0.55, 0.6, 0.45, 12]} position={[0, 0.25, 0]} color="#a04000" />
@@ -236,6 +239,30 @@ function ForteSaoMarcelo() {
       <Box args={[0.12, 0.2, 0.12]} position={[0.35, 0.72, 0.2]} color="#5d4037" />
       <Box args={[0.12, 0.2, 0.12]} position={[-0.3, 0.72, -0.15]} color="#5d4037" />
     </Group>
+  );
+}
+
+function ForteSaoMarcelo({
+  accent,
+  fitWidth,
+  fitDepth,
+}: {
+  accent?: boolean;
+  fitWidth: number;
+  fitDepth: number;
+}) {
+  return (
+    <Suspense fallback={<ForteSaoMarceloFallback />}>
+      <GltfLandmark
+        url="/models/forte-sao-marcelo.gltf"
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+        fitIncludesPads
+        hideFootprintAbove={12}
+        polish
+        accent={accent}
+      />
+    </Suspense>
   );
 }
 

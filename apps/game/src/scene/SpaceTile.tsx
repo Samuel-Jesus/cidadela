@@ -39,19 +39,22 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
     const radialDepth = side ? layout.width : layout.depth;
     const cornerSize = Math.min(layout.width, layout.depth);
 
+    const isGltf = layout.index === 10 || layout.index === 15;
     let landmarkPos: [number, number, number];
     if (corner) {
-      const inset = cornerSize * 0.18;
+      const inset = cornerSize * (isGltf ? 0.03 : 0.18);
       landmarkPos = [ox * inset, 0, oz * inset];
     } else if (side) {
-      landmarkPos = [ox * layout.width * 0.28, 0, 0];
+      const back = layout.width * (isGltf ? 0.18 : 0.28);
+      landmarkPos = [ox * back, 0, 0];
     } else {
-      landmarkPos = [0, 0, oz * layout.depth * 0.28];
+      const back = layout.depth * (isGltf ? 0.18 : 0.28);
+      landmarkPos = [0, 0, oz * back];
     }
 
     return {
-      slotWidth: corner ? cornerSize * 0.72 : trackWidth,
-      slotDepth: corner ? cornerSize * 0.72 : radialDepth,
+      slotWidth: corner ? cornerSize * 0.9 : trackWidth,
+      slotDepth: corner ? cornerSize * 0.9 : radialDepth,
       landmarkPos,
     };
   }, [layout]);
