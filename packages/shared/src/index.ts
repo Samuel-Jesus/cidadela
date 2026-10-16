@@ -66,6 +66,13 @@ export {
   payPendingDebt,
   declareBankruptcy,
 } from "./bankruptcy";
+export type { AuctionLot, BidValidation } from "./auction";
+export {
+  minBidIncrement,
+  minimumNextBid,
+  validateBid,
+  awardAuctionLot,
+} from "./auction";
 export type { PropertyRentRow } from "./rent";
 export {
   TRANSPORT_RENT_BY_COUNT,
@@ -98,3 +105,12 @@ export {
   canSellBuilding,
   sellBuilding,
 } from "./propertyActions";
+export type { BankStock } from "./bankStock";
+export {
+  BANK_POUSADAS_MAX,
+  BANK_RESORTS_MAX,
+  createBankStock,
+  countBuildingsOnBoard,
+  bankStockFromPlayers,
+  countBuildingsInHoldings,
+} from "./bankStock";

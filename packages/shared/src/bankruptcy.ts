@@ -1,4 +1,5 @@
 import { getSpace } from "./board";
+import type { AuctionLot } from "./auction";
 import {
   returnCardToBottom,
   type DecksState,
@@ -22,27 +23,27 @@ export type DebtInfo = {
 
 export type SettleResult =
   | {
-      status: "paid";
-      players: PlayerState[];
-      decks: DecksState;
-      notes: string[];
-    }
+    status: "paid";
+    players: PlayerState[];
+    decks: DecksState;
+    notes: string[];
+  }
   | {
-      status: "shortfall";
-      players: PlayerState[];
-      decks: DecksState;
-      debt: DebtInfo;
-      raisable: number;
-      notes: string[];
-    }
+    status: "shortfall";
+    players: PlayerState[];
+    decks: DecksState;
+    debt: DebtInfo;
+    raisable: number;
+    notes: string[];
+  }
   | {
-      status: "bankrupt";
-      players: PlayerState[];
-      decks: DecksState;
-      debt: DebtInfo;
-      auctionQueue: number[];
-      notes: string[];
-    };
+    status: "bankrupt";
+    players: PlayerState[];
+    decks: DecksState;
+    debt: DebtInfo;
+    auctionQueue: AuctionLot[];
+    notes: string[];
+  };
 
 function buildingRefund(holding: PropertyHolding): number {
   const space = getSpace(holding.spaceIndex);
@@ -50,14 +51,11 @@ function buildingRefund(holding: PropertyHolding): number {
   const unit = BUILD_COST_BY_GROUP[space.colorGroup];
   const half = Math.floor(unit / 2);
   if (holding.hasResort) {
-    // Resort → 4 pousadas no terreno + refund do resort; liquidação força:
-    // valor = metade do resort + 4× metade pousada (= 5× half)
     return half * 5;
   }
   return holding.pousadas * half;
 }
 
-/** Quanto o jogador ainda consegue levantar (caixa + vender tudo + hipotecar). */
 export function maxRaisableCash(player: PlayerState): number {
   let total = player.cash;
   for (const h of player.properties) {
@@ -71,7 +69,6 @@ function stripBuildings(holding: PropertyHolding): PropertyHolding {
   return { ...holding, pousadas: 0, hasResort: false };
 }
 
-/** Vende todas as construções e hipoteca tudo o que ainda não está. */
 export function liquidateAll(
   players: readonly PlayerState[],
   playerId: string,
@@ -123,10 +120,6 @@ function applyMortgagedInterestOnReceive(
   return next;
 }
 
-/**
- * Tenta pagar `amount`. Se faltar dinheiro mas ainda dá para liquidar,
- * devolve shortfall (UI vende/hipoteca). Se nem liquidando cobre → falência.
- */
 export function settleDebt(
   players: readonly PlayerState[],
   decks: DecksState,
@@ -182,7 +175,6 @@ export function settleDebt(
   };
 }
 
-/** Depois que o jogador liquidou o bastante, tenta pagar de novo. */
 export function payPendingDebt(
   players: readonly PlayerState[],
   decks: DecksState,
@@ -206,7 +198,7 @@ export function declareBankruptcy(
 ): {
   players: PlayerState[];
   decks: DecksState;
-  auctionQueue: number[];
+  auctionQueue: AuctionLot[];
   notes: string[];
 } {
   const notes: string[] = [];
@@ -219,7 +211,7 @@ export function declareBankruptcy(
   const cash = debtor.cash;
   const protections = [...debtor.protectionCardIds];
   let nextDecks = decks;
-  let auctionQueue: number[] = [];
+  let auctionQueue: AuctionLot[] = [];
 
   let nextPlayers = players.map((p) => {
     if (p.id !== debtorId) return p;
@@ -258,7 +250,10 @@ export function declareBankruptcy(
     for (const cardId of protections) {
       nextDecks = returnCardToBottom(nextDecks, cardId);
     }
-    auctionQueue = holdings.map((h) => h.spaceIndex);
+    auctionQueue = holdings.map((h) => ({
+      spaceIndex: h.spaceIndex,
+      mortgaged: h.mortgaged,
+    }));
     notes.push(
       `Falência para o banco: $${cash} e construções ao banco. ${auctionQueue.length} propriedade(s) vão a leilão.`,
     );

@@ -1,10 +1,13 @@
 import type { DiceRoll } from "@cidadela/engine";
 import {
+  BANK_POUSADAS_MAX,
+  BANK_RESORTS_MAX,
   COLOR_GROUP_LABELS,
   DECK_LABELS,
   JAIL_FINE,
   JAIL_MAX_ATTEMPTS,
   KIND_LABELS,
+  bankStockFromPlayers,
   deckIdFromSpaceKind,
   findPropertyOwner,
   formatCash,
@@ -17,7 +20,7 @@ import {
   type PlayerState,
 } from "@cidadela/shared";
 
-type TurnPhase = "roll" | "busy" | "action" | "debt";
+type TurnPhase = "roll" | "busy" | "action" | "debt" | "auction";
 
 type Props = {
   selectedIndex: number | null;
@@ -95,6 +98,7 @@ export function BoardHud({
   const canDrawCard = Boolean(
     active && cardDeck && turnPhase !== "busy" && !diceRolling,
   );
+  const bankStock = bankStockFromPlayers(players);
 
   return (
     <aside className="hud-panel pointer-events-auto absolute right-4 top-4 z-10 flex max-h-[calc(100dvh-2rem)] w-[19.5rem] flex-col gap-3 overflow-y-auto p-3.5">
@@ -121,6 +125,10 @@ export function BoardHud({
             Rola, compra, ri e não vai pro Forte!
           </p>
         )}
+        <p className="mt-1.5 text-[11px] font-bold tabular-nums text-[#6b5344]">
+          Banco · {bankStock.pousadas}/{BANK_POUSADAS_MAX} pousadas ·{" "}
+          {bankStock.resorts}/{BANK_RESORTS_MAX} resorts
+        </p>
       </header>
 
       <section className="hud-card space-y-2 p-2.5">
@@ -310,10 +318,10 @@ export function BoardHud({
           </div>
         ) : null}
 
-        {auctionQueueCount > 0 ? (
+        {auctionQueueCount > 0 && turnPhase !== "auction" ? (
           <p className="text-[11px] font-bold text-[#b45309]">
-            Leilão pendente: {auctionQueueCount} escritura
-            {auctionQueueCount === 1 ? "" : "s"} (em breve)
+            Leilão na fila: {auctionQueueCount} escritura
+            {auctionQueueCount === 1 ? "" : "s"}
           </p>
         ) : null}
 
@@ -323,7 +331,7 @@ export function BoardHud({
             onClick={onPassTurn}
             className="hud-btn hud-btn--soft w-full px-2.5 py-2 text-sm"
           >
-            {canBuy ? "Não comprar · passar" : "Passar a vez"}
+            {canBuy ? "Não comprar · leilão" : "Passar a vez"}
           </button>
         ) : null}
 

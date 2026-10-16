@@ -5,6 +5,8 @@ import {
   KIND_LABELS,
   PROPERTY_RENT,
   TRANSPORT_RENT_BY_COUNT,
+  BANK_POUSADAS_MAX,
+  BANK_RESORTS_MAX,
   buildCostForSpace,
   canBuildPousada,
   canBuildResort,
@@ -15,6 +17,7 @@ import {
   mortgageInterest,
   mortgageValue,
   redeemCost,
+  type BankStock,
   type PlayerState,
   type PropertyHolding,
 } from "@cidadela/shared";
@@ -23,6 +26,7 @@ import { GROUP_COLORS } from "../scene/colors";
 type Props = {
   player: PlayerState;
   holding: PropertyHolding;
+  bankStock: BankStock;
   onClose: () => void;
   onMortgage: () => void;
   onRedeem: () => void;
@@ -45,6 +49,7 @@ function bandInk(hex: string): "light" | "dark" {
 export function DeedDetailOverlay({
   player,
   holding,
+  bankStock,
   onClose,
   onMortgage,
   onRedeem,
@@ -73,9 +78,9 @@ export function DeedDetailOverlay({
 
   const mortgageOk = canMortgage(player, holding.spaceIndex);
   const redeemOk = holding.mortgaged && player.cash >= rCost;
-  const sellOk = canSellBuilding(player, holding.spaceIndex);
-  const pousadaOk = canBuildPousada(player, holding.spaceIndex);
-  const resortOk = canBuildResort(player, holding.spaceIndex);
+  const sellOk = canSellBuilding(player, holding.spaceIndex, bankStock);
+  const pousadaOk = canBuildPousada(player, holding.spaceIndex, bankStock);
+  const resortOk = canBuildResort(player, holding.spaceIndex, bankStock);
 
   const currentLabel = holding.mortgaged
     ? "Hipotecada (sem aluguel)"
@@ -226,7 +231,9 @@ export function DeedDetailOverlay({
               <p className="deed-sheet__note">
                 Custo neste grupo:{" "}
                 {formatCash(BUILD_COST_BY_GROUP[space.colorGroup])}. Construção
-                uniforme obrigatória.
+                uniforme obrigatória. Estoque do banco: {bankStock.pousadas}/
+                {BANK_POUSADAS_MAX} pousadas · {bankStock.resorts}/
+                {BANK_RESORTS_MAX} resorts.
               </p>
             </section>
           ) : null}

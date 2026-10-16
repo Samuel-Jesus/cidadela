@@ -5,6 +5,7 @@ import {
   type DeckId,
   type DecksState,
 } from "./cards";
+import type { AuctionLot } from "./auction";
 import {
   settleDebt,
   type DebtInfo,
@@ -33,7 +34,7 @@ export type SpaceResolveOptions = {
     notes: string[];
     followUpCards: CardDef[];
     pendingDebt?: DebtInfo | null;
-    auctionQueue?: number[];
+    auctionQueue?: AuctionLot[];
   };
 };
 
@@ -43,7 +44,7 @@ export type SpaceResolveResult = {
   notes: string[];
   followUpCards: CardDef[];
   pendingDebt: DebtInfo | null;
-  auctionQueue: number[];
+  auctionQueue: AuctionLot[];
 };
 
 export function resolveSpaceLanding(
@@ -58,7 +59,7 @@ export function resolveSpaceLanding(
   let nextPlayers = [...players];
   let nextDecks = decks;
   let pendingDebt: DebtInfo | null = null;
-  const auctionQueue: number[] = [];
+  const auctionQueue: AuctionLot[] = [];
 
   const space = getSpace(spaceIndex);
   if (!nextPlayers.some((p) => p.id === playerId)) {

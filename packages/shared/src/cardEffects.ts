@@ -9,6 +9,7 @@ import {
   type DeckId,
   type DecksState,
 } from "./cards";
+import type { AuctionLot } from "./auction";
 import { settleDebt, type DebtInfo } from "./bankruptcy";
 import { sendToJail } from "./jail";
 import { resolveSpaceLanding } from "./spaceResolve";
@@ -26,7 +27,7 @@ export type CardResolveResult = {
   followUpCards: CardDef[];
   utilityDice?: { die1: number; die2: number; total: number };
   pendingDebt?: DebtInfo | null;
-  auctionQueue?: number[];
+  auctionQueue?: AuctionLot[];
 };
 
 const MAX_CARD_DEPTH = 3;
@@ -161,7 +162,7 @@ export function resolveCardEffect(
   let nextDecks = decks;
   let utilityDice: CardResolveResult["utilityDice"];
   let pendingDebt: DebtInfo | null = null;
-  let auctionQueue: number[] = [];
+  let auctionQueue: AuctionLot[] = [];
   let movedTo: number | null = null;
   let landingOpts: {
     transportMultiplier?: number;
@@ -273,9 +274,6 @@ export function resolveCardEffect(
       if (settled.status === "bankrupt") {
         auctionQueue = settled.auctionQueue;
       } else if (settled.status === "paid") {
-        // Redistribui o que foi ao banco para os outros (settleDebt bank consome).
-        // Re-paga cada um a partir do pagador (já debitado via bank):
-        // settleDebt com bank remove cash — crédito nos outros:
         nextPlayers = nextPlayers.map((p) => {
           if (p.id === playerId || p.bankrupt) return p;
           return { ...p, cash: p.cash + effect.amount };

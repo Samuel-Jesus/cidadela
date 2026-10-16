@@ -4,6 +4,7 @@ import {
   GO_BONUS,
   JAIL_FINE,
   JAIL_MAX_ATTEMPTS,
+  awardAuctionLot,
   buyProperty,
   createDecks,
   createPlayers,
@@ -22,12 +23,15 @@ import {
   resolveSpaceLanding,
   sendToJail,
   useProtectionToLeaveJail,
+  validateBid,
+  type AuctionLot,
   type CardDef,
   type DebtInfo,
   type DecksState,
   type PlayerState,
 } from "@cidadela/shared";
 import { preloadLandmarkModels } from "./landmarks/GltfLandmark";
+import { AuctionOverlay } from "./ui/AuctionOverlay";
 import { BoardCanvas } from "./scene/BoardCanvas";
 import { BoardHud } from "./ui/BoardHud";
 import { DrawnCardModal } from "./ui/DrawnCardModal";
@@ -35,7 +39,17 @@ import { WalletPanel } from "./ui/WalletPanel";
 
 preloadLandmarkModels();
 
-type TurnPhase = "roll" | "busy" | "action" | "debt";
+type TurnPhase = "roll" | "busy" | "action" | "debt" | "auction";
+
+type AuctionSession = {
+  lot: AuctionLot;
+  queue: AuctionLot[];
+  currentBid: number;
+  highBidderId: string | null;
+  excludedIds: string[];
+  passesSinceBid: number;
+  resumePlayerId: string;
+};
 
 type PendingLanding = {
   playerId: string;
@@ -115,7 +129,9 @@ export function App() {
   const [consecutiveDoubles, setConsecutiveDoubles] = useState(0);
   const [jailError, setJailError] = useState<string | null>(null);
   const [pendingDebt, setPendingDebt] = useState<DebtInfo | null>(null);
-  const [auctionQueue, setAuctionQueue] = useState<number[]>([]);
+  const [auction, setAuction] = useState<AuctionSession | null>(null);
+  const pendingAuctionsRef = useRef<AuctionLot[]>([]);
+  const auctionAdvanceAfterModalRef = useRef<AuctionSession | null>(null);
 
   const doublesRef = useRef(0);
   const extraRollRef = useRef(false);
@@ -168,6 +184,68 @@ export function App() {
     if (next) setSelectedIndex(next.position);
   }, []);
 
+  const resumeAfterAuctions = useCallback(
+    (playerId: string) => {
+      setAuction(null);
+      if (extraRollRef.current) {
+        extraRollRef.current = false;
+        setTurnPhase("roll");
+        return;
+      }
+      startNextTurn(playerId);
+    },
+    [startNextTurn],
+  );
+
+  const beginAuctions = useCallback(
+    (lots: AuctionLot[], resumePlayerId: string) => {
+      const pending = [...pendingAuctionsRef.current, ...lots];
+      pendingAuctionsRef.current = [];
+      if (pending.length === 0) {
+        resumeAfterAuctions(resumePlayerId);
+        return;
+      }
+      const [lot, ...queue] = pending;
+      setAuction({
+        lot: lot!,
+        queue,
+        currentBid: 0,
+        highBidderId: null,
+        excludedIds: [],
+        passesSinceBid: 0,
+        resumePlayerId,
+      });
+      setTurnPhase("auction");
+    },
+    [resumeAfterAuctions],
+  );
+
+  const enqueueAuctions = useCallback((lots: AuctionLot[]) => {
+    if (lots.length === 0) return;
+    pendingAuctionsRef.current = [...pendingAuctionsRef.current, ...lots];
+  }, []);
+
+  const advanceAuctionQueue = useCallback(
+    (session: AuctionSession) => {
+      if (session.queue.length === 0) {
+        resumeAfterAuctions(session.resumePlayerId);
+        return;
+      }
+      const [lot, ...queue] = session.queue;
+      setAuction({
+        lot: lot!,
+        queue,
+        currentBid: 0,
+        highBidderId: null,
+        excludedIds: [],
+        passesSinceBid: 0,
+        resumePlayerId: session.resumePlayerId,
+      });
+      setTurnPhase("auction");
+    },
+    [resumeAfterAuctions],
+  );
+
   const advanceAfterResolve = useCallback(
     (playerId: string, spaceIndex: number) => {
       if (forceEndTurnRef.current) {
@@ -210,13 +288,11 @@ export function App() {
   const applyDebtOutcome = useCallback(
     (
       debt: DebtInfo | null | undefined,
-      queue: number[] | undefined,
+      queue: AuctionLot[] | undefined,
       afterPlayerId: string,
       spaceIndex: number,
     ) => {
-      if (queue?.length) {
-        setAuctionQueue((prev) => [...prev, ...queue]);
-      }
+      if (queue?.length) enqueueAuctions(queue);
       if (debt) {
         setPendingDebt(debt);
         setTurnPhase("debt");
@@ -224,12 +300,20 @@ export function App() {
       }
       const player = playersRef.current.find((p) => p.id === afterPlayerId);
       if (player?.bankrupt) {
-        startNextTurn(afterPlayerId);
+        if (pendingAuctionsRef.current.length > 0) {
+          beginAuctions([], afterPlayerId);
+        } else {
+          startNextTurn(afterPlayerId);
+        }
+        return;
+      }
+      if (pendingAuctionsRef.current.length > 0) {
+        beginAuctions([], afterPlayerId);
         return;
       }
       advanceAfterResolve(afterPlayerId, spaceIndex);
     },
-    [advanceAfterResolve, startNextTurn],
+    [advanceAfterResolve, startNextTurn, enqueueAuctions, beginAuctions],
   );
 
   const onPayJailFine = useCallback(() => {
@@ -281,7 +365,8 @@ export function App() {
       setConsecutiveDoubles(0);
       pendingLandingRef.current = null;
       setPendingDebt(null);
-      setAuctionQueue([]);
+      setAuction(null);
+      pendingAuctionsRef.current = [];
       setTurnPhase("roll");
     },
     [dismissEventUi],
@@ -354,13 +439,29 @@ export function App() {
 
   const onPassTurn = useCallback(() => {
     if (!activePlayerId || turnPhase !== "action") return;
+    if (
+      selectedIndex !== null &&
+      isUnownedBuyable(playersRef.current, selectedIndex)
+    ) {
+      beginAuctions(
+        [{ spaceIndex: selectedIndex, mortgaged: false }],
+        activePlayerId,
+      );
+      return;
+    }
     if (extraRollRef.current) {
       extraRollRef.current = false;
       setTurnPhase("roll");
       return;
     }
     startNextTurn(activePlayerId);
-  }, [activePlayerId, turnPhase, startNextTurn]);
+  }, [
+    activePlayerId,
+    turnPhase,
+    selectedIndex,
+    startNextTurn,
+    beginAuctions,
+  ]);
 
   const onDrawCard = useCallback(() => {
     if (!activePlayerId || selectedIndex === null || showEventModal) return;
@@ -384,7 +485,7 @@ export function App() {
       if (moved) setSelectedIndex(moved.position);
       if (resolved.pendingDebt) setPendingDebt(resolved.pendingDebt);
       if (resolved.auctionQueue?.length) {
-        setAuctionQueue((q) => [...q, ...resolved.auctionQueue!]);
+        enqueueAuctions(resolved.auctionQueue);
       }
       const shown = presentEvent(resolved.notes, resolved.followUpCards);
       if (!shown) {
@@ -404,9 +505,22 @@ export function App() {
     turnPhase,
     presentEvent,
     applyDebtOutcome,
+    enqueueAuctions,
   ]);
 
   const onDismissEvent = useCallback(() => {
+    const pendingAdvance = auctionAdvanceAfterModalRef.current;
+    if (pendingAdvance) {
+      auctionAdvanceAfterModalRef.current = null;
+      dismissEventUi();
+      advanceAuctionQueue(pendingAdvance);
+      return;
+    }
+    if (auction) {
+      dismissEventUi();
+      setTurnPhase("auction");
+      return;
+    }
     const playerId = activeRef.current;
     dismissEventUi();
     if (!playerId) {
@@ -425,6 +539,8 @@ export function App() {
     selectedIndex,
     pendingDebt,
     applyDebtOutcome,
+    advanceAuctionQueue,
+    auction,
   ]);
 
   const onPayDebt = useCallback(() => {
@@ -459,7 +575,7 @@ export function App() {
     if (settled.status === "bankrupt") {
       setPendingDebt(null);
       if (settled.auctionQueue.length) {
-        setAuctionQueue((q) => [...q, ...settled.auctionQueue]);
+        enqueueAuctions(settled.auctionQueue);
       }
       presentEvent(settled.notes, []);
       return;
@@ -474,6 +590,7 @@ export function App() {
     presentEvent,
     advanceAfterResolve,
     selectedIndex,
+    enqueueAuctions,
   ]);
 
   const onLiquidateForDebt = useCallback(() => {
@@ -497,10 +614,10 @@ export function App() {
     setDecks(broke.decks);
     setPendingDebt(null);
     if (broke.auctionQueue.length) {
-      setAuctionQueue((q) => [...q, ...broke.auctionQueue]);
+      enqueueAuctions(broke.auctionQueue);
     }
     presentEvent(broke.notes, []);
-  }, [pendingDebt, turnPhase, presentEvent]);
+  }, [pendingDebt, turnPhase, presentEvent, enqueueAuctions]);
 
   const onRollDice = useCallback(() => {
     if (!activeRef.current || diceRolling || turnPhase !== "roll") return;
@@ -679,7 +796,7 @@ export function App() {
           setPendingDebt(resolved.pendingDebt);
         }
         if (resolved.auctionQueue.length) {
-          setAuctionQueue((q) => [...q, ...resolved.auctionQueue]);
+          enqueueAuctions(resolved.auctionQueue);
         }
 
         const prefix = pendingNotesRef.current;
@@ -700,11 +817,126 @@ export function App() {
         return resolved.players;
       });
     },
-    [presentEvent, applyDebtOutcome],
+    [presentEvent, applyDebtOutcome, enqueueAuctions],
   );
+
+  const auctionPassesNeeded = players.filter((p) => !p.bankrupt).length;
+
+  const onAuctionBid = useCallback(
+    (playerId: string, amount: number) => {
+      if (!auction) return;
+      const player = playersRef.current.find((p) => p.id === playerId);
+      if (!player) return;
+      const check = validateBid(
+        player,
+        amount,
+        auction.currentBid,
+        auction.lot.spaceIndex,
+        auction.excludedIds,
+      );
+      if (!check.ok) {
+        presentEvent([check.error], []);
+        return;
+      }
+      setAuction({
+        ...auction,
+        currentBid: amount,
+        highBidderId: playerId,
+        passesSinceBid: 0,
+      });
+    },
+    [auction, presentEvent],
+  );
+
+  const finishAuctionLot = useCallback(
+    (session: AuctionSession, notes: string[]) => {
+      if (presentEvent(notes, [])) {
+        auctionAdvanceAfterModalRef.current = session;
+        return;
+      }
+      advanceAuctionQueue(session);
+    },
+    [presentEvent, advanceAuctionQueue],
+  );
+
+  const onAuctionPass = useCallback(
+    (_playerId: string) => {
+      if (!auction) return;
+      const nextPasses = auction.passesSinceBid + 1;
+      if (auction.currentBid > 0 && nextPasses >= auctionPassesNeeded) {
+        const awarded = awardAuctionLot(
+          playersRef.current,
+          auction.highBidderId!,
+          auction.lot,
+          auction.currentBid,
+        );
+        if (!awarded.ok) {
+          setAuction({
+            ...auction,
+            excludedIds: [...auction.excludedIds, auction.highBidderId!],
+            currentBid: 0,
+            highBidderId: null,
+            passesSinceBid: 0,
+          });
+          presentEvent(
+            [awarded.error, "Leilão reabre sem o jogador que falhou."],
+            [],
+          );
+          return;
+        }
+        playersRef.current = awarded.players;
+        setPlayers(awarded.players);
+        finishAuctionLot(auction, awarded.notes);
+        return;
+      }
+      if (auction.currentBid <= 0 && nextPasses >= auctionPassesNeeded) {
+        finishAuctionLot(auction, [
+          "Sem lances — propriedade continua com o banco.",
+        ]);
+        return;
+      }
+      setAuction({ ...auction, passesSinceBid: nextPasses });
+    },
+    [auction, auctionPassesNeeded, presentEvent, finishAuctionLot],
+  );
+
+  const onAuctionSell = useCallback(() => {
+    if (!auction || !auction.highBidderId || auction.currentBid <= 0) return;
+    const awarded = awardAuctionLot(
+      playersRef.current,
+      auction.highBidderId,
+      auction.lot,
+      auction.currentBid,
+    );
+    if (!awarded.ok) {
+      setAuction({
+        ...auction,
+        excludedIds: [...auction.excludedIds, auction.highBidderId],
+        currentBid: 0,
+        highBidderId: null,
+        passesSinceBid: 0,
+      });
+      presentEvent(
+        [awarded.error, "Leilão reabre sem o jogador que falhou."],
+        [],
+      );
+      return;
+    }
+    playersRef.current = awarded.players;
+    setPlayers(awarded.players);
+    finishAuctionLot(auction, awarded.notes);
+  }, [auction, presentEvent, finishAuctionLot]);
+
+  const onAuctionNoBids = useCallback(() => {
+    if (!auction) return;
+    finishAuctionLot(auction, [
+      "Sem lances — propriedade continua com o banco.",
+    ]);
+  }, [auction, finishAuctionLot]);
 
   const turnLabel = (() => {
     if (!activePlayer) return null;
+    if (turnPhase === "auction") return "Leilão em andamento";
     if (turnPhase === "roll" && activePlayer.inJail) {
       return `No Forte · tentativa ${activePlayer.jailAttempts}/${JAIL_MAX_ATTEMPTS}`;
     }
@@ -724,6 +956,10 @@ export function App() {
     pendingDebt && activePlayer
       ? maxRaisableCash(activePlayer)
       : 0;
+
+  const auctionQueueCount =
+    (auction ? 1 + auction.queue.length : 0) +
+    pendingAuctionsRef.current.length;
 
   return (
     <div className="relative h-dvh w-dvw overflow-hidden bg-[#120c08]">
@@ -762,7 +998,7 @@ export function App() {
         jailError={jailError}
         pendingDebt={pendingDebt}
         debtRaisable={debtRaisable}
-        auctionQueueCount={auctionQueue.length}
+        auctionQueueCount={auctionQueueCount}
         onSelectPlayer={() => { }}
         onPlayerCountChange={handlePlayerCountChange}
         onMoveActiveToSelected={onMoveActiveToSelected}
@@ -783,6 +1019,23 @@ export function App() {
           notes={cardNotes}
           followUpCards={followUpCards}
           onDismiss={onDismissEvent}
+        />
+      ) : null}
+      {auction && turnPhase === "auction" && !showEventModal ? (
+        <AuctionOverlay
+          key={auction.lot.spaceIndex}
+          lot={auction.lot}
+          queueRemaining={1 + auction.queue.length}
+          players={players}
+          currentBid={auction.currentBid}
+          highBidderId={auction.highBidderId}
+          excludedIds={auction.excludedIds}
+          passesNeeded={auctionPassesNeeded}
+          passesSinceBid={auction.passesSinceBid}
+          onBid={onAuctionBid}
+          onPass={onAuctionPass}
+          onSell={onAuctionSell}
+          onNoBids={onAuctionNoBids}
         />
       ) : null}
       <p className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-[#ffe8c8]/80">

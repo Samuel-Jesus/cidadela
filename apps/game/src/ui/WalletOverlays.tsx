@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   DECK_LABELS,
   PROTECTION_LABELS,
+  bankStockFromPlayers,
   buildPousada,
   buildResort,
   mortgageProperty,
@@ -58,6 +59,8 @@ export function WalletOverlays({
 
   if (!player) return null;
 
+  const bankStock = bankStockFromPlayers(players);
+
   const runDeedAction = (
     fn: (
       players: PlayerState[],
@@ -88,6 +91,7 @@ export function WalletOverlays({
         <DeedDetailOverlay
           player={player}
           holding={detailDeed}
+          bankStock={bankStock}
           actionError={deedError}
           onClose={() => {
             onDetailDeedChange(null);

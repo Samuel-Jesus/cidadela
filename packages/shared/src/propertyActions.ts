@@ -1,4 +1,6 @@
 import { COLOR_GROUPS, getSpace } from "./board";
+import type { BankStock } from "./bankStock";
+import { bankStockFromPlayers } from "./bankStock";
 import {
   colorGroupHasMortgage,
   ownsFullColorGroup,
@@ -164,6 +166,7 @@ export function redeemProperty(
 export function canBuildPousada(
   player: PlayerState,
   spaceIndex: number,
+  stock?: BankStock,
 ): ActionResult {
   const space = getSpace(spaceIndex);
   if (space.kind !== "propriedade" || !space.colorGroup) {
@@ -188,6 +191,13 @@ export function canBuildPousada(
     return { ok: false, error: "Construção deve ser uniforme no grupo." };
   }
 
+  if (stock && stock.pousadas < 1) {
+    return {
+      ok: false,
+      error: "Banco sem pousadas — espere alguém vender construções.",
+    };
+  }
+
   const cost = BUILD_COST_BY_GROUP[space.colorGroup];
   if (player.cash < cost) {
     return { ok: false, error: `Saldo insuficiente (precisa $${cost}).` };
@@ -202,7 +212,8 @@ export function buildPousada(
 ): ActionResult {
   const player = players.find((p) => p.id === playerId);
   if (!player) return { ok: false, error: "Jogador inválido." };
-  const check = canBuildPousada(player, spaceIndex);
+  const stock = bankStockFromPlayers(players);
+  const check = canBuildPousada(player, spaceIndex, stock);
   if (!check.ok) return check;
   const cost = buildCostForSpace(spaceIndex)!;
   return {
@@ -220,6 +231,7 @@ export function buildPousada(
 export function canBuildResort(
   player: PlayerState,
   spaceIndex: number,
+  stock?: BankStock,
 ): ActionResult {
   const space = getSpace(spaceIndex);
   if (space.kind !== "propriedade" || !space.colorGroup) {
@@ -254,6 +266,13 @@ export function canBuildResort(
     };
   }
 
+  if (stock && stock.resorts < 1) {
+    return {
+      ok: false,
+      error: "Banco sem resorts — espere alguém vender um resort.",
+    };
+  }
+
   const cost = BUILD_COST_BY_GROUP[space.colorGroup];
   if (player.cash < cost) {
     return { ok: false, error: `Saldo insuficiente (precisa $${cost}).` };
@@ -268,9 +287,11 @@ export function buildResort(
 ): ActionResult {
   const player = players.find((p) => p.id === playerId);
   if (!player) return { ok: false, error: "Jogador inválido." };
-  const check = canBuildResort(player, spaceIndex);
+  const stock = bankStockFromPlayers(players);
+  const check = canBuildResort(player, spaceIndex, stock);
   if (!check.ok) return check;
   const cost = buildCostForSpace(spaceIndex)!;
+  // 4 pousadas voltam ao banco; 1 resort sai do estoque (derivado do tabuleiro).
   return {
     ok: true,
     players: updateHolding(
@@ -286,6 +307,7 @@ export function buildResort(
 export function canSellBuilding(
   player: PlayerState,
   spaceIndex: number,
+  stock?: BankStock,
 ): ActionResult {
   const space = getSpace(spaceIndex);
   const h = holdingOf(player, spaceIndex);
@@ -301,6 +323,12 @@ export function canSellBuilding(
       return { ok: false, error: "Venda deve ser uniforme no grupo." };
     }
   }
+  if (h.hasResort && stock && stock.pousadas < 4) {
+    return {
+      ok: false,
+      error: "Banco sem 4 pousadas para desmontar o resort.",
+    };
+  }
   return { ok: true, players: [] };
 }
 
@@ -311,7 +339,8 @@ export function sellBuilding(
 ): ActionResult {
   const player = players.find((p) => p.id === playerId);
   if (!player) return { ok: false, error: "Jogador inválido." };
-  const check = canSellBuilding(player, spaceIndex);
+  const stock = bankStockFromPlayers(players);
+  const check = canSellBuilding(player, spaceIndex, stock);
   if (!check.ok) return check;
 
   const h = holdingOf(player, spaceIndex)!;
