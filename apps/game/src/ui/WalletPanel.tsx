@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import {
   COLOR_GROUP_LABELS,
   KIND_LABELS,
+  PROPERTY_RENT,
   PROTECTION_LABELS,
   formatCash,
   getCard,
@@ -19,6 +20,16 @@ type Props = {
   players: PlayerState[];
   onPlayersChange: (players: PlayerState[]) => void;
 };
+
+function bandInk(hex: string): "light" | "dark" {
+  const n = Number.parseInt(hex.replace("#", ""), 16);
+  if (Number.isNaN(n)) return "light";
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.55 ? "dark" : "light";
+}
 
 export function WalletPanel({ player, players, onPlayersChange }: Props) {
   const [open, setOpen] = useState(false);
@@ -78,16 +89,16 @@ export function WalletPanel({ player, players, onPlayersChange }: Props) {
                     {def.label}
                   </p>
                   <p className="text-[11px] text-[#8a6a4e]">
-                    {player.inJail ? "no Forte 😅" : "sua carteira"}
+                    {player.inJail ? "no Forte" : "sua carteira"}
                   </p>
                 </div>
               </div>
               <div className="mt-3 flex items-end justify-between gap-2">
-                <p className="font-serif text-2xl leading-none tabular-nums text-[#1f6b45]">
+                <p className="font-[family-name:var(--font-game)] text-2xl leading-none tabular-nums text-[#1f6b45]">
                   {formatCash(player.cash)}
                 </p>
                 <p className="rounded-full bg-[#fff3d6] px-2 py-0.5 text-[11px] font-medium text-[#b45309] group-hover:bg-[#ffe8a3]">
-                  abrir ♥
+                  abrir
                 </p>
               </div>
               <p className="mt-2 text-[11px] text-[#9a7b5c]">
@@ -130,7 +141,7 @@ export function WalletPanel({ player, players, onPlayersChange }: Props) {
                 <p id={titleId} className="relative z-[1] text-sm text-[#d8f3e4]">
                   {def.label}
                 </p>
-                <p className="relative z-[1] mt-1 font-serif text-3xl tabular-nums text-white">
+                <p className="relative z-[1] mt-1 font-[family-name:var(--font-game)] text-3xl tabular-nums text-white">
                   {formatCash(player.cash)}
                 </p>
                 <p className="relative z-[1] mt-2 text-[11px] text-[#b7e4cb]">
@@ -152,9 +163,9 @@ export function WalletPanel({ player, players, onPlayersChange }: Props) {
                     Bolso vazio… hora de comprar um terreninho!
                   </p>
                 ) : (
-                  <ul className="wallet-slot-list">
+                  <ul className="wallet-deed-grid">
                     {holdings.map((holding, i) => (
-                      <DeedSlot
+                      <DeedCard
                         key={holding.spaceIndex}
                         holding={holding}
                         delayMs={70 + i * 35}
@@ -226,7 +237,7 @@ export function WalletPanel({ player, players, onPlayersChange }: Props) {
   );
 }
 
-function DeedSlot({
+function DeedCard({
   holding,
   onClick,
   delayMs,
@@ -243,41 +254,62 @@ function DeedSlot({
       ? "#3d7ea6"
       : space.kind === "companhia"
         ? "#7cb342"
-        : null;
-  const accent = stripe ?? kindTint ?? "#e9a46c";
+        : "#e9a46c";
+  const accent = stripe ?? kindTint;
+  const ink = bandInk(accent);
+  const rent = PROPERTY_RENT[holding.spaceIndex];
 
-  let meta = KIND_LABELS[space.kind];
-  if (space.colorGroup) meta = COLOR_GROUP_LABELS[space.colorGroup];
-  if (holding.hasResort) meta += " · resort";
-  else if (holding.pousadas > 0) {
-    meta += ` · ${holding.pousadas} pousada${holding.pousadas > 1 ? "s" : ""}`;
-  }
-  if (holding.mortgaged) meta += " · hipotecada";
+  let rentLine = KIND_LABELS[space.kind];
+  if (rent) rentLine = `Aluguel ${formatCash(rent.base)}`;
+  else if (space.kind === "transporte") rentLine = "Aluguel 25+";
+  else if (space.kind === "companhia") rentLine = "4× / 10× dados";
+
+  let badge: string | null = null;
+  if (holding.mortgaged) badge = "Hipoteca";
+  else if (holding.hasResort) badge = "Resort";
+  else if (holding.pousadas > 0) badge = `${holding.pousadas} pous.`;
 
   return (
     <li className="wallet-item-in" style={{ animationDelay: `${delayMs}ms` }}>
       <button
         type="button"
         onClick={onClick}
-        className={`wallet-deed-slot ${holding.mortgaged ? "wallet-deed-slot--muted" : ""}`}
+        className={`wallet-deed-card ${holding.mortgaged ? "wallet-deed-card--muted" : ""}`}
       >
         <span
-          className="wallet-deed-slot__stripe"
+          className="wallet-deed-card__band"
           style={{ backgroundColor: accent }}
-        />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-[#4a3426]">
+        >
+          <span
+            className={`wallet-deed-card__name ${ink === "dark" ? "wallet-deed-card__name--dark" : ""}`}
+          >
             {space.name}
           </span>
-          <span className="mt-0.5 block text-[11px] text-[#8d735a]">
-            {meta}
+        </span>
+        <span className="wallet-deed-card__body">
+          <span className="wallet-deed-card__kicker">
+            {space.colorGroup
+              ? COLOR_GROUP_LABELS[space.colorGroup]
+              : KIND_LABELS[space.kind]}
+          </span>
+          <span className="wallet-deed-card__rent">{rentLine}</span>
+          <span className="wallet-deed-card__meta">
+            {space.price !== undefined ? (
+              <span className="wallet-deed-card__price">
+                {formatCash(space.price)}
+              </span>
+            ) : (
+              <span />
+            )}
+            {badge ? (
+              <span
+                className={`wallet-deed-card__badge ${holding.mortgaged ? "wallet-deed-card__badge--mortgage" : ""}`}
+              >
+                {badge}
+              </span>
+            ) : null}
           </span>
         </span>
-        {space.price !== undefined ? (
-          <span className="shrink-0 text-xs tabular-nums text-[#1f6b45]">
-            {formatCash(space.price)}
-          </span>
-        ) : null}
       </button>
     </li>
   );

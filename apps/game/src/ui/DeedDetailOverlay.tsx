@@ -32,6 +32,16 @@ type Props = {
   actionError: string | null;
 };
 
+function bandInk(hex: string): "light" | "dark" {
+  const n = Number.parseInt(hex.replace("#", ""), 16);
+  if (Number.isNaN(n)) return "light";
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.55 ? "dark" : "light";
+}
+
 export function DeedDetailOverlay({
   player,
   holding,
@@ -51,7 +61,9 @@ export function DeedDetailOverlay({
         ? "#3d7ea6"
         : space.kind === "companhia"
           ? "#7cb342"
-          : "#c4a484";
+          : "#e9a46c";
+  const ink = bandInk(accent);
+  const dark = ink === "dark";
 
   const rent = PROPERTY_RENT[holding.spaceIndex];
   const buildCost = buildCostForSpace(holding.spaceIndex);
@@ -75,7 +87,7 @@ export function DeedDetailOverlay({
 
   return (
     <div
-      className="pointer-events-auto absolute inset-0 z-40 flex items-end justify-center bg-black/55 p-3 backdrop-blur-sm sm:items-center"
+      className="pointer-events-auto absolute inset-0 z-40 flex items-end justify-center bg-black/50 p-3 backdrop-blur-sm sm:items-center"
       role="presentation"
       onClick={onClose}
     >
@@ -83,122 +95,161 @@ export function DeedDetailOverlay({
         role="dialog"
         aria-modal="true"
         aria-label={`Escritura: ${space.name}`}
-        className="wallet-card-detail flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border bg-gradient-to-b from-[#2a1c14] to-[#1a120c] text-[#f5f0e8] shadow-[0_24px_60px_rgba(0,0,0,0.55)]"
-        style={{ borderColor: `${accent}66` }}
+        className="deed-sheet flex max-h-[90dvh] w-full max-w-md flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="border-b border-white/10 px-4 py-3">
-          <div
-            className="mb-2 h-2 w-full rounded-full"
-            style={{ backgroundColor: accent }}
-          />
-          <p className="text-[10px] uppercase tracking-[0.22em] text-[#d4a373]">
+        <header
+          className="deed-sheet__band"
+          style={{ backgroundColor: accent }}
+        >
+          <p
+            className={`deed-sheet__kicker ${dark ? "deed-sheet__kicker--dark" : ""}`}
+          >
             Escritura · casa {space.index}
           </p>
-          <h3 className="mt-1 font-serif text-xl leading-snug text-white">
+          <h3
+            className={`deed-sheet__title ${dark ? "deed-sheet__title--dark" : ""}`}
+          >
             {space.name}
           </h3>
-          <p className="mt-1 text-xs text-[#c9ada7]">
+          <p
+            className={`deed-sheet__sub ${dark ? "deed-sheet__sub--dark" : ""}`}
+          >
             {KIND_LABELS[space.kind]}
             {space.colorGroup
               ? ` · ${COLOR_GROUP_LABELS[space.colorGroup]}`
               : ""}
-            {space.price != null ? ` · Preço ${formatCash(space.price)}` : ""}
+            {space.price != null ? ` · ${formatCash(space.price)}` : ""}
           </p>
-          <p className="mt-2 text-sm text-[#ffd166]">{currentLabel}</p>
         </header>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
+        <div className="deed-sheet__body min-h-0 flex-1 overflow-y-auto">
+          <p
+            className={`deed-sheet__status ${holding.mortgaged ? "deed-sheet__status--mortgage" : ""}`}
+          >
+            {currentLabel}
+          </p>
+
           {space.kind === "propriedade" && rent ? (
-            <section>
-              <h4 className="mb-2 text-[10px] uppercase tracking-[0.18em] text-[#d4a373]">
-                Tabela de aluguel
-              </h4>
-              <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 text-sm">
-                <RentRow label="Aluguel" value={rent.base} active={!holding.mortgaged && !holding.hasResort && holding.pousadas === 0} />
+            <section className="deed-sheet__section">
+              <h4 className="deed-sheet__section-title">Tabela de aluguel</h4>
+              <dl className="deed-sheet__rows">
+                <RentRow
+                  label="Aluguel"
+                  value={rent.base}
+                  active={
+                    !holding.mortgaged &&
+                    !holding.hasResort &&
+                    holding.pousadas === 0
+                  }
+                />
                 <RentRow label="Grupo completo (2×)" value={rent.monopoly} />
-                <RentRow label="1 pousada" value={rent.pousadas[0]} active={holding.pousadas === 1} />
-                <RentRow label="2 pousadas" value={rent.pousadas[1]} active={holding.pousadas === 2} />
-                <RentRow label="3 pousadas" value={rent.pousadas[2]} active={holding.pousadas === 3} />
-                <RentRow label="4 pousadas" value={rent.pousadas[3]} active={holding.pousadas === 4} />
-                <RentRow label="Resort" value={rent.resort} active={holding.hasResort} />
+                <RentRow
+                  label="1 pousada"
+                  value={rent.pousadas[0]}
+                  active={holding.pousadas === 1}
+                />
+                <RentRow
+                  label="2 pousadas"
+                  value={rent.pousadas[1]}
+                  active={holding.pousadas === 2}
+                />
+                <RentRow
+                  label="3 pousadas"
+                  value={rent.pousadas[2]}
+                  active={holding.pousadas === 3}
+                />
+                <RentRow
+                  label="4 pousadas"
+                  value={rent.pousadas[3]}
+                  active={holding.pousadas === 4}
+                />
+                <RentRow
+                  label="Resort"
+                  value={rent.resort}
+                  active={holding.hasResort}
+                />
               </dl>
             </section>
           ) : null}
 
           {space.kind === "transporte" ? (
-            <section>
-              <h4 className="mb-2 text-[10px] uppercase tracking-[0.18em] text-[#d4a373]">
+            <section className="deed-sheet__section">
+              <h4 className="deed-sheet__section-title">
                 Aluguel por transportes
               </h4>
-              <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 text-sm">
+              <dl className="deed-sheet__rows">
                 {TRANSPORT_RENT_BY_COUNT.map((v, i) => (
-                  <RentRow key={v} label={`${i + 1} transporte${i ? "s" : ""}`} value={v} />
+                  <RentRow
+                    key={v}
+                    label={`${i + 1} transporte${i ? "s" : ""}`}
+                    value={v}
+                  />
                 ))}
               </dl>
             </section>
           ) : null}
 
           {space.kind === "companhia" ? (
-            <section>
-              <h4 className="mb-2 text-[10px] uppercase tracking-[0.18em] text-[#d4a373]">
+            <section className="deed-sheet__section">
+              <h4 className="deed-sheet__section-title">
                 Aluguel das companhias
               </h4>
-              <ul className="space-y-1 text-sm text-[#c9ada7]">
-                <li>1 companhia: <span className="text-[#f5f0e8]">4×</span> o total dos dados</li>
-                <li>2 companhias: <span className="text-[#f5f0e8]">10×</span> o total dos dados</li>
+              <ul className="m-0 list-none space-y-1 p-0 text-sm font-bold text-[#5c3d2e]">
+                <li>
+                  1 companhia: <span className="text-[#1f6b45]">4×</span> o
+                  total dos dados
+                </li>
+                <li>
+                  2 companhias: <span className="text-[#1f6b45]">10×</span> o
+                  total dos dados
+                </li>
               </ul>
             </section>
           ) : null}
 
-          {space.kind === "propriedade" && space.colorGroup && buildCost != null ? (
-            <section>
-              <h4 className="mb-2 text-[10px] uppercase tracking-[0.18em] text-[#d4a373]">
+          {space.kind === "propriedade" &&
+          space.colorGroup &&
+          buildCost != null ? (
+            <section className="deed-sheet__section">
+              <h4 className="deed-sheet__section-title">
                 Construção · {COLOR_GROUP_LABELS[space.colorGroup]}
               </h4>
-              <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 text-sm">
-                <dt className="text-[#c9ada7]">Cada pousada</dt>
-                <dd className="tabular-nums">{formatCash(buildCost)}</dd>
-                <dt className="text-[#c9ada7]">Resort</dt>
-                <dd className="tabular-nums">
-                  {formatCash(buildCost)} + 4 pousadas
-                </dd>
-                <dt className="text-[#c9ada7]">Venda ao banco</dt>
-                <dd className="tabular-nums">
-                  {formatCash(Math.floor(buildCost / 2))} / peça
-                </dd>
+              <dl className="deed-sheet__rows">
+                <dt>Cada pousada</dt>
+                <dd>{formatCash(buildCost)}</dd>
+                <dt>Resort</dt>
+                <dd>{formatCash(buildCost)} + 4 pousadas</dd>
+                <dt>Venda ao banco</dt>
+                <dd>{formatCash(Math.floor(buildCost / 2))} / peça</dd>
               </dl>
-              <p className="mt-2 text-[11px] leading-relaxed text-[#c9ada7]/90">
-                Custo de pousada neste grupo:{" "}
+              <p className="deed-sheet__note">
+                Custo neste grupo:{" "}
                 {formatCash(BUILD_COST_BY_GROUP[space.colorGroup])}. Construção
                 uniforme obrigatória.
               </p>
             </section>
           ) : null}
 
-          <section>
-            <h4 className="mb-2 text-[10px] uppercase tracking-[0.18em] text-[#d4a373]">
-              Hipoteca
-            </h4>
-            <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 text-sm">
-              <dt className="text-[#c9ada7]">Recebe ao hipotecar</dt>
-              <dd className="tabular-nums text-[#ffd166]">{formatCash(mValue)}</dd>
-              <dt className="text-[#c9ada7]">Juros (10%)</dt>
-              <dd className="tabular-nums">{formatCash(mInterest)}</dd>
-              <dt className="text-[#c9ada7]">Resgate</dt>
-              <dd className="tabular-nums">{formatCash(rCost)}</dd>
+          <section className="deed-sheet__section">
+            <h4 className="deed-sheet__section-title">Hipoteca</h4>
+            <dl className="deed-sheet__rows">
+              <dt>Recebe ao hipotecar</dt>
+              <dd>{formatCash(mValue)}</dd>
+              <dt>Juros (10%)</dt>
+              <dd>{formatCash(mInterest)}</dd>
+              <dt>Resgate</dt>
+              <dd>{formatCash(rCost)}</dd>
             </dl>
           </section>
 
           {actionError ? (
-            <p className="rounded-lg bg-[#e07a5f]/15 px-3 py-2 text-xs text-[#f0a090]">
-              {actionError}
-            </p>
+            <p className="deed-sheet__error">{actionError}</p>
           ) : null}
         </div>
 
-        <footer className="space-y-2 border-t border-white/10 px-4 py-3">
-          <div className="grid grid-cols-2 gap-2">
+        <footer className="deed-sheet__footer">
+          <div className="deed-sheet__actions">
             {!holding.mortgaged ? (
               <ActionButton
                 disabled={!mortgageOk.ok}
@@ -208,11 +259,7 @@ export function DeedDetailOverlay({
                 Hipotecar · {formatCash(mValue)}
               </ActionButton>
             ) : (
-              <ActionButton
-                disabled={!redeemOk}
-                onClick={onRedeem}
-                tone="ok"
-              >
+              <ActionButton disabled={!redeemOk} onClick={onRedeem} tone="ok">
                 Resgatar · {formatCash(rCost)}
               </ActionButton>
             )}
@@ -220,7 +267,7 @@ export function DeedDetailOverlay({
             <ActionButton
               disabled={!sellOk.ok}
               onClick={onSellBuilding}
-              tone="neutral"
+              tone="soft"
             >
               Vender construção
               {buildCost != null
@@ -230,7 +277,7 @@ export function DeedDetailOverlay({
           </div>
 
           {space.kind === "propriedade" ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="deed-sheet__actions">
               <ActionButton
                 disabled={!pousadaOk.ok}
                 onClick={onBuildPousada}
@@ -253,7 +300,7 @@ export function DeedDetailOverlay({
           <button
             type="button"
             onClick={onClose}
-            className="w-full rounded-lg border border-[#c4a484]/35 px-3 py-2 text-sm text-[#f5f0e8] hover:bg-white/5"
+            className="deed-btn deed-btn--amber w-full"
           >
             Fechar escritura
           </button>
@@ -274,12 +321,8 @@ function RentRow({
 }) {
   return (
     <>
-      <dt className={active ? "text-[#ffd166]" : "text-[#c9ada7]"}>{label}</dt>
-      <dd
-        className={`tabular-nums ${active ? "font-semibold text-[#ffd166]" : ""}`}
-      >
-        {formatCash(value)}
-      </dd>
+      <dt className={active ? "is-active" : undefined}>{label}</dt>
+      <dd className={active ? "is-active" : undefined}>{formatCash(value)}</dd>
     </>
   );
 }
@@ -293,21 +336,21 @@ function ActionButton({
   children: ReactNode;
   onClick: () => void;
   disabled?: boolean;
-  tone: "ok" | "warn" | "neutral";
+  tone: "ok" | "warn" | "soft";
 }) {
-  const bg =
+  const cls =
     tone === "ok"
-      ? "bg-[#2a9d8f] text-white"
+      ? "deed-btn--mint"
       : tone === "warn"
-        ? "bg-[#c45c76] text-white"
-        : "bg-[#c4a484]/25 text-[#f5f0e8]";
+        ? "deed-btn--warn"
+        : "deed-btn--soft";
 
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-lg px-2 py-2 text-xs font-semibold leading-snug disabled:opacity-35 ${bg}`}
+      className={`deed-btn ${cls}`}
     >
       {children}
     </button>
