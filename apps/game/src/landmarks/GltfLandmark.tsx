@@ -11,6 +11,7 @@ import {
   type Mesh,
   type Object3D,
 } from "three";
+import { fitToSlot } from "./FitToSlot";
 
 type Props = {
   url: string;
@@ -88,39 +89,6 @@ export function GltfLandmark({
       </group>
     </group>
   );
-}
-
-function fitToSlot(object: Object3D, fitWidth: number, fitDepth?: number) {
-  object.updateMatrixWorld(true);
-  const box = new Box3().setFromObject(object);
-  if (box.isEmpty()) return;
-
-  const size = new Vector3();
-  box.getSize(size);
-  const modelWidth = Math.max(size.x, 1e-3);
-
-  let scale = fitWidth / modelWidth;
-  object.scale.setScalar(scale);
-  object.updateMatrixWorld(true);
-
-  if (fitDepth != null) {
-    const after = new Box3().setFromObject(object);
-    after.getSize(size);
-    const modelDepth = Math.max(size.z, 1e-3);
-    if (modelDepth > fitDepth) {
-      scale *= fitDepth / modelDepth;
-      object.scale.setScalar(scale);
-      object.updateMatrixWorld(true);
-    }
-  }
-
-  const fitted = new Box3().setFromObject(object);
-  const center = new Vector3();
-  fitted.getCenter(center);
-  object.position.x -= center.x;
-  object.position.z -= center.z;
-  object.position.y -= fitted.min.y;
-  object.updateMatrixWorld(true);
 }
 
 function fitOnTile(object: Object3D, targetHeight: number, maxFootprint: number) {

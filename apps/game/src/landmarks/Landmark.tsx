@@ -1,4 +1,5 @@
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
+import { FitToSlot } from "./FitToSlot";
 import { GltfLandmark } from "./GltfLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
@@ -9,8 +10,22 @@ type Props = {
   slotDepth?: number;
 };
 
-/** Landmark low-poly único por casa (escala local ~1 unidade). */
 export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props) {
+  const fitWidth = (slotWidth ?? 1.2) * 0.95;
+  const fitDepth = (slotDepth ?? 1.2) * 0.55;
+
+  if (index === 15) {
+    return <ElevadorLacerda accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
+
+  return (
+    <FitToSlot fitWidth={fitWidth} fitDepth={fitDepth}>
+      <LandmarkMesh index={index} />
+    </FitToSlot>
+  );
+}
+
+function LandmarkMesh({ index }: { index: number }): ReactNode {
   switch (index) {
     case 0:
       return <Airport />;
@@ -46,10 +61,6 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
       return <Itacare />;
     case 14:
       return <MorroSaoPaulo />;
-    case 15:
-      return (
-        <ElevadorLacerda accent={accent} slotWidth={slotWidth} slotDepth={slotDepth} />
-      );
     case 16:
       return <Lencois />;
     case 18:
@@ -290,22 +301,19 @@ function ElevadorLacerdaFallback() {
 
 function ElevadorLacerda({
   accent,
-  slotWidth,
-  slotDepth,
+  fitWidth,
+  fitDepth,
 }: {
   accent?: boolean;
-  slotWidth?: number;
-  slotDepth?: number;
+  fitWidth: number;
+  fitDepth: number;
 }) {
-  const width = slotWidth ?? 1.2;
-  const depth = slotDepth ?? 1.2;
   return (
     <Suspense fallback={<ElevadorLacerdaFallback />}>
       <GltfLandmark
         url="/models/elevador-lacerda.gltf"
-        fitWidth={width * 0.95}
-        fitDepth={depth * 0.55}
-        rotationY={Math.PI}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
         polish
         accent={accent}
       />

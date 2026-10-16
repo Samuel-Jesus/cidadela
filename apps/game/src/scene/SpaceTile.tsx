@@ -18,6 +18,10 @@ function isSideTile(yaw: number) {
   return Math.abs(Math.abs(yaw) - Math.PI / 2) < 0.2;
 }
 
+function isCornerTile(index: number) {
+  return index % 10 === 0;
+}
+
 export function SpaceTile({ layout, selected, onSelect }: Props) {
   const space = getSpace(layout.index);
   const groupRef = useRef<Group>(null);
@@ -25,17 +29,31 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
   const color = tileColor(space);
   const stripe = stripeColor(space);
 
-  const { slotWidth, slotDepth, landmarkScale, landmarkFrontOffset } = useMemo(() => {
+  const { slotWidth, slotDepth, landmarkPos } = useMemo(() => {
     const side = isSideTile(layout.yaw);
-    const slotWidth = side ? layout.depth : layout.width;
-    const slotDepth = side ? layout.width : layout.depth;
+    const corner = isCornerTile(layout.index);
+    const ox = Math.sign(layout.x || 1);
+    const oz = Math.sign(layout.z || 1);
 
-    const landmarkScale = layout.index === 15 ? 1 : Math.min(0.85, Math.min(layout.width, layout.depth) * 0.42);
+    const trackWidth = side ? layout.depth : layout.width;
+    const radialDepth = side ? layout.width : layout.depth;
+    const cornerSize = Math.min(layout.width, layout.depth);
 
-    // +Z local = frente (borda interna) — igual para todos os landmarks
-    const landmarkFrontOffset = slotDepth * (layout.index === 15 ? 0.28 : 0.22);
+    let landmarkPos: [number, number, number];
+    if (corner) {
+      const inset = cornerSize * 0.18;
+      landmarkPos = [ox * inset, 0, oz * inset];
+    } else if (side) {
+      landmarkPos = [ox * layout.width * 0.28, 0, 0];
+    } else {
+      landmarkPos = [0, 0, oz * layout.depth * 0.28];
+    }
 
-    return { slotWidth, slotDepth, landmarkScale, landmarkFrontOffset };
+    return {
+      slotWidth: corner ? cornerSize * 0.72 : trackWidth,
+      slotDepth: corner ? cornerSize * 0.72 : radialDepth,
+      landmarkPos,
+    };
   }, [layout]);
 
   useFrame((_, dt) => {
@@ -76,10 +94,10 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
         />
       </mesh>
 
-      {stripe ? <Stripe layout={layout} color={stripe} slotDepth={slotDepth} /> : null}
+      {stripe ? <Stripe layout={layout} color={stripe} /> : null}
 
-      <group position={[0, TILE_THICKNESS * 0.55, 0]} rotation={[0, layout.yaw, 0]} scale={landmarkScale}>
-        <group position={[0, 0, landmarkFrontOffset]}>
+      <group position={[landmarkPos[0], TILE_THICKNESS * 0.55, landmarkPos[2]]}>
+        <group rotation={[0, layout.yaw, 0]}>
           <Landmark
             index={layout.index}
             accent={selected || hovered}
@@ -105,31 +123,34 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
   );
 }
 
-function Stripe({
-  layout,
-  color,
-  slotDepth,
-}: {
-  layout: SpaceLayout;
-  color: string;
-  slotDepth: number;
-}) {
+function Stripe({ layout, color }: { layout: SpaceLayout; color: string }) {
   const band = 0.22;
   const meshRef = useRef<Mesh>(null);
   const side = isSideTile(layout.yaw);
-  const stripeWidth = (side ? layout.depth : layout.width) * 0.92;
-  const stripeDepth = slotDepth * band;
+  const ox = Math.sign(layout.x || 1);
+  const oz = Math.sign(layout.z || 1);
 
-  return (
-    <group rotation={[0, layout.yaw, 0]}>
+  if (side) {
+    const radial = layout.width;
+    const front = radial * (0.5 - band / 2) * 0.92;
+    return (
       <mesh
         ref={meshRef}
-        position={[0, TILE_THICKNESS * 0.52, -(slotDepth * (0.5 - band / 2) * 0.92)]}
+        position={[-ox * front, TILE_THICKNESS * 0.52, 0]}
         castShadow
       >
-        <boxGeometry args={[stripeWidth, 0.04, stripeDepth]} />
+        <boxGeometry args={[radial * band, 0.04, layout.depth * 0.92]} />
         <meshStandardMaterial color={color} roughness={0.55} />
       </mesh>
-    </group>
+    );
+  }
+
+  const radial = layout.depth;
+  const front = radial * (0.5 - band / 2) * 0.92;
+  return (
+    <mesh ref={meshRef} position={[0, TILE_THICKNESS * 0.52, -oz * front]} castShadow>
+      <boxGeometry args={[layout.width * 0.92, 0.04, radial * band]} />
+      <meshStandardMaterial color={color} roughness={0.55} />
+    </mesh>
   );
 }
