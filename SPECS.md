@@ -5,8 +5,8 @@
 > Sempre que `REQUISITOS.md` mudar, esta especificação deve ser revisada e alinhada.
 
 **Template:** Volere Requirements Specification (adaptado)  
-**Versão:** 0.1  
-**Status:** Rascunho  
+**Versão:** 0.2  
+**Status:** Alinhado às regras completas em `REQUISITOS.md`  
 
 ---
 
@@ -128,9 +128,9 @@ Permitir que 2 a 8 jogadores dispute uma partida de **Cidadela**, jogo de tabule
 | Prisão | **Forte de São Marcelo** | Casa 10; estado “preso” ou “só visita” |
 | Vá para a prisão | **Vá para o Forte** | Casa 30; envia ao Forte sem $200 |
 | Estacionamento livre | **Carnaval (Circuito Barra-Ondina)** | Casa 20; sem efeito |
-| Carta “Saia da prisão” | **Saia do Forte** | Libera o jogador preso |
+| Carta “Saia da prisão” | **Proteção** (Iemanjá / Senhor do Bonfim) | Carta guardável; sai do Forte sem pagar |
 
-**Origem:** `REQUISITOS.md` → Adaptações baianas
+**Origem:** `REQUISITOS.md` §14
 
 ---
 
@@ -138,26 +138,28 @@ Permitir que 2 a 8 jogadores dispute uma partida de **Cidadela**, jogo de tabule
 
 ### 5a. Fatos
 
-- Dinheiro inicial por jogador: **$1.500**.
+- Dinheiro inicial por jogador: **$1.500** (composição de notas em `REQUISITOS.md` §2).
 - Bônus da Chegada: **$200**.
-- Pedágio da Linha Verde: **pague $200**.
-- Abadá do Carnaval: **pague $100**.
+- Pedágio da Linha Verde: **pague $200**; Abadá do Carnaval: **pague $100** (ao banco, nunca ao centro).
 - Saída do Forte por pagamento: **$50**.
-- Hipoteca: recebe **50%** do valor; resgate = valor + **10%** de juros.
-- Venda de construções ao banco: **50%** do preço pago.
-- Monopólio de cor: aluguel **dobra** (sem construções).
+- Hipoteca: **50%** do preço; juros **10%** com **ceil** (dólar inteiro); tabela em `REQUISITOS.md` §9.
+- Estoque do banco: **32 pousadas** e **12 resorts**.
+- Transportes: aluguel **$25 / $50 / $100 / $200** conforme 1–4.
+- Companhias: **4×** ou **10×** o total dos dados.
+- Aluguel e custos de pousada/resort: tabelas em `REQUISITOS.md` §8.
+- Baralhos: **16** Fitinha + **16** Bença (`REQUISITOS.md` §13).
 - Carnaval (casa 20): **não gera dinheiro**.
-- Carteira = saldo + escrituras + cartas; toda movimentação de dinheiro é transferência (banco↔jogador ou jogador↔jogador).
+- Carteira = saldo + escrituras + cartas Proteção; transferências tipadas (banco↔jogador ou jogador↔jogador).
 
 ### 5b. Premissas
 
-- Tabelas completas de aluguel, custos de pousada/resort e baralhos completos ainda serão documentados em `REQUISITOS.md` (ver Sala de espera).
-- Valores de aluguel de transportes e companhias seguirão a lógica clássica até definição explícita.
-- Estoque de pousadas/resorts é finito (“o que há na caixa”); quantidade exata a definir.
+- Balanceamento ainda **sem playtest** formal (`REQUISITOS.md` §14 — Aviso).
+- Produto digital: hot-seat local no MVP; multiplayer na fase 2 (`STACK.md`).
+- Leilão digital pode simplificar a “contagem oral” preservando lance mínimo, limite de caixa e empate.
 
 ### 5c. Regras de negócio (resumo)
 
-Ver seção 9 e `REQUISITOS.md` para o detalhamento completo.
+Ver seção 9 e `REQUISITOS.md` (documento completo).
 
 ---
 
@@ -186,8 +188,10 @@ O trabalho cobre a especificação e (futura) implementação de um produto que 
 | Entidade | Atributos principais |
 | --- | --- |
 | **Partida** | id, status, jogador_da_vez, estoque_pousadas, estoque_resorts |
-| **Jogador** | id, peão, saldo, posição (0–39), preso (bool), tentativas_dupla_forte, cartas_saia_do_forte, escrituras[] |
-| **Carteira** | visão do jogador: saldo + escrituras (com status) + cartas em mãos |
+| **Jogador** | id, peão, saldo, posição (0–39), preso (bool), tentativas_dupla_forte, cartas_protecao[], escrituras[] |
+| **Carteira** | visão do jogador: saldo + escrituras (com status) + cartas Proteção |
+| **Baralho** | tipo (Fitinha\|Bença), pilha, descarte; cartas Proteção fora da pilha enquanto guardadas |
+| **EstoqueBanco** | pousadas_restantes (0–32), resorts_restantes (0–12) |
 | **Casa** | número, nome, tipo, preço?, grupo_cor?, valor_taxa? |
 | **Propriedade** | casa_id, dono?, hipotecada, n_pousadas, tem_resort |
 | **Transporte** | casa_id, dono?, hipotecada? |
@@ -259,25 +263,27 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | --- | --- | --- | --- | --- |
 | FR-20 | Propriedade/transporte/companhia sem dono pode ser comprada pelo preço marcado | Dono = jogador; saldo -= preço; escritura na carteira | Alta | Tipos de casas → Propriedades / Carteira |
 | FR-21 | Se recusar compra, a propriedade vai a leilão entre todos | Ao final do leilão, há dono ou permanece do banco conforme regras do leilão | Alta | Propriedades |
-| FR-22 | Ao cair em bem alheio não hipotecado, paga aluguel; dono recebe na hora | saldo_visitante -= aluguel; saldo_dono += aluguel | Alta | Propriedades / Carteira |
-| FR-23 | Com monopólio de cor (sem construções), aluguel dobra | Aluguel aplicado = 2 × aluguel base | Alta | Construção |
-| FR-24 | Compra exige saldo ≥ preço; caso contrário a ação é rejeitada (ou segue para leilão se recusou/não pôde) | Tentativa com saldo insuficiente não altera dono nem saldo | Alta | Carteira → Comprar |
+| FR-22 | Ao cair em bem alheio não hipotecado, paga aluguel; dono recebe na hora | saldo_visitante -= aluguel; saldo_dono += aluguel (valores §8) | Alta | Propriedades / Carteira |
+| FR-22a | (Mesa) Dono deve pedir aluguel antes do próximo jogador rolar dados; senão perde a cobrança | Cobrança após o próximo roll é inválida | Média | Terrenos |
+| FR-23 | Com monopólio de cor (sem construções e sem hipoteca no grupo), aluguel dobra | Aluguel = coluna “Grupo completo”; se algum do grupo hipotecado, sem dobro | Alta | Construção / Hipotecas |
+| FR-24 | Compra exige saldo ≥ preço; se recusar ou não puder, vai a leilão | Tentativa sem saldo não altera dono; fluxo → PUC leilão | Alta | Carteira → Comprar |
+| FR-25 | Aluguel de terreno consulta tabela §8.1 (pousadas / resort) | Valor aplicado = célula correspondente | Alta | Tabelas de aluguel |
 
 ### 9.4 Transportes e companhias
 
 | ID | Descrição | Fit Criterion | Prioridade | Origem |
 | --- | --- | --- | --- | --- |
-| FR-30 | Aluguel de transporte cresce com a quantidade de transportes do dono | Função aluguel(n_transportes) aplicada corretamente | Alta | Transportes |
-| FR-31 | Aluguel de companhia depende dos dados e de quantas companhias o dono tem | Aluguel = multiplicador(n_companhias) × soma_dados | Alta | Companhias |
-
-> **Nota:** multiplicadores exatos pendentes (ver FR em aberto / Waiting Room).
+| FR-30 | Aluguel de transporte: $25 / $50 / $100 / $200 para 1–4 transportes | Valor = tabela §8.2 | Alta | Transportes |
+| FR-31 | Aluguel de companhia: 4× (1) ou 10× (2) o total dos dados da jogada | Aluguel = multiplicador × soma_dados | Alta | Companhias |
 
 ### 9.5 Cartas e casas especiais
 
 | ID | Descrição | Fit Criterion | Prioridade | Origem |
 | --- | --- | --- | --- | --- |
-| FR-40 | Ao cair em Fitinha do Bonfim, o jogador compra carta e executa o efeito | Efeito da carta aplicada na partida | Alta | Fitinha / Bença |
-| FR-41 | Ao cair em Bença, o jogador compra carta e executa o efeito | Idem para baralho Bença | Alta | Fitinha / Bença |
+| FR-40 | Ao cair em Fitinha, compra do topo, executa e devolve ao fundo (exceto Proteção) | 16 cartas §13.1; efeito tipado aplicado | Alta | Fitinha |
+| FR-41 | Ao cair em Bença, idem | 16 cartas §13.2 | Alta | Bença |
+| FR-45 | Cartas Proteção ficam na mão até uso ou negociação; após uso voltam ao fundo | Contagem de Proteção no jogador correta | Alta | Cartas |
+| FR-46 | Baralho esgotado: reembaralhar descartes, excluindo Proteções em mãos | Pilha renovada sem cartas guardadas | Média | Cartas |
 | FR-42 | Impostos transferem o valor indicado ao banco | Pedágio $200; Abadá $100 | Alta | Impostos / Tabuleiro |
 | FR-43 | Carnaval não altera saldo nem posição | Nenhuma transferência ao cair na casa 20 | Alta | Carnaval |
 | FR-44 | “Vá para o Forte” envia à casa 10 como preso, sem $200 | posição=10, preso=true, sem crédito de Chegada | Alta | Vá para o Forte |
@@ -289,18 +295,21 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | FR-50 | Só se constrói com monopólio completo do grupo de cor | Tentativa sem monopólio é rejeitada | Alta | Construção |
 | FR-51 | Construção uniforme: diferença de pousadas no grupo ≤ 1 | Estado inválido não é aceito | Alta | Construção |
 | FR-52 | Máximo de 4 pousadas por propriedade; depois, resort | 5ª pousada rejeitada; resort exige 4 pousadas | Alta | Construção |
-| FR-53 | Estoque de pousadas/resorts é limitado | Não permite construir além do estoque | Alta | Construção |
-| FR-54 | Mais construções aumentam o aluguel | Aluguel consulta tabela por nº de pousadas/resort | Alta | Construção |
+| FR-53 | Estoque limitado a 32 pousadas e 12 resorts | Contadores do banco respeitados; escassez → leilão de peça | Alta | Construção |
+| FR-54 | Mais construções aumentam o aluguel | Aluguel consulta tabela §8.1 | Alta | Construção |
+| FR-55 | Custo de pousada/resort por grupo conforme §8.3 | Débito = custo do grupo; resort devolve 4 pousadas ao banco | Alta | Custos de construção |
+| FR-56 | Grupo com terreno hipotecado: sem construção e sem dobro de aluguel | Tentativa de construir rejeitada; aluguel base sem 2× | Alta | Pousadas / Hipotecas |
 
 ### 9.7 Hipotecas
 
 | ID | Descrição | Fit Criterion | Prioridade | Origem |
 | --- | --- | --- | --- | --- |
-| FR-60 | Hipotecar concede 50% do valor da propriedade | saldo += floor(preço/2); hipotecada=true; carteira marca hipotecada | Alta | Hipotecas / Carteira |
+| FR-60 | Hipotecar concede 50% do preço (tabela §9) | saldo += valor_hipoteca; hipotecada=true | Alta | Hipotecas / Carteira |
 | FR-61 | Propriedade hipotecada não gera aluguel | Visitante não paga | Alta | Hipotecas |
-| FR-62 | Resgate = valor da hipoteca + 10% | saldo -= ceil(valor_hipoteca * 1.10) ou regra de arredondamento definida; hipotecada=false | Alta | Hipotecas / Carteira |
-| FR-63 | Construções devem ser vendidas (50%) antes de hipotecar | Hipoteca bloqueada se houver pousada/resort | Alta | Hipotecas |
-| FR-64 | Vender pousada/resort ao banco a qualquer momento por 50% do preço pago | saldo += floor(custo/2); construção removida; estoque do banco incrementa | Alta | Carteira → Vender construções |
+| FR-62 | Resgate = hipoteca + 10% com **ceil** ao dólar | Ex.: Vitória $193; Coelba/Embasa $83; tabela §9 | Alta | Hipotecas |
+| FR-63 | Antes de hipotecar terreno de um grupo, vender todas as construções do grupo | Hipoteca bloqueada se houver pousada/resort no grupo | Alta | Hipotecas |
+| FR-64 | Vender pousada/resort ao banco por 50% do preço pago (uniforme) | saldo += floor(custo/2); estoque incrementa | Alta | Vender construções |
+| FR-65 | Ao receber bem hipotecado (negociação/falência/leilão): resgatar já ou pagar só juros 10% (ceil) e manter hipotecado | Uma das duas opções aplicada na hora | Alta | Hipotecas |
 
 ### 9.8 Forte de São Marcelo
 
@@ -308,7 +317,7 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | --- | --- | --- | --- | --- |
 | FR-70 | Entrada no Forte por casa 30, 3 duplas ou carta | preso=true nos três casos | Alta | Prisão |
 | FR-71 | Saída pagando $50 | saldo -= 50; preso=false | Alta | Prisão |
-| FR-72 | Saída com carta “Saia do Forte” | Carta consumida; preso=false | Alta | Prisão |
+| FR-72 | Saída com carta Proteção (Iemanjá ou Senhor do Bonfim) | Carta consumida e devolvida ao fundo do baralho; preso=false | Alta | Prisão |
 | FR-73 | Até 3 tentativas de dupla; na 3ª falha, paga $50 e sai | Contador 1..3; falha na 3ª → paga e libera | Alta | Prisão |
 | FR-74 | Preso pode receber aluguel e negociar | Ações de cobrança e troca permitidas | Alta | Prisão |
 | FR-75 | Casa 10 em “só visita” não prende | Parar em 10 sem flag preso ≠ prisão | Alta | Prisão |
@@ -317,10 +326,21 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 
 | ID | Descrição | Fit Criterion | Prioridade | Origem |
 | --- | --- | --- | --- | --- |
-| FR-80 | Jogadores trocam propriedades, dinheiro e cartas a qualquer momento | Negociação registrada e saldos/donos atualizados | Alta | Negociações |
+| FR-80 | Jogadores trocam terrenos (hipotecados ou não), transportes, companhias, dinheiro e cartas Proteção | Negociação registrada; saldos/donos/cartas atualizados | Alta | Negociações |
 | FR-81 | Propriedades com construções não podem ser negociadas | Oferta com pousada/resort é rejeitada | Alta | Negociações |
-| FR-82 | Falência quando a dívida excede o que se pode liquidar (construções + hipotecas) | Jogador removido; bens → credor ou banco | Alta | Falência |
+| FR-82 | Falência quando a dívida excede o que se pode liquidar (construções + hipotecas) | Jogador removido; bens → credor ou banco (leilão se banco) | Alta | Falência |
 | FR-83 | Vence o último jogador não falido | Partida encerra com 1 sobrevivente | Alta | Falência / Objetivo |
+| FR-84 | (Opcional) Jogo curto por tempo: vence maior patrimônio (dinheiro + preço de compra + custo de construções) | Ranking calculado ao estourar o timer acordado | Baixa | Falência |
+
+### 9.9b Leilão
+
+| ID | Descrição | Fit Criterion | Prioridade | Origem |
+| --- | --- | --- | --- | --- |
+| FR-85 | Leilão ao recusar/não poder comprar, na falência para o banco, ou por peça escassa | Fluxo de leilão iniciado nos três gatilhos | Alta | Leilão |
+| FR-86 | Lance inicial ≥ $1; incremento mínimo $10 (ou $5 se combinado para bens $60–$100) | Lance inválido rejeitado | Alta | Leilão |
+| FR-87 | Lance limitado ao dinheiro em mãos no momento | Lance > saldo rejeitado | Alta | Leilão |
+| FR-88 | Sem lances: bem permanece do banco; dinheiro do leilão vai ao banco | Estado e saldos corretos | Alta | Leilão |
+| FR-89 | Empate de lances: chance de aumentar; senão dados (maior total) | Um vencedor definido | Média | Leilão |
 
 ### 9.10 Tabuleiro
 
@@ -407,35 +427,35 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 
 ## 18. Questões em aberto
 
-1. Tabelas completas de **aluguel** (pousadas/resorts, transportes, companhias)?
-2. **Custo** de pousada e resort por grupo de cor?
-3. Baralho completo da **Fitinha do Bonfim**?
-4. Baralho completo da **Bença**?
-5. Quantidade exata de pousadas e resorts no estoque?
-6. O produto será **só regras de mesa**, **digital**, ou ambos?
-7. Regras detalhadas de **leilão** (lances mínimos, ordem, empate)?
+1. Playtest de balanceamento das tabelas §8 (aviso em `REQUISITOS.md` §14).
+2. Incremento mínimo de leilão digital: fixar $10 sempre ou permitir $5 em bens baratos?
+3. UX digital da cobrança de aluguel (FR-22a mesa vs cobrança automática no app).
+4. Multiplayer online (fase 2) — fora do MVP hot-seat.
 
 ## 19. Soluções prontas
 
-- Mecânica base derivada do gênero Monopoly (domínio público de regras genéricas; não da marca).
-- Template Volere para organização de requisitos.
-- Documento de regras: `REQUISITOS.md`.
+- Mecânica base do gênero Monopoly (regras genéricas; não da marca).
+- Template Volere.
+- `REQUISITOS.md` v completa (tabuleiro, tabelas, baralhos, leilão, hipotecas).
+- Protótipo digital parcial (`STACK.md` — tabuleiro 3D, dados, carteira/compra básica).
 
 ## 20. Novos problemas
 
-- Ambiguidade enquanto tabelas de aluguel/cartas não existirem.
 - Possível conflito de marca/nome com lugares e empresas reais da Bahia.
-- Complexidade de negociação livre (dificulta automação digital).
+- Complexidade de negociação livre e leilão oral na automação digital.
+- Balanceamento ainda sem playtest.
 
 ## 21. Tarefas
 
-| # | Tarefa | Depende de |
-| ---: | --- | --- |
-| 1 | Completar tabelas de aluguel e custos em `REQUISITOS.md` | Design de balanceamento |
-| 2 | Escrever baralhos Fitinha e Bença | Temática / exemplos existentes |
-| 3 | Atualizar este `SPECS.md` com FRs dos valores definidos | Tarefas 1–2 |
-| 4 | Definir se haverá implementação digital | Decisão de produto |
-| 5 | Protótipo jogável (mesa ou digital) | Specs estáveis |
+| # | Tarefa | Depende de | Status |
+| ---: | --- | --- | --- |
+| 1 | Completar tabelas de aluguel e custos | — | Feito |
+| 2 | Baralhos Fitinha e Bença | — | Feito |
+| 3 | Atualizar `SPECS.md` com FRs dos valores | 1–2 | Feito (v0.2) |
+| 4 | Codificar tabelas §8–§9 e baralhos §13 em `packages/shared` | Specs | Pendente |
+| 5 | Engine: resolver casa (aluguel, imposto, Forte, cartas) | 4 | Pendente |
+| 6 | Hot-seat completo + hipotecas / construção / leilão | 5 | Pendente |
+| 7 | Playtest de balanceamento | 6 | Pendente |
 
 ## 22. Migração
 
@@ -445,10 +465,10 @@ Não aplicável na v0.1 (produto novo).
 
 | Risco | Impacto | Mitigação |
 | --- | --- | --- |
-| Regras incompletas | Partidas inconsistentes | Fechar Waiting Room antes de “1.0” |
-| Desbalanceamento de preços | Partidas longas/injustas | Playtests com tabelas |
+| Desbalanceamento de preços | Partidas longas/injustas | Playtests com tabelas §8 |
 | Uso de nomes comerciais reais | Risco legal | Renomear ou obter autorização |
-| Escopo digital amplo demais | Atraso | Começar por regras + simulação local |
+| Escopo digital amplo demais | Atraso | Hot-seat + engine por fatias (resolver casa → hipotecas → cartas) |
+| Divergência doc × código | Bugs de regra | Codificar tabelas a partir de `REQUISITOS.md` §8–§13 |
 
 ## 24. Custos
 
@@ -464,25 +484,24 @@ A estimar (arte temática, componentes físicos, desenvolvimento digital, juríd
 
 ## 26. Waiting Room
 
-Itens adiados, copiados de `REQUISITOS.md` → Próximos tópicos:
+Regras de mesa fechadas em `REQUISITOS.md`. Itens restantes são de **implementação / produto**:
 
-- [ ] Tabelas de aluguel (pousadas/resorts, transportes, companhias)
-- [ ] Baralho completo da Fitinha do Bonfim
-- [ ] Baralho completo da Bença
-- [ ] Custo de pousadas/resorts por grupo de cor
-- [x] Carteira e fluxos de dinheiro (cobrar/receber/comprar/hipotecar) — FR-100…FR-107
-- [ ] Demais regras digitais (leilão detalhado, UI de negociação, multiplayer)
-- [ ] Quantidade do estoque de pousadas e resorts
-- [ ] Procedimento detalhado de leilão
-- [ ] Multiplicadores clássicos de transporte/companhia confirmados para Cidadela
-- [ ] Arredondamento oficial do resgate de hipoteca (10% — floor/ceil)
+- [x] Tabelas de aluguel e custos (§8)
+- [x] Baralhos Fitinha e Bença (§13)
+- [x] Estoque 32 pousadas / 12 resorts
+- [x] Leilão detalhado (§10)
+- [x] Hipoteca + ceil (§9)
+- [x] Carteira e fluxos (§15) — FR-100…FR-107
+- [ ] Dados §8–§9–§13 em `packages/shared` + engine
+- [ ] Cobrança automática vs FR-22a (mesa) na UI digital
+- [ ] UI de leilão / negociação / multiplayer
 
 ## 27. Ideias de solução
 
-- Implementação digital turn-based local (hot-seat) antes de multiplayer online.
-- Modo “banqueiro automático” na versão digital.
-- Cartas com efeitos tipados (`avance_para`, `receba_de_cada`, `volte_n`, `va_para_transporte`) para facilitar engine de regras — alinhado aos exemplos da Fitinha em `REQUISITOS.md`.
-- Playtest com planilha antes de arte final.
+- Hot-seat local antes de multiplayer.
+- Banqueiro automático na versão digital.
+- Cartas com efeitos tipados (`avance_para`, `receba_de_cada`, `volte_n`, `va_para_transporte`, `protecao`, `pague_por_construcao`) conforme §13.
+- Playtests com as tabelas §8; ajustar se necessário e refletir em `REQUISITOS.md`.
 
 ---
 
@@ -490,21 +509,20 @@ Itens adiados, copiados de `REQUISITOS.md` → Próximos tópicos:
 
 | Área em `REQUISITOS.md` | IDs neste `SPECS.md` |
 | --- | --- |
-| Objetivo | §1, FR-83 |
-| Preparação | FR-01–FR-04, C-03 |
-| Como funciona a vez | FR-10–FR-13 |
-| Tipos de casas | FR-20–FR-44 |
-| Construção | FR-50–FR-54 |
-| Hipotecas | FR-60–FR-63 |
-| Prisão / Forte | FR-70–FR-75, C-02 |
-| Negociações | FR-80–FR-81 |
-| Falência | FR-82–FR-83 |
-| Carteira e fluxos de dinheiro | FR-24, FR-64, FR-100–FR-107, PUC 12–13, NFR-22 |
-| Adaptações baianas | §4, NFR-10, NFR-70 |
-| Tabuleiro | FR-90–FR-91, C-04 |
-| Exemplos de cartas | FR-40, Waiting Room |
-| Próximos tópicos | §18, §26 |
+| §1 Objetivo / material | §1, FR-83, FR-53 |
+| §2 Preparação | FR-01–FR-04, C-03 |
+| §3 Vez | FR-10–FR-13 |
+| §4–5 Tabuleiro / tipos | FR-20–FR-25, FR-30–31, FR-40–46, FR-90–91, C-04 |
+| §6 Forte | FR-70–FR-75 |
+| §7–8 Construção / tabelas | FR-50–FR-56, FR-25 |
+| §9 Hipotecas | FR-60–FR-65 |
+| §10 Leilão | FR-85–FR-89 |
+| §11–12 Negociação / falência | FR-80–FR-84 |
+| §13 Baralhos | FR-40–FR-46 |
+| §14 Adaptações | §4, NFR-10, NFR-70, NFR-80 |
+| §15 Carteira | FR-24, FR-64, FR-100–FR-107, PUC 12–13, NFR-22 |
+| Waiting Room / implementação | §18, §21, §26 |
 
 ---
 
-*Fim da especificação Volere v0.1 — manter sincronizado com `REQUISITOS.md`.*
+*Fim da especificação Volere v0.2 — manter sincronizado com `REQUISITOS.md`.*
