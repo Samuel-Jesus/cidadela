@@ -4,13 +4,23 @@ export {
   KIND_LABELS,
 } from "./types";
 export { BOARD, COLOR_GROUPS, getSpace } from "./board";
-export type { PawnDef, PawnId, PlayerState, PropertyHolding } from "./pawns";
+export type {
+  PawnDef,
+  PawnId,
+  PlayerState,
+  PropertyHolding,
+  LobbySeat,
+  LobbySetup,
+} from "./pawns";
 export {
   PAWNS,
   STARTING_CASH,
   GO_BONUS,
   createPlayers,
+  createPlayersFromLobby,
+  validateLobbySetup,
   getPawnDef,
+  getPlayerLabel,
   formatCash,
   findPropertyOwner,
   isBuyableKind,

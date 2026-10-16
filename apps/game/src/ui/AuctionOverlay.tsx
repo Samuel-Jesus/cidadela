@@ -5,6 +5,7 @@ import {
   auctionLotLabel,
   formatCash,
   getPawnDef,
+  getPlayerLabel,
   getSpace,
   minBidIncrementForLot,
   minimumNextBidForLot,
@@ -152,7 +153,7 @@ export function AuctionOverlay({
             {currentBid > 0 && highBidder ? (
               <p className="m-0 text-lg font-bold text-[#1f6b45]">
                 {formatCash(currentBid)} ·{" "}
-                {getPawnDef(highBidder.pawnId).label}
+                {getPlayerLabel(highBidder)}
                 {inTie ? " · empatado" : ""}
               </p>
             ) : (
@@ -175,7 +176,7 @@ export function AuctionOverlay({
                 {tiedBidderIds
                   .map((id) => {
                     const p = players.find((x) => x.id === id);
-                    return p ? getPawnDef(p.pawnId).label : id;
+                    return p ? getPlayerLabel(p) : id;
                   })
                   .join(" × ")}{" "}
                 empataram em {formatCash(currentBid)}. Aumentem o lance ou
@@ -207,7 +208,7 @@ export function AuctionOverlay({
               >
                 {selectable.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {getPawnDef(p.pawnId).label} ({formatCash(p.cash)})
+                    {getPlayerLabel(p)} ({formatCash(p.cash)})
                   </option>
                 ))}
               </select>
@@ -321,7 +322,7 @@ export function AuctionOverlay({
                     className="mr-1 inline-block h-2.5 w-2.5 rounded-full border border-[#5c3d2e]"
                     style={{ backgroundColor: def.color }}
                   />
-                  {def.label}
+                  {getPlayerLabel(p)}
                   <span className="float-right tabular-nums text-[#1f6b45]">
                     {formatCash(p.cash)}
                   </span>

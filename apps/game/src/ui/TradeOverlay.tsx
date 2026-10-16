@@ -5,6 +5,7 @@ import {
   formatCash,
   getCard,
   getPawnDef,
+  getPlayerLabel,
   getSpace,
   mortgageInterest,
   mortgagedSpacesInTrade,
@@ -57,7 +58,7 @@ function SideEditor({
           className="inline-block h-2.5 w-2.5 rounded-full border border-[#5c3d2e]"
           style={{ backgroundColor: def.color }}
         />
-        {title} · {def.label}
+        {title} · {getPlayerLabel(player)}
       </h4>
 
       <label className="mb-2 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
@@ -264,7 +265,7 @@ export function TradeOverlay({
             >
               {alive.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {getPawnDef(p.pawnId).label} ({formatCash(p.cash)})
+                  {getPlayerLabel(p)} ({formatCash(p.cash)})
                 </option>
               ))}
             </select>

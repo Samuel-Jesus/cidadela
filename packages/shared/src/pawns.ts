@@ -42,6 +42,8 @@ export type PropertyHolding = {
 export type PlayerState = {
   id: string;
   pawnId: PawnId;
+  name: string;
+  isBanker: boolean;
   position: number;
   cash: number;
   properties: PropertyHolding[];
@@ -51,11 +53,72 @@ export type PlayerState = {
   bankrupt: boolean;
 };
 
+export type LobbySeat = {
+  name: string;
+  pawnId: PawnId;
+};
+
+export type LobbySetup = {
+  seats: LobbySeat[];
+  bankerIndex: number;
+};
+
 export function createPlayers(count: number): PlayerState[] {
   const n = Math.min(8, Math.max(2, count));
   return PAWNS.slice(0, n).map((pawn, i) => ({
     id: `player-${i + 1}`,
     pawnId: pawn.id,
+    name: pawn.label,
+    isBanker: i === 0,
+    position: 0,
+    cash: STARTING_CASH,
+    properties: [],
+    protectionCardIds: [],
+    inJail: false,
+    jailAttempts: 0,
+    bankrupt: false,
+  }));
+}
+
+export function validateLobbySetup(
+  setup: LobbySetup,
+): { ok: true } | { ok: false; error: string } {
+  const { seats, bankerIndex } = setup;
+  if (seats.length < 2 || seats.length > 8) {
+    return { ok: false, error: "A partida precisa de 2 a 8 jogadores." };
+  }
+  if (bankerIndex < 0 || bankerIndex >= seats.length) {
+    return { ok: false, error: "Escolha um banqueiro válido." };
+  }
+  const seenPawns = new Set<PawnId>();
+  for (let i = 0; i < seats.length; i++) {
+    const seat = seats[i]!;
+    const name = seat.name.trim();
+    if (!name) {
+      return { ok: false, error: `Assento ${i + 1}: informe um nome.` };
+    }
+    if (seenPawns.has(seat.pawnId)) {
+      return { ok: false, error: "Cada peão só pode ser escolhido uma vez." };
+    }
+    seenPawns.add(seat.pawnId);
+    if (!PAWNS.some((p) => p.id === seat.pawnId)) {
+      return { ok: false, error: `Peão inválido no assento ${i + 1}.` };
+    }
+  }
+  return { ok: true };
+}
+
+/** Cria a mesa a partir do Lobby (FR-05d). */
+export function createPlayersFromLobby(setup: LobbySetup): PlayerState[] {
+  const check = validateLobbySetup(setup);
+  if (!check.ok) {
+    throw new Error(check.error);
+  }
+  return setup.seats.map((seat, i) => ({
+    id: `player-${i + 1}`,
+    pawnId: seat.pawnId,
+    name: seat.name.trim(),
+    isBanker: i === setup.bankerIndex,
     position: 0,
     cash: STARTING_CASH,
     properties: [],
@@ -70,6 +133,13 @@ export function getPawnDef(pawnId: PawnId): PawnDef {
   const found = PAWNS.find((p) => p.id === pawnId);
   if (!found) throw new Error(`Peão inválido: ${pawnId}`);
   return found;
+}
+
+export function getPlayerLabel(player: PlayerState): string {
+  const pawnLabel = getPawnDef(player.pawnId).label;
+  const name = player.name?.trim() || pawnLabel;
+  if (name === pawnLabel) return name;
+  return `${name} (${pawnLabel})`;
 }
 
 export function formatCash(amount: number): string {

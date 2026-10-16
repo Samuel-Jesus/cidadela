@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { crossesGo, nextPosition, type DiceRoll } from "@cidadela/engine";
 import {
   GO_BONUS,
@@ -7,7 +7,7 @@ import {
   awardAuctionLot,
   buyProperty,
   createDecks,
-  createPlayers,
+  createPlayersFromLobby,
   declareBankruptcy,
   deckIdFromSpaceKind,
   drawAndResolveCard,
@@ -32,20 +32,22 @@ import {
   type CardDef,
   type DebtInfo,
   type DecksState,
+  type LobbySetup,
   type PendingRentClaim,
   type PlayerState,
 } from "@cidadela/shared";
-import { preloadLandmarkModels } from "./landmarks/GltfLandmark";
+import { preloadGameAssets } from "./boot/preloadAssets";
 import { AuctionOverlay } from "./ui/AuctionOverlay";
 import { BoardCanvas } from "./scene/BoardCanvas";
 import { BoardHud } from "./ui/BoardHud";
 import { DrawnCardModal } from "./ui/DrawnCardModal";
+import { LoadingScreen } from "./ui/LoadingScreen";
+import { LobbyScreen } from "./ui/LobbyScreen";
 import { TradeOverlay } from "./ui/TradeOverlay";
 import { VictoryOverlay } from "./ui/VictoryOverlay";
 import { WalletPanel } from "./ui/WalletPanel";
 
-preloadLandmarkModels();
-
+type AppScreen = "loading" | "lobby" | "game";
 type TurnPhase = "roll" | "busy" | "action" | "debt" | "auction" | "ended";
 
 type AuctionSession = {
@@ -116,14 +118,15 @@ function isUnownedBuyable(
   return !findPropertyOwner(players, spaceIndex);
 }
 
+const LOADING_MIN_MS = 1800;
+
 export function App() {
-  const initial = createPlayers(4);
+  const [screen, setScreen] = useState<AppScreen>("loading");
+  const [loadProgress, setLoadProgress] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(0);
   const [playerCount, setPlayerCount] = useState(4);
-  const [players, setPlayers] = useState<PlayerState[]>(initial);
-  const [activePlayerId, setActivePlayerId] = useState<string | null>(
-    initial[0]?.id ?? null,
-  );
+  const [players, setPlayers] = useState<PlayerState[]>([]);
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [turnPhase, setTurnPhase] = useState<TurnPhase>("roll");
   const [decks, setDecks] = useState<DecksState>(() => createDecks());
   const [drawnCard, setDrawnCard] = useState<CardDef | null>(null);
@@ -165,6 +168,29 @@ export function App() {
   const winner = winnerId
     ? players.find((p) => p.id === winnerId) ?? null
     : null;
+
+  useEffect(() => {
+    if (screen !== "loading") return;
+    let cancelled = false;
+    const started = performance.now();
+
+    void preloadGameAssets((p) => {
+      if (!cancelled) setLoadProgress(p.ratio);
+    }).finally(() => {
+      const elapsed = performance.now() - started;
+      const wait = Math.max(0, LOADING_MIN_MS - elapsed);
+      window.setTimeout(() => {
+        if (!cancelled) {
+          setLoadProgress(1);
+          setScreen("lobby");
+        }
+      }, wait);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [screen]);
 
   const dismissEventUi = useCallback(() => {
     setShowEventModal(false);
@@ -394,34 +420,56 @@ export function App() {
     setTurnPhase("roll");
   }, [activePlayerId, turnPhase]);
 
-  const handlePlayerCountChange = useCallback(
-    (count: number) => {
-      const next = createPlayers(count);
-      setPlayerCount(count);
+  const resetSessionFlags = useCallback(() => {
+    setWinnerId(null);
+    setDecks(createDecks());
+    dismissEventUi();
+    setDiceRoll(null);
+    setDiceRolling(false);
+    doublesRef.current = 0;
+    extraRollRef.current = false;
+    forceEndTurnRef.current = false;
+    setConsecutiveDoubles(0);
+    pendingLandingRef.current = null;
+    setPendingDebt(null);
+    setPendingRent(null);
+    setAuction(null);
+    pendingAuctionsRef.current = [];
+    auctionAdvanceAfterModalRef.current = null;
+    setShowTrade(false);
+    resumePhaseAfterModalRef.current = null;
+    setJailError(null);
+    setSelectedIndex(0);
+    setTurnPhase("roll");
+  }, [dismissEventUi]);
+
+  const startFromLobby = useCallback(
+    (setup: LobbySetup) => {
+      const next = createPlayersFromLobby(setup);
+      setPlayerCount(next.length);
       setPlayers(next);
       playersRef.current = next;
       setActivePlayerId(next[0]?.id ?? null);
-      setWinnerId(null);
-      setDecks(createDecks());
-      dismissEventUi();
-      setDiceRoll(null);
-      setDiceRolling(false);
-      doublesRef.current = 0;
-      extraRollRef.current = false;
-      forceEndTurnRef.current = false;
-      setConsecutiveDoubles(0);
-      pendingLandingRef.current = null;
-      setPendingDebt(null);
-      setPendingRent(null);
-      setAuction(null);
-      pendingAuctionsRef.current = [];
-      auctionAdvanceAfterModalRef.current = null;
-      setShowTrade(false);
-      resumePhaseAfterModalRef.current = null;
-      setSelectedIndex(0);
-      setTurnPhase("roll");
+      resetSessionFlags();
+      setScreen("game");
     },
-    [dismissEventUi],
+    [resetSessionFlags],
+  );
+
+  const returnToLobby = useCallback(() => {
+    setScreen("lobby");
+    setPlayers([]);
+    playersRef.current = [];
+    setActivePlayerId(null);
+    resetSessionFlags();
+  }, [resetSessionFlags]);
+
+  /** Reinício rápido com a mesma quantidade (nomes/peões padrão via Lobby). */
+  const handlePlayerCountChange = useCallback(
+    (_count: number) => {
+      returnToLobby();
+    },
+    [returnToLobby],
   );
 
   const queueLanding = useCallback(
@@ -444,7 +492,7 @@ export function App() {
     setPlayers((prev) => {
       const next = prev.map((p) =>
         p.id === activePlayerId ? { ...p, position: selectedIndex } : p,
-      );
+    );
       playersRef.current = next;
       return next;
     });
@@ -764,11 +812,11 @@ export function App() {
 
   const onRollComplete = useCallback(
     (roll: DiceRoll) => {
-      setDiceRolling(false);
-      setDiceRoll(roll);
+    setDiceRolling(false);
+    setDiceRoll(roll);
 
-      const playerId = activeRef.current;
-      if (!playerId) return;
+    const playerId = activeRef.current;
+    if (!playerId) return;
 
       const current = playersRef.current.find((p) => p.id === playerId);
 
@@ -834,16 +882,16 @@ export function App() {
         return;
       }
 
-      if (roll.isDouble) {
-        doublesRef.current += 1;
-      } else {
-        doublesRef.current = 0;
-      }
-      setConsecutiveDoubles(doublesRef.current);
+    if (roll.isDouble) {
+      doublesRef.current += 1;
+    } else {
+      doublesRef.current = 0;
+    }
+    setConsecutiveDoubles(doublesRef.current);
 
-      if (roll.isDouble && doublesRef.current >= 3) {
-        doublesRef.current = 0;
-        setConsecutiveDoubles(0);
+    if (roll.isDouble && doublesRef.current >= 3) {
+      doublesRef.current = 0;
+      setConsecutiveDoubles(0);
         extraRollRef.current = false;
         forceEndTurnRef.current = true;
         setPlayers((prev) => {
@@ -866,14 +914,14 @@ export function App() {
           [],
         );
         if (!shown) startNextTurn(playerId);
-        return;
-      }
+      return;
+    }
 
       extraRollRef.current = roll.isDouble;
       queueLanding(playerId, roll.total);
       setPlayers((prev) => {
         const next = prev.map((p) =>
-          p.id === playerId
+        p.id === playerId
             ? applyMove(p, roll.total, { grantGoBonus: true })
             : p,
         );
@@ -1134,6 +1182,14 @@ export function App() {
     (auction ? 1 + auction.queue.length : 0) +
     pendingAuctionsRef.current.length;
 
+  if (screen === "loading") {
+    return <LoadingScreen progress={loadProgress} />;
+  }
+
+  if (screen === "lobby") {
+    return <LobbyScreen onStart={startFromLobby} />;
+  }
+
   return (
     <div className="relative h-dvh w-dvw overflow-hidden bg-[#120c08]">
       <BoardCanvas
@@ -1251,7 +1307,7 @@ export function App() {
         <VictoryOverlay
           winner={winner}
           players={players}
-          onNewGame={() => handlePlayerCountChange(playerCount)}
+          onNewGame={returnToLobby}
         />
       ) : null}
       <p className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-[#ffe8c8]/80">

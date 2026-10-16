@@ -1,6 +1,7 @@
 import {
   formatCash,
   getPawnDef,
+  getPlayerLabel,
   type PlayerState,
 } from "@cidadela/shared";
 
@@ -30,7 +31,7 @@ export function VictoryOverlay({ winner, players, onNewGame }: Props) {
             Fim de jogo
           </p>
           <h3 className="deed-sheet__title deed-sheet__title--dark text-2xl">
-            {def.label} venceu!
+            {getPlayerLabel(winner)} venceu!
           </h3>
           <p className="deed-sheet__sub deed-sheet__sub--dark">
             Último jogador de pé · {formatCash(winner.cash)} em caixa
@@ -55,7 +56,7 @@ export function VictoryOverlay({ winner, players, onNewGame }: Props) {
                       className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full border border-[#5c3d2e]"
                       style={{ backgroundColor: d.color }}
                     />
-                    {d.label} · falido
+                    {getPlayerLabel(p)} · falido
                   </li>
                 );
               })}
@@ -69,7 +70,7 @@ export function VictoryOverlay({ winner, players, onNewGame }: Props) {
             className="deed-btn deed-btn--amber w-full"
             onClick={onNewGame}
           >
-            Nova partida
+            Voltar ao Lobby
           </button>
         </footer>
       </div>

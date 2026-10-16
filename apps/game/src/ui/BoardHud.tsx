@@ -12,6 +12,7 @@ import {
   findPropertyOwner,
   formatCash,
   getPawnDef,
+  getPlayerLabel,
   getSpace,
   isBuyableKind,
   type BoardSpace,
@@ -120,7 +121,7 @@ export function BoardHud({
             />
             <div className="min-w-0 flex-1">
               <p className="truncate font-[family-name:var(--font-game)] text-sm font-bold text-[#9a3412]">
-                Vez de {activeDef.label}
+                Vez de {active ? getPlayerLabel(active) : activeDef.label}
               </p>
               {turnHint ? (
                 <p className="text-[11px] font-bold text-[#6b5344]">{turnHint}</p>
@@ -237,20 +238,14 @@ export function BoardHud({
       <section className="hud-card space-y-2 p-2.5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="hud-section-title">Peões</h2>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-[#6b5344]">
-            qtd
-            <select
-              className="rounded-lg border-2 border-[#5c3d2e] bg-white px-1.5 py-0.5 font-bold text-[#5c3d2e]"
-              value={playerCount}
-              onChange={(e) => onPlayerCountChange(Number(e.target.value))}
-            >
-              {[2, 3, 4, 5, 6, 7, 8].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
+          <button
+            type="button"
+            className="hud-btn hud-btn--soft px-2 py-0.5 text-[11px]"
+            onClick={() => onPlayerCountChange(playerCount)}
+            title="Voltar ao Lobby"
+          >
+            Lobby
+          </button>
         </div>
 
         <ul className="space-y-1.5">
@@ -269,7 +264,8 @@ export function BoardHud({
                     style={{ backgroundColor: def.color }}
                   />
                   <span className="min-w-0 flex-1 truncate font-[family-name:var(--font-game)]">
-                    {def.label}
+                    {getPlayerLabel(player)}
+                    {player.isBanker ? " · banq." : ""}
                     {player.bankrupt
                       ? " · falido"
                       : turnPhase === "ended"
@@ -294,10 +290,10 @@ export function BoardHud({
             </p>
             <p className="text-[11px] font-bold text-[#6b5344]">
               Dono:{" "}
-              {getPawnDef(
-                players.find((p) => p.id === pendingRent.ownerId)?.pawnId ??
-                  "acaraje",
-              ).label}
+              {(() => {
+                const owner = players.find((p) => p.id === pendingRent.ownerId);
+                return owner ? getPlayerLabel(owner) : "—";
+              })()}
               . Cobrar antes do próximo lance de dados.
             </p>
             <button
@@ -491,7 +487,7 @@ function SpaceDetails({
                     className="inline-block h-2.5 w-2.5 rounded-full border border-[#5c3d2e]"
                     style={{ backgroundColor: ownerDef.color }}
                   />
-                  {ownerDef.label}
+                  {owner ? getPlayerLabel(owner) : ownerDef.label}
                 </>
               ) : (
                 <span className="text-[#8a6a4e]">Banco</span>

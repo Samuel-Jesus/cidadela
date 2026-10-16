@@ -989,6 +989,209 @@ canvas {
   }
 }
 
+/* —— Loading (avião) —— */
+
+.loading {
+  position: relative;
+  display: flex;
+  min-height: 100dvh;
+  width: 100dvw;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  color: #fff7ed;
+}
+
+.loading__sky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 100%, rgba(251, 146, 60, 0.45), transparent 55%),
+    linear-gradient(180deg, #0ea5e9 0%, #38bdf8 35%, #7dd3fc 55%, #fdba74 85%, #ea580c 100%);
+}
+
+.loading__sky::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 25%, rgba(255, 255, 255, 0.55), transparent 18%),
+    radial-gradient(circle at 70% 18%, rgba(255, 255, 255, 0.4), transparent 14%),
+    radial-gradient(circle at 45% 40%, rgba(255, 255, 255, 0.35), transparent 12%);
+  animation: loading-clouds 12s linear infinite;
+}
+
+.loading__content {
+  position: relative;
+  z-index: 1;
+  width: min(28rem, calc(100% - 2rem));
+  text-align: center;
+}
+
+.loading__kicker {
+  margin: 0;
+  font-family: var(--font-game);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #0f766e;
+  text-shadow: 1px 1px 0 rgba(255, 247, 237, 0.7);
+}
+
+.loading__title {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-game);
+  font-size: clamp(2.4rem, 8vw, 3.4rem);
+  font-weight: 700;
+  line-height: 1;
+  color: #fff7ed;
+  text-shadow: 3px 3px 0 #5c3d2e;
+}
+
+.loading__hint {
+  margin: 0.75rem 0 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #5c3d2e;
+}
+
+.loading__flight {
+  position: relative;
+  height: 4.5rem;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.loading__trail {
+  position: absolute;
+  top: 52%;
+  left: -10%;
+  width: 120%;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(92, 61, 46, 0.35) 0 10px,
+    transparent 10px 18px
+  );
+}
+
+.loading__plane {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  translate: 0 -50%;
+  animation: loading-fly 2.8s ease-in-out infinite;
+  filter: drop-shadow(3px 4px 0 rgba(92, 61, 46, 0.35));
+}
+
+.loading__plane-svg {
+  display: block;
+}
+
+.loading__bar {
+  height: 0.85rem;
+  overflow: hidden;
+  border: 3px solid #5c3d2e;
+  border-radius: 999px;
+  background: rgba(255, 247, 237, 0.85);
+  box-shadow: 3px 3px 0 #5c3d2e;
+}
+
+.loading__bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0f766e, #14b8a6);
+  transition: width 0.25s ease;
+}
+
+.loading__bar-fill--indeterminate {
+  width: 40%;
+  animation: loading-bar 1.2s ease-in-out infinite;
+}
+
+.loading__pct {
+  margin: 0.65rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #5c3d2e;
+}
+
+@keyframes loading-fly {
+  0% {
+    left: -30%;
+    transform: translateY(8px) rotate(-4deg);
+  }
+  50% {
+    left: 55%;
+    transform: translateY(-6px) rotate(2deg);
+  }
+  100% {
+    left: 110%;
+    transform: translateY(4px) rotate(-2deg);
+  }
+}
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes loading-clouds {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-4%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading__plane,
+  .loading__bar-fill--indeterminate,
+  .loading__sky::before {
+    animation: none !important;
+  }
+  .loading__plane {
+    left: 40%;
+  }
+}
+
+/* —— Lobby —— */
+
+.lobby {
+  font-family: var(--font-ui);
+  color: #ffe8c8;
+}
+
+.lobby__bg {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 15% 10%, rgba(251, 146, 60, 0.35), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 90% 80%, rgba(15, 118, 110, 0.28), transparent 50%),
+    linear-gradient(165deg, #1a100c 0%, #2a1810 40%, #120c08 100%);
+}
+
+.lobby__bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+  background-image: repeating-linear-gradient(
+    -12deg,
+    transparent,
+    transparent 11px,
+    rgba(255, 232, 200, 0.07) 11px,
+    rgba(255, 232, 200, 0.07) 12px
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wlt,
   .wlt *,

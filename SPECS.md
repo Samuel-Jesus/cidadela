@@ -5,8 +5,8 @@
 > Sempre que `REQUISITOS.md` mudar, esta especificação deve ser revisada e alinhada.
 
 **Template:** Volere Requirements Specification (adaptado)  
-**Versão:** 0.3  
-**Status:** Alinhado às regras em `REQUISITOS.md` · hot-seat digital implementado em `apps/game` + `packages/shared`  
+**Versão:** 0.4  
+**Status:** Alinhado às regras em `REQUISITOS.md` · hot-seat digital implementado · audiovisual (som/animações) especificado, ainda pendente no código  
 
 ---
 
@@ -36,6 +36,7 @@
 15. [Segurança](#15-segurança)
 16. [Requisitos culturais](#16-requisitos-culturais)
 17. [Conformidade / legal](#17-conformidade--legal)
+17b. [Áudio, animações e efeitos de casa (digital)](#17b-áudio-animações-e-efeitos-de-casa-digital)
 
 ### Project Issues
 18. [Questões em aberto](#18-questões-em-aberto)
@@ -239,7 +240,7 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 
 ## 9. Requisitos funcionais
 
-### 9.1 Preparação
+### 9.1 Preparação / Lobby
 
 | ID | Descrição | Fit Criterion | Prioridade | Origem |
 | --- | --- | --- | --- | --- |
@@ -247,6 +248,15 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | FR-02 | Cada jogador inicia com $1.500 | Saldo inicial = 1500 para todos | Alta | Preparação |
 | FR-03 | Todos começam na casa 0 (Chegada) | posição = 0 no início | Alta | Preparação |
 | FR-04 | Existe o papel de banqueiro (pode ser jogador) | Banqueiro identificado na partida | Média | Preparação |
+| FR-05 | (Digital) Antes da partida, o **Lobby** configura a mesa | App abre no Lobby; “Começar” só com setup válido | Alta | Preparação / Lobby |
+| FR-05a | Lobby: escolher quantidade 2–8 | Contador/slots refletem C-03 / FR-01 | Alta | Lobby |
+| FR-05b | Lobby: cada assento tem **nome** editável e **peão** único (8 tokens) | Dois jogadores não compartilham o mesmo peão; nome não vazio | Alta | Lobby |
+| FR-05c | Lobby: designar **um banqueiro** entre os assentos (FR-04) | Exatamente um `isBanker`; UI mostra o papel | Média | Lobby |
+| FR-05d | Ao iniciar, aplica FR-02/FR-03 e entra no hot-seat | Jogadores criados com $1500, posição 0, peões/nomes do Lobby | Alta | Lobby |
+| FR-05e | Nova partida / vitória pode voltar ao Lobby | Estado da mesa anterior é descartado ao confirmar novo setup | Média | Lobby |
+| FR-06 | (Digital) Tela de **Loading** antes do Lobby, com **avião** | Splash/loading visível até assets críticos prontos (ou timeout seguro) | Alta | Boot / Loading |
+| FR-06a | Loading: avião em movimento (temática Bahia / aeroporto) | Animação contínua; marca “Cidadela” legível | Alta | Loading |
+| FR-06b | Loading cobre pré-carga de modelos 3D (landmarks GLTF) e shell | Lobby só aparece após loading concluir (mínimo visual opcional ~1,5s) | Média | Loading |
 
 ### 9.2 Turno e movimento
 
@@ -286,7 +296,9 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | FR-46 | Baralho esgotado: reembaralhar descartes, excluindo Proteções em mãos | Pilha renovada sem cartas guardadas | Média | Cartas |
 | FR-42 | Impostos transferem o valor indicado ao banco | Pedágio $200; Abadá $100 | Alta | Impostos / Tabuleiro |
 | FR-43 | Carnaval não altera saldo nem posição | Nenhuma transferência ao cair na casa 20 | Alta | Carnaval |
+| FR-43a | (Digital) Ao cair no Carnaval, efeitos audiovisuais festivos **sem** mudar regras (FR-43) | Toca trilha aleatória do pool Carnaval/Canário; UI/cena reage; saldo/posição inalterados | Média | Carnaval / NFR-AV |
 | FR-44 | “Vá para o Forte” envia à casa 10 como preso, sem $200 | posição=10, preso=true, sem crédito de Chegada | Alta | Vá para o Forte |
+| FR-44a | (Digital) Prisão: animação da viatura busca o peão, cruza o miolo do tabuleiro e deixa o preso no Forte | Animação completa antes (ou em paralelo controlado) do peão aparecer preso na casa 10; sem $200 | Alta | Vá para o Forte / NFR-AV |
 
 ### 9.6 Construção
 
@@ -309,6 +321,7 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | FR-62 | Resgate = hipoteca + 10% com **ceil** ao dólar | Ex.: Vitória $193; Coelba/Embasa $83; tabela §9 | Alta | Hipotecas |
 | FR-63 | Antes de hipotecar terreno de um grupo, vender todas as construções do grupo | Hipoteca bloqueada se houver pousada/resort no grupo | Alta | Hipotecas |
 | FR-64 | Vender pousada/resort ao banco por 50% do preço pago (uniforme) | saldo += floor(custo/2); estoque incrementa | Alta | Vender construções |
+| FR-64a | (Digital) Ao vender construção, um **guincho** busca a peça na casa e a leva embora (devolve ao banco) | Animação do guincho no terreno; peça some do tabuleiro; regras FR-64 inalteradas | Média | Vender construções / NFR-AV |
 | FR-65 | Ao receber bem hipotecado (negociação/falência/leilão): resgatar já ou pagar só juros 10% (ceil) e manter hipotecado | Uma das duas opções aplicada na hora | Alta | Hipotecas |
 
 ### 9.8 Forte de São Marcelo
@@ -372,6 +385,7 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | --- | --- | --- | --- | --- |
 | NFR-10 | Identidade visual inspirada na Bahia (Salvador, litoral, carnaval, cultura local) | Assets e nomes não usam marca Monopoly; usam termos Cidadela | Média | Adaptações baianas |
 | NFR-11 | Casas e cartas exibem nomes oficiais do tabuleiro | 100% dos rótulos batem com `REQUISITOS.md` | Alta | Tabuleiro / Cartas |
+| NFR-12 | Casas especiais têm “beat” audiovisual próprio (ver §17b) | Carnaval, Forte/prisão e eventos de dinheiro têm SFX/animação distintos | Média | Produto digital |
 
 ## 11. Usabilidade
 
@@ -420,6 +434,56 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | --- | --- | --- | --- |
 | NFR-80 | Produto original tematicamente distinto de marcas registradas de Monopoly | Sem uso de nomes, logos ou arte proprietários da Hasbro/Parker | Alta |
 | NFR-81 | Uso de nomes de lugares/empresas reais (Coelba, Embasa etc.) deve ser avaliado juridicamente | Checklist legal antes de publicação comercial | Média |
+| NFR-82 | Faixas musicais (Carnaval, Canário / axé) usam licença válida ou produção original | Nenhuma faixa comercial sem direito de uso em build público | Alta |
+
+## 17b. Áudio, animações e efeitos de casa (digital)
+
+Feedback sensorial **não altera regras** (saldo, posição, dono). Mute global e volume devem existir na UI.
+
+### SFX de dinheiro e economia
+
+| ID | Descrição | Fit Criterion | Prioridade |
+| --- | --- | --- | --- |
+| NFR-AV-01 | Som distinto ao **receber** dinheiro (Chegada $200, aluguel cobrado, carta a favor, venda/hipoteca) | Evento de crédito dispara SFX de “recebimento” | Alta |
+| NFR-AV-02 | Som distinto ao **pagar** / transferir (aluguel pago, compra, construção, resgate, saída do Forte $50, negociação) | Evento de débito dispara SFX de “pagamento/transferência” | Alta |
+| NFR-AV-03 | Som específico de **imposto** (Pedágio da Linha Verde $200, Abadá do Carnaval $100) | Queda em casa `imposto` ou quitação do imposto dispara SFX de imposto (não o genérico de pagamento, ou variante clara) | Alta |
+| NFR-AV-04 | Feedback sonoro (e, se couber, microanimação na carteira) a cada ponto de transferência relevante | Observador associa o som ao motivo (crédito vs débito vs imposto) | Média |
+
+### Casas e momentos especiais
+
+| ID | Descrição | Fit Criterion | Prioridade |
+| --- | --- | --- | --- |
+| NFR-AV-10 | **Carnaval (casa 20):** ao aterrissar, toca música aleatória de um pool **Carnaval** e/ou **Canário** (axé / bloco); efeitos visuais leves (confete, luzes) opcionais | Cada pouso escolhe faixa ao acaso; FR-43 respeitado (sem prêmio em $) | Alta |
+| NFR-AV-11 | Pools de áudio separados ou etiquetados (`carnaval`, `canario`) com ≥3 faixas cada (ou produção original equivalente) | RNG não repete a mesma faixa duas vezes seguidas se o pool tiver ≥2 itens | Média |
+| NFR-AV-12 | Outras casas/marcos podem ganhar stingers curtos depois (Chegada, Fitinha, Bença, impostos) | Extensível; Carnaval e prisão são o MVP audiovisual | Baixa |
+
+### Animação da prisão (viatura)
+
+| ID | Descrição | Fit Criterion | Prioridade |
+| --- | --- | --- | --- |
+| NFR-AV-20 | Ao ir para o Forte (casa 30, 3 duplas ou carta), uma **viatura / carro da polícia** busca o peão na casa atual | Modelo 3D (ou proxy) aparece junto ao peão condenado | Alta |
+| NFR-AV-21 | A viatura leva o peão **pelo miolo do tabuleiro** (atalho visual pelo centro, não só pelo perímetro) até a casa 10 (Forte) | Trajetória clara pelo centro; peão some da casa de origem durante o trajeto | Alta |
+| NFR-AV-22 | A viatura **deixa o peão na prisão** (slot de preso na casa 10) e parte / some | Estado `preso=true`, posição=10; SFX de sirene curto opcional; sem $200 da Chegada | Alta |
+| NFR-AV-23 | A animação não quebra o fluxo de regras: após (ou ao fim de) a cena, o turno segue FR-70…FR-75 | Jogador consegue pagar $50 / Proteção / tentar dupla no próximo turno | Alta |
+| NFR-AV-24 | Mute de áudio não cancela a animação da viatura; só silencia sirene/música | Animação joga com volume 0 | Média |
+
+### Animação de venda de construção (guincho)
+
+| ID | Descrição | Fit Criterion | Prioridade |
+| --- | --- | --- | --- |
+| NFR-AV-40 | Ao **vender pousada ou resort** ao banco (FR-64), um **guincho** aparece na casa da escritura | Modelo 3D (ou proxy) chega ao terreno do jogador | Alta |
+| NFR-AV-41 | O guincho **busca a peça** (pousada/resort) — visualmente “engancha” / carrega a construção | A construção some da casa (ou sobe no guincho) durante a cena | Alta |
+| NFR-AV-42 | O guincho **leva a peça embora** (sai do tabuleiro ou rumo a um “depósito do banco”) e some | Estoque do banco incrementa conforme FR-64; SFX de guincho/metal curto opcional | Alta |
+| NFR-AV-43 | Venda em sequência (várias peças / liquidação) pode encadear guinchos ou um por peça, sem corromper o estado | Cada venda válida termina com `pousadas`/`hasResort` e estoque corretos | Média |
+| NFR-AV-44 | Mute não cancela a animação do guincho; só silencia o SFX | Animação joga com volume 0 | Baixa |
+| NFR-AV-45 | Hipotecar **sem** vender construção não dispara guincho; só venda de peça ao banco | Hipoteca usa outro feedback (se houver) | Média |
+
+### Controles
+
+| ID | Descrição | Fit Criterion | Prioridade |
+| --- | --- | --- | --- |
+| NFR-AV-30 | Controles de volume (SFX / música) e mute | Preferência persiste na sessão (localStorage ok no MVP) | Média |
+| NFR-AV-31 | Músicas longas do Carnaval não travam o turno: fade-out ao passar a vez ou ao sair da casa | Volume cai em ≤2s ao mudar de contexto | Média |
 
 ---
 
@@ -431,7 +495,10 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 2. ~~Incremento mínimo de leilão digital~~ — **fechado:** $5 em bens ≤$100, senão $10 (`minBidIncrement` / peças usam custo de grupo).
 3. ~~UX digital da cobrança de aluguel (FR-22a)~~ — **fechado no MVP:** modo `claim` (dono cobra no HUD; próximo roll perde o direito). Toggle “auto” opcional ainda não existe na UI.
 4. Multiplayer online (fase 2) — fora do MVP hot-seat.
-5. Papel de banqueiro explícito (FR-04) e tela de preparação (nomes/peões).
+5. ~~Papel de banqueiro explícito (FR-04) e tela de preparação~~ — **Lobby especificado (FR-05…)**; implementar no app.
+6. Pacote de áudio: faixas originais vs licença (Carnaval / Canário) — ver NFR-82.
+7. Duração e cancelamento da animação da viatura (skip no hot-seat?).
+8. Guincho: um por peça vs batch na liquidação; skip no hot-seat?
 
 ## 19. Soluções prontas
 
@@ -457,8 +524,13 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | 5 | Engine: resolver casa (aluguel, imposto, Forte, cartas) | 4 | Feito |
 | 6 | Hot-seat completo + hipotecas / construção / leilão / negociação / falência / fim de jogo | 5 | Feito |
 | 7 | Vitest FRs críticos (`packages/shared`) | 6 | Feito (base) |
-| 8 | Playtest de balanceamento | 6 | Pendente |
-| 9 | Multiplayer (Colyseus/PartyKit) | 8 | Pendente (fase 2) |
+| 8 | Lobby digital (FR-05…05e): nomes, peões, banqueiro, 2–8 | 6 | Feito |
+| 8b | Loading com avião (FR-06…06b) antes do Lobby | 6 | Feito |
+| 9 | Playtest de balanceamento | 6 | Pendente |
+| 10 | Áudio: SFX dinheiro / imposto + pools Carnaval & Canário (§17b) | 6 | Pendente |
+| 11 | Animação viatura → Forte pelo miolo do tabuleiro (FR-44a / NFR-AV-20…23) | 6 | Pendente |
+| 12 | Animação guincho ao vender pousada/resort (FR-64a / NFR-AV-40…42) | 6 | Pendente |
+| 13 | Multiplayer (Colyseus/PartyKit) | 9 | Pendente (fase 2) |
 
 ## 22. Migração
 
@@ -511,8 +583,14 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 
 - [ ] Toggle UI cobrança automática vs pedida (hoje só `claim`)
 - [ ] Playtest formal de balanceamento (§8)
-- [ ] FR-04 papel de banqueiro / tela de preparação
+- [x] **Lobby** (FR-05…05e): quantidade, nomes, peões únicos, banqueiro → começar partida
+- [x] **Loading** com avião (FR-06…06b) na entrada do app
 - [ ] Cobertura Vitest ampliada (cartas, Forte, falência ponta a ponta)
+- [ ] **Áudio:** SFX de recebimento, pagamento/transferência e impostos (NFR-AV-01…04)
+- [ ] **Carnaval:** músicas aleatórias (pools Carnaval + Canário) + efeitos leves (FR-43a / NFR-AV-10…11)
+- [ ] **Prisão:** animação do carro da polícia buscando o peão, cruzando o miolo e deixando no Forte (FR-44a / NFR-AV-20…23)
+- [ ] **Venda de construção:** guincho busca pousada/resort na casa e leva embora (FR-64a / NFR-AV-40…42)
+- [ ] Controles de volume / mute (NFR-AV-30)
 - [ ] Multiplayer online (Colyseus/PartyKit)
 - [ ] Pousadas/resorts visíveis no tabuleiro 3D
 
@@ -522,6 +600,9 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 - Banqueiro automático na versão digital (implícito); papel nomeado (FR-04) ainda aberto.
 - Cartas com efeitos tipados conforme §13 — feitos no shared.
 - Playtests com as tabelas §8; ajustar se necessário e refletir em `REQUISITOS.md`.
+- Camada `audio/` + `fx/` no `apps/game` (Howler/Web Audio + animações R3F) desacoplada das regras em `shared`.
+- Viatura: path spline pelo centro do tabuleiro (BOARD mid) casa atual → Forte (10).
+- Guincho: spawn na lateral da casa → “puxa” mesh da pousada/resort → exit para fora do board (ou depósito); depende de pousadas/resorts visíveis no 3D.
 
 ---
 
@@ -530,19 +611,20 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 | Área em `REQUISITOS.md` | IDs neste `SPECS.md` | Digital (hot-seat) |
 | --- | --- | --- |
 | §1 Objetivo / material | §1, FR-83, FR-53 | Feito (fim de jogo + estoque) |
-| §2 Preparação | FR-01–FR-04, C-03 | Parcial (2–8 jogadores; FR-04 aberto) |
+| §2 Preparação / Lobby | FR-01–FR-06b, C-03 | Feito (Loading + Lobby) |
 | §3 Vez | FR-10–FR-13 | Feito |
-| §4–5 Tabuleiro / tipos | FR-20–FR-25, FR-30–31, FR-40–46, FR-90–91, C-04 | Feito (FR-22a em modo claim) |
-| §6 Forte | FR-70–FR-75 | Feito |
-| §7–8 Construção / tabelas | FR-50–FR-56, FR-25 | Feito (+ leilão de peça escassa) |
+| §4–5 Tabuleiro / tipos | FR-20–FR-25, FR-30–31, FR-40–46, FR-90–91, C-04, FR-43a | Feito + audiovisual Carnaval pendente |
+| §6 Forte | FR-70–FR-75, FR-44a | Feito + animação viatura pendente |
+| §7–8 Construção / tabelas | FR-50–FR-56, FR-25, FR-64a | Feito regras; guincho na venda pendente |
 | §9 Hipotecas | FR-60–FR-65 | Feito |
 | §10 Leilão | FR-85–FR-89 | Feito |
 | §11–12 Negociação / falência | FR-80–FR-84 | Feito |
 | §13 Baralhos | FR-40–FR-46 | Feito (confirmar edge FR-46 em playtest) |
 | §14 Adaptações | §4, NFR-10, NFR-70, NFR-80 | Doc |
-| §15 Carteira | FR-24, FR-64, FR-100–FR-107, PUC 12–13, NFR-22 | Feito |
-| Waiting Room / implementação | §18, §21, §26 | Atualizado v0.3 |
+| §15 Carteira | FR-24, FR-64, FR-64a, FR-100–FR-107, PUC 12–13, NFR-22, NFR-AV-01…04, NFR-AV-40…45 | Feito regras; SFX + guincho pendentes |
+| Áudio / animações digitais | §17b, NFR-AV-*, NFR-82 | Especificado v0.4; código pendente |
+| Waiting Room / implementação | §18, §21, §26 | Atualizado v0.4 |
 
 ---
 
-*Fim da especificação Volere v0.3 — manter sincronizado com `REQUISITOS.md` e o código.*
+*Fim da especificação Volere v0.4 — manter sincronizado com `REQUISITOS.md` e o código.*

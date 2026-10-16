@@ -7,6 +7,7 @@ import {
   formatCash,
   getCard,
   getPawnDef,
+  getPlayerLabel,
   getSpace,
   type CardDef,
   type PlayerState,
@@ -105,7 +106,7 @@ export function WalletPanel({
                   className="wlt__dot"
                   style={{ backgroundColor: def.color }}
                 />
-                <span className="wlt__who-name">{def.label}</span>
+                <span className="wlt__who-name">{getPlayerLabel(player)}</span>
               </span>
               {totalItems > 3 ? <span className="wlt__hint">role →</span> : null}
               <button
@@ -191,13 +192,13 @@ export function WalletPanel({
             aria-expanded={open}
             aria-label={
               open
-                ? `Fechar carteira de ${def.label}`
-                : `Abrir carteira de ${def.label}`
+                ? `Fechar carteira de ${getPlayerLabel(player)}`
+                : `Abrir carteira de ${getPlayerLabel(player)}`
             }
             onClick={() => (open ? closeWallet() : setOpen(true))}
           >
             <span className="wlt__pocket-main">
-              <span className="wlt__label">{def.label}</span>
+              <span className="wlt__label">{getPlayerLabel(player)}</span>
               <span className="wlt__cash">{formatCash(player.cash)}</span>
             </span>
             <span className="wlt__pocket-meta">
