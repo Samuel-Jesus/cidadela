@@ -46,9 +46,18 @@ export {
   deckCounts,
 } from "./cards";
 export type { CardResolveResult, CardResolveOptions } from "./cardEffects";
-export { resolveCardEffect } from "./cardEffects";
+export { resolveCardEffect, drawAndResolveCard } from "./cardEffects";
 export type { SpaceResolveResult, SpaceResolveOptions } from "./spaceResolve";
 export { resolveSpaceLanding } from "./spaceResolve";
+export {
+  JAIL_FINE,
+  JAIL_MAX_ATTEMPTS,
+  sendToJail,
+  releaseFromJail,
+  payJailFine,
+  useProtectionToLeaveJail,
+  forceLeaveJailAfterFailedAttempts,
+} from "./jail";
 export type { PropertyRentRow } from "./rent";
 export {
   TRANSPORT_RENT_BY_COUNT,

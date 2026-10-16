@@ -47,6 +47,7 @@ export type PlayerState = {
   properties: PropertyHolding[];
   protectionCardIds: string[];
   inJail: boolean;
+  jailAttempts: number;
 };
 
 export function createPlayers(count: number): PlayerState[] {
@@ -59,6 +60,7 @@ export function createPlayers(count: number): PlayerState[] {
     properties: [],
     protectionCardIds: [],
     inJail: false,
+    jailAttempts: 0,
   }));
 }
 

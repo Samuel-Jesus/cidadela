@@ -1,11 +1,11 @@
 import { getSpace } from "./board";
 import {
-  JAIL_INDEX,
   deckIdFromSpaceKind,
   type CardDef,
   type DeckId,
   type DecksState,
 } from "./cards";
+import { sendToJail } from "./jail";
 import { findPropertyOwner, type PlayerState } from "./pawns";
 import { chargeRentIfOwned, payBank } from "./rent";
 
@@ -63,9 +63,7 @@ export function resolveSpaceLanding(
 
     case "va_para_o_forte": {
       nextPlayers = nextPlayers.map((p) =>
-        p.id === playerId
-          ? { ...p, position: JAIL_INDEX, inJail: true }
-          : p,
+        p.id === playerId ? sendToJail(p) : p,
       );
       notes.push("Vá para o Forte — preso, sem $200 da Chegada.");
       break;

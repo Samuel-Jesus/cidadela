@@ -1,6 +1,5 @@
 import { GO_BONUS, type PlayerState } from "./pawns";
 import {
-  JAIL_INDEX,
   TRANSPORT_INDICES,
   UTILITY_INDICES,
   discardCard,
@@ -10,6 +9,7 @@ import {
   type DeckId,
   type DecksState,
 } from "./cards";
+import { sendToJail } from "./jail";
 import { resolveSpaceLanding } from "./spaceResolve";
 
 export type CardResolveOptions = {
@@ -114,6 +114,23 @@ function drawCardAndResolve(
   };
 }
 
+export function drawAndResolveCard(
+  players: readonly PlayerState[],
+  decks: DecksState,
+  playerId: string,
+  deckId: DeckId,
+  opts: CardResolveOptions = {},
+): CardResolveResult {
+  return drawCardAndResolve(
+    [...players],
+    decks,
+    playerId,
+    deckId,
+    opts.cardDepth ?? 0,
+    opts.rng ?? Math.random,
+  );
+}
+
 export function resolveCardEffect(
   players: readonly PlayerState[],
   decks: DecksState,
@@ -209,9 +226,9 @@ export function resolveCardEffect(
         others.length === 0
           ? 0
           : Math.min(
-              effect.amount,
-              Math.floor(Math.min(player.cash, need) / others.length),
-            );
+            effect.amount,
+            Math.floor(Math.min(player.cash, need) / others.length),
+          );
       nextPlayers = nextPlayers.map((p) => {
         if (p.id === playerId) {
           return { ...p, cash: p.cash - payEach * others.length };
@@ -225,10 +242,7 @@ export function resolveCardEffect(
     }
 
     case "go_to_jail":
-      nextPlayers = updatePlayer(nextPlayers, playerId, {
-        position: JAIL_INDEX,
-        inJail: true,
-      });
+      nextPlayers = updatePlayer(nextPlayers, playerId, (p) => sendToJail(p));
       notes.push("Foi preso no Forte de São Marcelo.");
       break;
 

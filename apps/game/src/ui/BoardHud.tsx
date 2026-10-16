@@ -2,6 +2,8 @@ import type { DiceRoll } from "@cidadela/engine";
 import {
   COLOR_GROUP_LABELS,
   DECK_LABELS,
+  JAIL_FINE,
+  JAIL_MAX_ATTEMPTS,
   KIND_LABELS,
   deckIdFromSpaceKind,
   findPropertyOwner,
@@ -14,6 +16,8 @@ import {
   type PlayerState,
 } from "@cidadela/shared";
 
+type TurnPhase = "roll" | "busy" | "action";
+
 type Props = {
   selectedIndex: number | null;
   players: PlayerState[];
@@ -23,6 +27,9 @@ type Props = {
   diceRolling: boolean;
   consecutiveDoubles: number;
   decks: DecksState;
+  turnPhase: TurnPhase;
+  turnHint: string | null;
+  jailError: string | null;
   onSelectPlayer: (playerId: string) => void;
   onPlayerCountChange: (count: number) => void;
   onMoveActiveToSelected: () => void;
@@ -30,6 +37,9 @@ type Props = {
   onRollDice: () => void;
   onBuySelected: () => void;
   onDrawCard: () => void;
+  onPassTurn: () => void;
+  onPayJailFine: () => void;
+  onUseJailProtection: () => void;
 };
 
 export function BoardHud({
@@ -41,19 +51,26 @@ export function BoardHud({
   diceRolling,
   consecutiveDoubles,
   decks,
-  onSelectPlayer,
+  turnPhase,
+  turnHint,
+  jailError,
   onPlayerCountChange,
   onMoveActiveToSelected,
   onAdvanceActive,
   onRollDice,
   onBuySelected,
   onDrawCard,
+  onPassTurn,
+  onPayJailFine,
+  onUseJailProtection,
 }: Props) {
   const space = selectedIndex === null ? null : getSpace(selectedIndex);
   const active = players.find((p) => p.id === activePlayerId) ?? null;
+  const activeDef = active ? getPawnDef(active.pawnId) : null;
   const owner =
     selectedIndex === null ? null : findPropertyOwner(players, selectedIndex);
   const canBuy =
+    turnPhase === "action" &&
     Boolean(
       active && space && space.price !== undefined && isBuyableKind(space.kind),
     ) &&
@@ -62,16 +79,35 @@ export function BoardHud({
     space !== null &&
     active.cash >= (space.price ?? Infinity);
   const cardDeck = space ? deckIdFromSpaceKind(space.kind) : null;
-  const canDrawCard = Boolean(active && cardDeck && !diceRolling);
+  const canDrawCard = Boolean(
+    active && cardDeck && turnPhase !== "busy" && !diceRolling,
+  );
 
   return (
     <aside className="hud-panel pointer-events-auto absolute right-4 top-4 z-10 flex max-h-[calc(100dvh-2rem)] w-[19.5rem] flex-col gap-3 overflow-y-auto p-3.5">
       <header className="px-0.5">
         <p className="hud-kicker">Cidadela</p>
         <h1 className="hud-title mt-0.5 text-[1.65rem]">Tabuleiro da Bahia</h1>
-        <p className="mt-1 text-xs font-semibold text-[#8a6a4e]">
-          Rola, compra, ri e não vai pro Forte!
-        </p>
+        {activeDef ? (
+          <div className="mt-2 flex items-center gap-2 rounded-xl border-2 border-[#5c3d2e] bg-[#fffbeb] px-2.5 py-1.5 shadow-[2px_2px_0_rgba(92,61,46,0.25)]">
+            <span
+              className="inline-block h-3.5 w-3.5 rounded-full border-2 border-[#5c3d2e]"
+              style={{ backgroundColor: activeDef.color }}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-[family-name:var(--font-game)] text-sm font-bold text-[#9a3412]">
+                Vez de {activeDef.label}
+              </p>
+              {turnHint ? (
+                <p className="text-[11px] font-bold text-[#6b5344]">{turnHint}</p>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <p className="mt-1 text-xs font-semibold text-[#8a6a4e]">
+            Rola, compra, ri e não vai pro Forte!
+          </p>
+        )}
       </header>
 
       <section className="hud-card space-y-2 p-2.5">
@@ -94,16 +130,56 @@ export function BoardHud({
 
       <section className="hud-card space-y-2 p-2.5">
         <h2 className="hud-section-title">Dados</h2>
-        <p className="text-xs font-semibold leading-snug text-[#6b5344]">
-          Toque duplo na bandeja do centro — ou no botão aqui embaixo.
-        </p>
+        {active?.inJail && turnPhase === "roll" ? (
+          <div className="space-y-2">
+            <p className="text-xs font-bold leading-snug text-[#9a3412]">
+              Preso no Forte · tentativa {active.jailAttempts}/
+              {JAIL_MAX_ATTEMPTS}
+            </p>
+            <button
+              type="button"
+              disabled={diceRolling || active.cash < JAIL_FINE}
+              onClick={onPayJailFine}
+              className="hud-btn hud-btn--mint w-full px-3 py-2 text-sm"
+            >
+              Pagar ${JAIL_FINE} e sair
+            </button>
+            <button
+              type="button"
+              disabled={diceRolling || active.protectionCardIds.length === 0}
+              onClick={onUseJailProtection}
+              className="hud-btn hud-btn--pink w-full px-3 py-2 text-sm"
+            >
+              Usar Proteção
+              {active.protectionCardIds.length > 0
+                ? ` (${active.protectionCardIds.length})`
+                : ""}
+            </button>
+            <p className="text-[11px] font-semibold text-[#6b5344]">
+              Ou role os dados tentando uma dupla.
+            </p>
+            {jailError ? (
+              <p className="rounded-lg border-2 border-[#5c3d2e] bg-[#fecaca] px-2 py-1.5 text-[11px] font-bold text-[#7f1d1d]">
+                {jailError}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-xs font-semibold leading-snug text-[#6b5344]">
+            Toque duplo na bandeja do centro — ou no botão aqui embaixo.
+          </p>
+        )}
         <button
           type="button"
           disabled={!active || diceRolling}
           onClick={onRollDice}
           className="hud-btn hud-btn--primary w-full px-3 py-2.5 text-base"
         >
-          {diceRolling ? "Rolando…" : "Rolar dados"}
+          {diceRolling
+            ? "Rolando…"
+            : active?.inJail
+              ? "Tentar dupla"
+              : "Rolar dados"}
         </button>
 
         {diceRoll ? (
@@ -155,11 +231,9 @@ export function BoardHud({
             const selected = player.id === activePlayerId;
             return (
               <li key={player.id}>
-                <button
-                  type="button"
-                  onClick={() => onSelectPlayer(player.id)}
-                  className={`hud-player flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm font-bold transition ${
-                    selected ? "hud-player--active" : "hover:-translate-y-0.5"
+                <div
+                  className={`hud-player flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm font-bold ${
+                    selected ? "hud-player--active" : ""
                   }`}
                 >
                   <span
@@ -172,16 +246,26 @@ export function BoardHud({
                   <span className="shrink-0 text-xs tabular-nums text-[#1f6b45]">
                     {formatCash(player.cash)}
                   </span>
-                </button>
+                </div>
               </li>
             );
           })}
         </ul>
 
+        {turnPhase === "action" ? (
+          <button
+            type="button"
+            onClick={onPassTurn}
+            className="hud-btn hud-btn--soft w-full px-2.5 py-2 text-sm"
+          >
+            {canBuy ? "Não comprar · passar" : "Passar a vez"}
+          </button>
+        ) : null}
+
         <div className="flex flex-wrap gap-1.5 pt-0.5">
           <button
             type="button"
-            disabled={!active || diceRolling}
+            disabled={!active || diceRolling || turnPhase === "busy"}
             onClick={() => onAdvanceActive(1)}
             className="hud-btn hud-btn--soft px-2.5 py-1.5 text-xs"
           >
@@ -189,7 +273,12 @@ export function BoardHud({
           </button>
           <button
             type="button"
-            disabled={!active || selectedIndex === null || diceRolling}
+            disabled={
+              !active ||
+              selectedIndex === null ||
+              diceRolling ||
+              turnPhase === "busy"
+            }
             onClick={onMoveActiveToSelected}
             className="hud-btn hud-btn--soft px-2.5 py-1.5 text-xs"
           >
@@ -204,7 +293,7 @@ export function BoardHud({
             space={space}
             owner={owner}
             canBuy={canBuy}
-            buyDisabled={!active || diceRolling}
+            buyDisabled={!canBuy}
             onBuy={onBuySelected}
             canDrawCard={canDrawCard}
             drawDisabled={!canDrawCard}
