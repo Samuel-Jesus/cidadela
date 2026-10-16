@@ -1,6 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import { FitToSlot } from "./FitToSlot";
 import { GltfLandmark } from "./GltfLandmark";
+import { CoelbaLandmark } from "./CoelbaLandmark";
 import { MetroDeSalvadorLandmark } from "./MetroDeSalvadorLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
@@ -13,13 +14,21 @@ type Props = {
 
 export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props) {
   const isGltf =
-    index === 10 || index === 15 || index === 27 || index === 28 || index === 35;
+    index === 10 ||
+    index === 12 ||
+    index === 15 ||
+    index === 27 ||
+    index === 28 ||
+    index === 35;
   const fitWidth = (slotWidth ?? 1.2) * (isGltf ? 0.98 : 0.95);
   const fitDepth = (slotDepth ?? 1.2) * (isGltf ? 0.98 : 0.55);
 
   if (index === 10) {
     const forteFit = Math.min(slotWidth ?? 1.2, slotDepth ?? 1.2) * 0.85;
     return <ForteSaoMarcelo accent={accent} fitWidth={forteFit} fitDepth={forteFit} />;
+  }
+  if (index === 12) {
+    return <CoelbaLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
   if (index === 15) {
     return <ElevadorLacerda accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
@@ -69,8 +78,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
       return <Valenca />;
     case 11:
       return <Ilheus />;
-    case 12:
-      return <Coelba />;
     case 13:
       return <Itacare />;
     case 14:
@@ -280,19 +287,6 @@ function Ilheus() {
       <Box args={[0.06, 0.25, 0.06]} position={[0, 0.95, 0]} color="#f7f9f9" />
       <Box args={[0.18, 0.18, 0.18]} position={[0.4, 0.12, 0.25]} color="#6e2c00" />
       <Sphere args={[0.1]} position={[0.4, 0.28, 0.25]} color="#1e8449" />
-    </Group>
-  );
-}
-
-function Coelba() {
-  return (
-    <Group>
-      <Cyl args={[0.05, 0.05, 1.0, 6]} position={[-0.25, 0.5, 0]} color="#95a5a6" />
-      <Cyl args={[0.05, 0.05, 1.0, 6]} position={[0.25, 0.5, 0]} color="#95a5a6" />
-      <Box args={[0.7, 0.05, 0.05]} position={[0, 0.95, 0]} color="#f1c40f" />
-      <Box args={[0.35, 0.25, 0.35]} position={[0, 0.15, 0]} color="#27ae60" />
-      <Sphere args={[0.06]} position={[-0.25, 1.05, 0]} color="#f4d03f" />
-      <Sphere args={[0.06]} position={[0.25, 1.05, 0]} color="#f4d03f" />
     </Group>
   );
 }

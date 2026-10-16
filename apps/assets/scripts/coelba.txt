@@ -1,0 +1,112 @@
+// Requer Three.js. Uso: const modelo = criarCoelba(THREE); cena.add(modelo);
+// No loop de animação: modelo.userData.tick(deltaSegundos);
+// Estender/recolher a lança: modelo.userData.alternarLanca();
+
+function criarCoelba(THREE){
+  const g=new THREE.Group(); g.name='Coelba'; const PI=Math.PI;
+  const M=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.8},o||{}));
+  const m={gravel:M(0xb9b9b6),road:M(0x9d9a92),curb:M(0xd5d3cb),conc:M(0xcac9c1),concD:M(0x8b8d8f),grey:M(0x9a9ea3),grey2:M(0x7d8186),dark:M(0x23252a),
+    white:M(0xf3f4f2,{roughness:.5}),wall:M(0xf2f2ee),green:M(0x2e9a3a),pipe:M(0x8cc63f,{roughness:.5}),orange:M(0xef7f2a,{roughness:.55}),red:M(0xb02a2a,{roughness:.5}),
+    teal:M(0x2fb5a0),win:M(0x1f2c40,{roughness:.2}),tire:M(0x1b1b1d),hub:M(0xbfc3c8,{metalness:.5}),pole:M(0x9b8f7e),wire:M(0x1d1d1d),
+    skin:M(0x6b4a36),vest:M(0xf0762a),pants:M(0x47552e),lamp:M(0xff9a1a,{emissive:0xff7a00,emissiveIntensity:1}),led:M(0x35e06a,{emissive:0x22cc55,emissiveIntensity:1})};
+  const bx=(w,h,d,mt,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const cyl=(rt,rb,h,mt,x,y,z,p,seg)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||10),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const tubo=(pts,mt,r)=>{const o=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(p[0],p[1],p[2]))),16,r,4),mt);g.add(o)};
+
+  /* terreno: pátio de brita, rua, meio-fio e muro com faixa verde */
+  bx(16,.5,6.7,m.gravel,0,-.25,-2.15); bx(16,.5,4.3,m.road,0,-.25,3.35); bx(16,.1,.22,m.curb,0,.02,1.2);
+  bx(16,.9,.15,m.wall,0,.45,-5.3); bx(16,.1,.17,m.green,0,.88,-5.3);
+
+  /* pórticos de concreto da subestação */
+  const XS=[-5.5,-3.5,-1.5], ZS=[-1,-2.6,-4.2];
+  XS.forEach(x=>ZS.forEach(z=>bx(.12,2.3,.12,m.conc,x,1.15,z)));
+  [2.2,1.55].forEach(y=>{
+    ZS.forEach(z=>bx(4.2,.1,.1,m.conc,-3.5,y,z));
+    XS.forEach(x=>bx(.1,.1,3.4,m.conc,x,y,-2.6));
+  });
+  ZS.forEach(z=>{ for(let x=-5.4;x<=-1.5;x+=.5) cyl(.025,.03,.1,m.dark,x,2.3,z); });
+  [[-5.5,-4.5,-3.5],[-3.5,-2.5,-1.5]].forEach((r,i)=>tubo([[r[0],2.15,-2.6],[r[1],1.3,-2.6],[r[2],2.15,-2.6]],m.red,.022));
+  tubo([[-5.5,2.15,-1],[-4.5,1.4,-1.8],[-3.5,2.15,-2.6]],m.red,.022);
+  tubo([[-3.5,2.15,-4.2],[-2.5,1.4,-3.4],[-1.5,2.15,-2.6]],m.red,.022);
+
+  /* transformadores, torre de treliça, cubículo e transformador verde */
+  const trafo=(x,z)=>{
+    bx(.8,.14,.7,m.concD,x,.07,z); bx(.55,.65,.45,m.grey,x,.5,z); bx(.06,.5,.4,m.grey2,x+.33,.5,z); bx(.06,.5,.4,m.grey2,x-.33,.5,z);
+    [-.18,0,.18].forEach(d=>{ cyl(.04,.05,.28,m.dark,x+d,1.0,z); cyl(.06,.06,.04,m.hub,x+d,1.16,z); });
+  };
+  [[-4.5,-1.7],[-2.5,-3.3],[-5.2,-3.7],[4.8,-2.6],[6.5,-2.6]].forEach(p=>trafo(p[0],p[1]));
+  const torre=(x,z)=>{
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(s=>cyl(.015,.015,1.7,m.grey2,x+s[0]*.22,.85,z+s[1]*.22,g,6));
+    [.1,.6,1.1,1.6].forEach(y=>{ bx(.46,.02,.02,m.grey2,x,y,z+.22); bx(.46,.02,.02,m.grey2,x,y,z-.22); bx(.02,.02,.46,m.grey2,x+.22,y,z); bx(.02,.02,.46,m.grey2,x-.22,y,z); });
+    [.35,.85,1.35].forEach(y=>{ const a=Math.atan2(.5,.44), len=Math.hypot(.5,.44);
+      [.22,-.22].forEach(d=>{ const o=bx(len,.015,.015,m.grey2,x,y,z+d); o.rotation.z=a; const q=bx(.015,.015,len,m.grey2,x+d,y,z); q.rotation.x=a; });
+    });
+    bx(.5,.12,.5,m.concD,x,.06,z);
+  };
+  torre(-2.6,-.2); torre(3.4,-3.6);
+  bx(.35,.8,.3,M(0xc42b2b),-6.7,.4,.4);
+  bx(.3,.12,.3,m.concD,-4.9,.06,-2.2); cyl(.17,.17,.4,m.teal,-4.9,.32,-2.2,g,14);
+  const led=new THREE.Mesh(new THREE.SphereGeometry(.04,8,6),m.led); led.position.set(-4.5,.62,-1.45); g.add(led);
+
+  /* poste com cruzeta e fios */
+  const poste=(x)=>{ cyl(.09,.11,5.3,m.pole,x,2.65,3.2); bx(1.3,.08,.08,m.dark,x,5,3.2); [-.5,0,.5].forEach(d=>cyl(.025,.03,.1,m.hub,x,5.08,3.2+d,g,8).position.z=3.2+d); };
+  poste(4.6); poste(-7.3);
+  [-.5,0,.5].forEach(d=>tubo([[4.6,5.12,3.2+d],[-1.4,4.7,3.2+d],[-7.3,5.12,3.2+d]],m.wire,.012));
+
+  /* cones, fita e trabalhador */
+  const cone=(x,z)=>{ bx(.3,.03,.3,m.dark,x,.02,z); cyl(.02,.12,.42,m.orange,x,.24,z,g,12); cyl(.075,.09,.07,m.white,x,.22,z,g,12); };
+  const C=[[-.7,1.8],[2.3,1.8],[5.3,1.8],[5.3,4.6],[2.3,4.6],[-.7,4.6]];
+  C.forEach((p,i)=>{ cone(p[0],p[1]); const q=C[(i+1)%6], dx=q[0]-p[0], dz=q[1]-p[1];
+    const f=bx(Math.hypot(dx,dz),.02,.012,m.orange,(p[0]+q[0])/2,.3,(p[1]+q[1])/2); f.rotation.y=-Math.atan2(dz,dx); });
+  const figura=(pernas)=>{
+    const f=new THREE.Group();
+    if(pernas){ bx(.08,.45,.1,m.pants,-.05,.22,0,f); bx(.08,.45,.1,m.pants,.05,.22,0,f); }
+    bx(.2,.32,.12,m.vest,0,pernas?.6:.16,0,f); bx(.06,.28,.06,m.vest,-.13,pernas?.6:.16,0,f); bx(.06,.28,.06,m.vest,.13,pernas?.6:.16,0,f);
+    const y=pernas?.86:.42; const h=new THREE.Mesh(new THREE.SphereGeometry(.06,10,8),m.skin); h.position.y=y; f.add(h);
+    const c=new THREE.Mesh(new THREE.SphereGeometry(.07,10,8,0,PI*2,0,PI/2),m.white); c.position.y=y+.02; f.add(c);
+    return f;
+  };
+  const op=figura(true); op.position.set(4.9,0,4.2); op.rotation.y=-.8; g.add(op);
+
+  /* caminhão com carroceria, canos verdes, logo e lança articulada */
+  const tr=new THREE.Group(); tr.position.set(2,0,3.2); g.add(tr);
+  bx(3.2,.16,.9,m.dark,-.2,.55,0,tr);
+  [[-1.3,.5],[-1.3,-.5],[1,.5],[1,-.5]].forEach(p=>{
+    const t=cyl(.3,.3,.22,m.tire,p[0],.3,p[1],tr,18); t.rotation.x=PI/2; const h=cyl(.16,.16,.24,m.hub,p[0],.3,p[1],tr,12); h.rotation.x=PI/2; });
+  bx(1,.8,1,m.white,-1.05,1.02,0,tr); bx(.5,.42,1,m.white,-1.78,.85,0,tr); bx(.1,.12,1,m.grey,-2.08,.6,0,tr);
+  bx(.02,.3,.8,m.win,-1.56,1.22,0,tr).rotation.z=.25;
+  [.505,-.505].forEach(z=>bx(.55,.3,.01,m.win,-1.1,1.2,z,tr));
+  [.2,-.2].forEach(z=>bx(.02,.08,.12,m.lamp,-2.1,.8,z,tr));
+  bx(2,.9,1.05,m.white,.5,1.07,0,tr);
+  const cv=document.createElement('canvas'); cv.width=256; cv.height=140; const cx=cv.getContext('2d');
+  const folha=(x,c)=>{ cx.fillStyle=c; cx.beginPath(); cx.moveTo(x,105); cx.quadraticCurveTo(x-34,60,x,8); cx.quadraticCurveTo(x+34,60,x,105); cx.fill(); };
+  folha(76,'#4aa34a'); folha(122,'#2f9bd6'); folha(172,'#f5a800');
+  cx.fillStyle='#2e7d32'; cx.font='bold 24px sans-serif'; cx.textAlign='center'; cx.fillText('COELBA',124,134);
+  const tex=new THREE.CanvasTexture(cv), mlogo=new THREE.MeshStandardMaterial({map:tex,transparent:true,roughness:.6});
+  [1,-1].forEach(s=>{ const p=new THREE.Mesh(new THREE.PlaneGeometry(.9,.5),mlogo); p.position.set(.5,1.07,s*.531); if(s<0)p.rotation.y=PI; tr.add(p); });
+  [1.1,1.95].forEach((y,i)=>{ const p=cyl(.07,.07,2,m.pipe,.5,y-.3+(i?.12:0),(i?.1:-.08),tr,12); p.rotation.z=PI/2; });
+  [-.35,1.35].forEach(x=>[.42,-.42].forEach(z=>bx(.05,.4,.05,m.pipe,x,1.75,z,tr)));
+  cyl(.06,.06,.08,m.lamp,-1.05,1.46,0,tr,10);
+  bx(.5,.25,.6,m.white,1.2,1.7,0,tr);
+
+  const L1=1.92, L2=3, rad=d=>d*PI/180;
+  const piv=new THREE.Group(); piv.position.set(1.2,1.85,0); tr.add(piv);
+  bx(L1,.15,.15,m.white,L1/2,0,0,piv);
+  const cot=new THREE.Group(); cot.position.x=L1; piv.add(cot);
+  bx(L2,.13,.13,m.white,L2/2,0,0,cot); bx(L2*.55,.2,.2,m.orange,L2*.7,0,0,cot);
+  const cesto=new THREE.Group(); cesto.position.x=L2; cot.add(cesto);
+  bx(.42,.46,.42,m.white,0,.05,0,cesto);
+  const bo=figura(false); bo.position.set(0,.25,0); cesto.add(bo);
+
+  const e={u:1,alvo:1};
+  const pose=u=>{ const t1=rad(178+(141-178)*u), t2=rad(-2+(21.4+2)*u); piv.rotation.z=t1; cot.rotation.z=t2-t1; cesto.rotation.z=-t2; };
+  pose(1);
+  g.userData.alternarLanca=()=>{ e.alvo=e.alvo>.5?0:1; return e.alvo>.5; };
+  let t=0;
+  g.userData.tick=dt=>{
+    t+=dt; e.u+=(e.alvo-e.u)*Math.min(1,dt*2); pose(e.u);
+    m.lamp.emissiveIntensity=.2+.9*(Math.sin(t*6)>0?1:0);
+    m.led.emissiveIntensity=.4+.6*(Math.sin(t*2)*.5+.5);
+  };
+  return g;
+}
