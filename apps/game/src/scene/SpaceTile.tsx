@@ -1,12 +1,17 @@
 import { useMemo, useRef, useState } from "react";
+import { Text } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
-import type { Group, Mesh } from "three";
+import type { Group } from "three";
 import { getSpace } from "@cidadela/shared";
 import { Landmark } from "../landmarks/Landmark";
 import { stripeColor, tileColor } from "./colors";
 import type { SpaceLayout } from "./layout";
 import { BOARD_Y, TILE_THICKNESS } from "./layout";
+
+const STRIPE_BAND = 0.28;
+const NAME_FONT =
+  "https://cdn.jsdelivr.net/fontsource/fonts/fredoka@5.2.5/latin-700-normal.woff";
 
 type Props = {
   layout: SpaceLayout;
@@ -20,6 +25,16 @@ function isSideTile(yaw: number) {
 
 function isCornerTile(index: number) {
   return index % 10 === 0;
+}
+
+function inkOn(hex: string): string {
+  const n = Number.parseInt(hex.replace("#", ""), 16);
+  if (Number.isNaN(n)) return "#2a1810";
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.55 ? "#2a1810" : "#fffef8";
 }
 
 export function SpaceTile({ layout, selected, onSelect }: Props) {
@@ -74,7 +89,9 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
     const g = groupRef.current;
     if (!g) return;
     const target = selected ? 0.12 : hovered ? 0.06 : 0;
-    g.position.y += (BOARD_Y + TILE_THICKNESS / 2 + target - g.position.y) * Math.min(1, dt * 8);
+    g.position.y +=
+      (BOARD_Y + TILE_THICKNESS / 2 + target - g.position.y) *
+      Math.min(1, dt * 8);
   });
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
@@ -98,7 +115,9 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
       }}
     >
       <mesh castShadow receiveShadow>
-        <boxGeometry args={[layout.width * 0.96, TILE_THICKNESS, layout.depth * 0.96]} />
+        <boxGeometry
+          args={[layout.width * 0.96, TILE_THICKNESS, layout.depth * 0.96]}
+        />
         <meshStandardMaterial
           color={selected ? "#ffe08a" : color}
           roughness={0.7}
@@ -108,7 +127,11 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
         />
       </mesh>
 
-      {stripe ? <Stripe layout={layout} color={stripe} /> : null}
+      {stripe ? (
+        <ColorStripe layout={layout} color={stripe} name={space.name} />
+      ) : (
+        <NameBand layout={layout} name={space.name} fill={color} />
+      )}
 
       <group position={[landmarkPos[0], TILE_THICKNESS * 0.55, landmarkPos[2]]}>
         <group rotation={[0, layout.yaw, 0]}>
@@ -122,7 +145,10 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
       </group>
 
       {selected ? (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -TILE_THICKNESS * 0.48, 0]}>
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, -TILE_THICKNESS * 0.48, 0]}
+        >
           <ringGeometry
             args={[
               Math.min(layout.width, layout.depth) * 0.35,
@@ -137,34 +163,137 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
   );
 }
 
-function Stripe({ layout, color }: { layout: SpaceLayout; color: string }) {
-  const band = 0.22;
-  const meshRef = useRef<Mesh>(null);
+function stripePlacement(layout: SpaceLayout) {
   const side = isSideTile(layout.yaw);
   const ox = Math.sign(layout.x || 1);
   const oz = Math.sign(layout.z || 1);
+  const radial = side ? layout.width : layout.depth;
+  const along = side ? layout.depth * 0.9 : layout.width * 0.9;
+  const across = radial * STRIPE_BAND;
+  const front = radial * (0.5 - STRIPE_BAND / 2) * 0.94;
 
-  if (side) {
-    const radial = layout.width;
-    const front = radial * (0.5 - band / 2) * 0.92;
-    return (
-      <mesh
-        ref={meshRef}
-        position={[-ox * front, TILE_THICKNESS * 0.52, 0]}
-        castShadow
-      >
-        <boxGeometry args={[radial * band, 0.04, layout.depth * 0.92]} />
+  const position: [number, number, number] = side
+    ? [-ox * front, TILE_THICKNESS * 0.52, 0]
+    : [0, TILE_THICKNESS * 0.52, -oz * front];
+
+  const boxArgs: [number, number, number] = side
+    ? [across, 0.045, along]
+    : [along, 0.045, across];
+
+  return { side, position, boxArgs, along, across };
+}
+
+function ColorStripe({
+  layout,
+  color,
+  name,
+}: {
+  layout: SpaceLayout;
+  color: string;
+  name: string;
+}) {
+  const { position, boxArgs, along, across } = stripePlacement(layout);
+  const ink = inkOn(color);
+
+  return (
+    <group>
+      <mesh position={position} castShadow>
+        <boxGeometry args={boxArgs} />
         <meshStandardMaterial color={color} roughness={0.55} />
       </mesh>
-    );
-  }
+      <TileName
+        layout={layout}
+        name={name}
+        position={[position[0], position[1] + 0.028, position[2]]}
+        maxWidth={along * 0.92}
+        bandHeight={across * 0.88}
+        color={ink}
+        outline={ink === "#fffef8" ? "#1a1008" : "#fffef8"}
+      />
+    </group>
+  );
+}
 
-  const radial = layout.depth;
-  const front = radial * (0.5 - band / 2) * 0.92;
+function NameBand({
+  layout,
+  name,
+  fill,
+}: {
+  layout: SpaceLayout;
+  name: string;
+  fill: string;
+}) {
+  const { position, boxArgs, along, across } = stripePlacement(layout);
+  const ink = inkOn(fill);
+
   return (
-    <mesh ref={meshRef} position={[0, TILE_THICKNESS * 0.52, -oz * front]} castShadow>
-      <boxGeometry args={[layout.width * 0.92, 0.04, radial * band]} />
-      <meshStandardMaterial color={color} roughness={0.55} />
-    </mesh>
+    <group>
+      <mesh position={position}>
+        <boxGeometry args={boxArgs} />
+        <meshStandardMaterial
+          color="#fff8ef"
+          roughness={0.65}
+          transparent
+          opacity={0.92}
+        />
+      </mesh>
+      <TileName
+        layout={layout}
+        name={name}
+        position={[position[0], position[1] + 0.028, position[2]]}
+        maxWidth={along * 0.92}
+        bandHeight={across * 0.88}
+        color={ink}
+        outline="#fff8ef"
+      />
+    </group>
+  );
+}
+
+function TileName({
+  layout,
+  name,
+  position,
+  maxWidth,
+  bandHeight,
+  color,
+  outline,
+}: {
+  layout: SpaceLayout;
+  name: string;
+  position: [number, number, number];
+  maxWidth: number;
+  bandHeight: number;
+  color: string;
+  outline: string;
+}) {
+  const fontSize = Math.min(
+    0.20,
+    bandHeight * 0.36,
+    maxWidth / Math.max(6, name.length * 0.45),
+  );
+
+  return (
+    <group position={position} rotation={[0, layout.yaw, 0]}>
+      <Text
+        rotation={[-Math.PI / 2, 0, Math.PI / 1]}
+        font={NAME_FONT}
+        fontSize={fontSize}
+        maxWidth={maxWidth}
+        lineHeight={1}
+        letterSpacing={0.1}
+        textAlign="center"
+        anchorX="center"
+        anchorY="middle"
+        color={color}
+        outlineWidth={fontSize * 0.06}
+        outlineColor={outline}
+        overflowWrap="break-word"
+        whiteSpace="normal"
+        depthOffset={-1}
+      >
+        {name}
+      </Text>
+    </group>
   );
 }
