@@ -2,6 +2,7 @@ import {
   COLOR_GROUP_LABELS,
   KIND_LABELS,
   formatCash,
+  getCard,
   getPawnDef,
   getSpace,
   type PlayerState,
@@ -76,10 +77,23 @@ export function WalletPanel({ player }: Props) {
 
       <section className="space-y-1.5 border-t border-[#c4a484]/25 pt-3">
         <h3 className="text-sm font-medium text-[#d4a373]">Cartas</h3>
-        {player.getOutOfJailCards > 0 ? (
-          <p className="rounded-lg bg-white/5 px-2.5 py-2 text-sm">
-            Saia do Forte × {player.getOutOfJailCards}
-          </p>
+        {player.protectionCardIds.length > 0 ? (
+          <ul className="space-y-1.5">
+            {player.protectionCardIds.map((id) => {
+              const card = getCard(id);
+              return (
+                <li
+                  key={id}
+                  className="rounded-lg bg-white/5 px-2.5 py-2 text-sm leading-snug"
+                >
+                  {card.text.replace(/^PROTEÇÃO[^:]+:\s*/i, "")}
+                  <span className="mt-0.5 block text-[11px] text-[#c9ada7]">
+                    {card.deck === "fitinha" ? "Fitinha" : "Bença"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         ) : (
           <p className="text-xs text-[#c9ada7]">Nenhuma carta em mãos</p>
         )}

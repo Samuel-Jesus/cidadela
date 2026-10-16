@@ -1,13 +1,16 @@
 import type { DiceRoll } from "@cidadela/engine";
 import {
   COLOR_GROUP_LABELS,
+  DECK_LABELS,
   KIND_LABELS,
+  deckIdFromSpaceKind,
   findPropertyOwner,
   formatCash,
   getPawnDef,
   getSpace,
   isBuyableKind,
   type BoardSpace,
+  type DecksState,
   type PlayerState,
 } from "@cidadela/shared";
 
@@ -19,12 +22,14 @@ type Props = {
   diceRoll: DiceRoll | null;
   diceRolling: boolean;
   consecutiveDoubles: number;
+  decks: DecksState;
   onSelectPlayer: (playerId: string) => void;
   onPlayerCountChange: (count: number) => void;
   onMoveActiveToSelected: () => void;
   onAdvanceActive: (steps: number) => void;
   onRollDice: () => void;
   onBuySelected: () => void;
+  onDrawCard: () => void;
 };
 
 export function BoardHud({
@@ -35,12 +40,14 @@ export function BoardHud({
   diceRoll,
   diceRolling,
   consecutiveDoubles,
+  decks,
   onSelectPlayer,
   onPlayerCountChange,
   onMoveActiveToSelected,
   onAdvanceActive,
   onRollDice,
   onBuySelected,
+  onDrawCard,
 }: Props) {
   const space = selectedIndex === null ? null : getSpace(selectedIndex);
   const active = players.find((p) => p.id === activePlayerId) ?? null;
@@ -54,6 +61,8 @@ export function BoardHud({
     active !== null &&
     space !== null &&
     active.cash >= (space.price ?? Infinity);
+  const cardDeck = space ? deckIdFromSpaceKind(space.kind) : null;
+  const canDrawCard = Boolean(active && cardDeck && !diceRolling);
 
   return (
     <aside className="pointer-events-auto absolute right-4 top-4 z-10 flex max-h-[calc(100dvh-2rem)] w-80 flex-col gap-3 overflow-y-auto rounded-xl border border-[#c4a484]/40 bg-gradient-to-b from-[#2a1c14]/95 to-[#1a120c]/95 p-4 text-[#f5f0e8] shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md">
@@ -63,6 +72,20 @@ export function BoardHud({
         </p>
         <h1 className="font-serif text-xl leading-tight">Tabuleiro 3D</h1>
       </div>
+
+      <section className="space-y-1.5 border-t border-[#c4a484]/25 pt-3">
+        <h2 className="text-sm font-medium text-[#d4a373]">Baralhos</h2>
+        <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs text-[#c9ada7]">
+          <dt>{DECK_LABELS.fitinha}</dt>
+          <dd className="tabular-nums text-[#f5f0e8]">
+            {decks.fitinha.drawPile.length} / 16
+          </dd>
+          <dt>{DECK_LABELS.benca}</dt>
+          <dd className="tabular-nums text-[#f5f0e8]">
+            {decks.benca.drawPile.length} / 16
+          </dd>
+        </dl>
+      </section>
 
       <section className="space-y-2 border-t border-[#c4a484]/25 pt-3">
         <h2 className="text-sm font-medium text-[#d4a373]">Dados</h2>
@@ -178,6 +201,12 @@ export function BoardHud({
             canBuy={canBuy}
             buyDisabled={!active || diceRolling}
             onBuy={onBuySelected}
+            canDrawCard={canDrawCard}
+            drawDisabled={!canDrawCard}
+            onDrawCard={onDrawCard}
+            cardDeckLabel={
+              cardDeck ? DECK_LABELS[cardDeck] : null
+            }
           />
         </section>
       ) : null}
@@ -191,12 +220,20 @@ function SpaceDetails({
   canBuy,
   buyDisabled,
   onBuy,
+  canDrawCard,
+  drawDisabled,
+  onDrawCard,
+  cardDeckLabel,
 }: {
   space: BoardSpace;
   owner: PlayerState | null;
   canBuy: boolean;
   buyDisabled: boolean;
   onBuy: () => void;
+  canDrawCard: boolean;
+  drawDisabled: boolean;
+  onDrawCard: () => void;
+  cardDeckLabel: string | null;
 }) {
   const ownerDef = owner ? getPawnDef(owner.pawnId) : null;
 
@@ -253,6 +290,17 @@ function SpaceDetails({
           className="mt-1 w-full rounded-lg bg-[#2a9d8f] px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
         >
           Comprar por {formatCash(space.price!)}
+        </button>
+      ) : null}
+
+      {canDrawCard && cardDeckLabel ? (
+        <button
+          type="button"
+          disabled={drawDisabled}
+          onClick={onDrawCard}
+          className="mt-1 w-full rounded-lg bg-[#c45c76] px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+        >
+          Comprar carta · {cardDeckLabel}
         </button>
       ) : null}
     </div>

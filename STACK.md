@@ -119,6 +119,7 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Peões na casa (8 tokens baianos, slots, animação)
 - [x] Dados 3D com física (cantos/pips Codrops + cannon-es; dupla / 3ª → Forte)
 - [x] Carteira (saldo $1.500, escrituras, cartas; compra básica; +$200 Chegada)
+- [x] Baralhos Fitinha (16) + Bença (16); comprar carta; Proteção na carteira
 - [ ] Path/waypoints para movimento casa a casa
 
 ---

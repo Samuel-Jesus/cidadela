@@ -45,7 +45,7 @@ export type PlayerState = {
   position: number;
   cash: number;
   properties: PropertyHolding[];
-  getOutOfJailCards: number;
+  protectionCardIds: string[];
   inJail: boolean;
 };
 
@@ -57,7 +57,7 @@ export function createPlayers(count: number): PlayerState[] {
     position: 0,
     cash: STARTING_CASH,
     properties: [],
-    getOutOfJailCards: 0,
+    protectionCardIds: [],
     inJail: false,
   }));
 }

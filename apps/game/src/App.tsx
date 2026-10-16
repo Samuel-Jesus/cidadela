@@ -3,12 +3,20 @@ import { crossesGo, nextPosition, type DiceRoll } from "@cidadela/engine";
 import {
   GO_BONUS,
   buyProperty,
+  createDecks,
   createPlayers,
+  deckIdFromSpaceKind,
+  drawCard,
+  getSpace,
+  resolveCardEffect,
+  type CardDef,
+  type DecksState,
   type PlayerState,
 } from "@cidadela/shared";
 import { preloadLandmarkModels } from "./landmarks/GltfLandmark";
 import { BoardCanvas } from "./scene/BoardCanvas";
 import { BoardHud } from "./ui/BoardHud";
+import { DrawnCardModal } from "./ui/DrawnCardModal";
 import { WalletPanel } from "./ui/WalletPanel";
 
 preloadLandmarkModels();
@@ -46,6 +54,8 @@ export function App() {
   const [activePlayerId, setActivePlayerId] = useState<string | null>(
     initial[0]?.id ?? null,
   );
+  const [decks, setDecks] = useState<DecksState>(() => createDecks());
+  const [drawnCard, setDrawnCard] = useState<CardDef | null>(null);
 
   const [diceRoll, setDiceRoll] = useState<DiceRoll | null>(null);
   const [diceRolling, setDiceRolling] = useState(false);
@@ -64,6 +74,8 @@ export function App() {
     setPlayerCount(count);
     setPlayers(next);
     setActivePlayerId(next[0]?.id ?? null);
+    setDecks(createDecks());
+    setDrawnCard(null);
     setDiceRoll(null);
     setDiceRolling(false);
     doublesRef.current = 0;
@@ -100,6 +112,32 @@ export function App() {
       return next ?? prev;
     });
   }, [activePlayerId, selectedIndex]);
+
+  const onDrawCard = useCallback(() => {
+    if (!activePlayerId || selectedIndex === null || drawnCard) return;
+    const space = getSpace(selectedIndex);
+    const deckId = deckIdFromSpaceKind(space.kind);
+    if (!deckId) return;
+
+    let finalDecks: DecksState | null = null;
+    setDecks((prevDecks) => {
+      const { card, decks: afterDraw } = drawCard(prevDecks, deckId);
+      setPlayers((prevPlayers) => {
+        const resolved = resolveCardEffect(
+          prevPlayers,
+          afterDraw,
+          activePlayerId,
+          card,
+        );
+        finalDecks = resolved.decks;
+        const moved = resolved.players.find((p) => p.id === activePlayerId);
+        if (moved) setSelectedIndex(moved.position);
+        setDrawnCard(card);
+        return resolved.players;
+      });
+      return finalDecks ?? afterDraw;
+    });
+  }, [activePlayerId, selectedIndex, drawnCard]);
 
   const onRollDice = useCallback(() => {
     if (!activeRef.current || diceRolling) return;
@@ -179,13 +217,21 @@ export function App() {
         diceRoll={diceRoll}
         diceRolling={diceRolling}
         consecutiveDoubles={consecutiveDoubles}
+        decks={decks}
         onSelectPlayer={setActivePlayerId}
         onPlayerCountChange={handlePlayerCountChange}
         onMoveActiveToSelected={onMoveActiveToSelected}
         onAdvanceActive={onAdvanceActive}
         onRollDice={onRollDice}
         onBuySelected={onBuySelected}
+        onDrawCard={onDrawCard}
       />
+      {drawnCard ? (
+        <DrawnCardModal
+          card={drawnCard}
+          onDismiss={() => setDrawnCard(null)}
+        />
+      ) : null}
       <p className="pointer-events-none absolute bottom-4 left-4 z-10 text-xs text-[#c9ada7]/80">
         Arraste para orbitar · toque duplo na bandeja para lançar os dados
       </p>

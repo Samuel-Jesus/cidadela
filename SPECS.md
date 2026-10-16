@@ -492,7 +492,8 @@ Regras de mesa fechadas em `REQUISITOS.md`. Itens restantes são de **implementa
 - [x] Leilão detalhado (§10)
 - [x] Hipoteca + ceil (§9)
 - [x] Carteira e fluxos (§15) — FR-100…FR-107
-- [ ] Dados §8–§9–§13 em `packages/shared` + engine
+- [x] Baralhos §13 em `packages/shared` (draw/discard/resolve básico)
+- [ ] Tabelas §8–§9 em `packages/shared` + engine completo
 - [ ] Cobrança automática vs FR-22a (mesa) na UI digital
 - [ ] UI de leilão / negociação / multiplayer
 
