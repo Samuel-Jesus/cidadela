@@ -25,6 +25,8 @@ import {
   updateMemberProfile,
   type RoomState,
 } from "../session/room";
+import { LobbyPawnCarousel } from "./LobbyPawnCarousel";
+import { LobbyPawnPicker, LobbyPawnToken } from "./LobbyPawnToken";
 
 export type LobbyStartMeta = {
   mode: "local" | "online";
@@ -383,12 +385,24 @@ export function LobbyScreen({ onStart }: Props) {
       (p) => p.id,
     );
 
+  const showPawnCarousel =
+    phase === "home" ||
+    phase === "host" ||
+    (phase === "guest" && !iAmInRoom);
+
+  const carouselValue = phase === "guest" ? guestPawn : hostPawn;
+  const carouselOptions =
+    phase === "guest" || phase === "host"
+      ? freePawnsFor(carouselValue)
+      : PAWNS.map((p) => p.id);
+  const setCarouselValue = phase === "guest" ? setGuestPawn : setHostPawn;
+
   return (
     <div className="lobby relative flex min-h-dvh w-full flex-col overflow-x-hidden overflow-y-auto">
       <div className="lobby__bg" aria-hidden />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-8 sm:py-12">
-        <header className="mb-8 text-center sm:mb-10 sm:text-left">
+      <div className="lobby-shell relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8 sm:py-12">
+        <header className="text-center sm:text-left">
           <p className="hud-kicker text-[#5eead4]">Tabuleiro da Bahia</p>
           <h1 className="font-[family-name:var(--font-game)] text-5xl font-bold leading-none tracking-tight text-[#fff7ed] sm:text-6xl">
             Cidadela
@@ -400,7 +414,8 @@ export function LobbyScreen({ onStart }: Props) {
           </p>
         </header>
 
-        <section className="deed-sheet flex flex-1 flex-col overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col gap-6 lg:flex-row lg:items-center">
+        <section className="deed-sheet flex min-w-0 flex-1 flex-col overflow-hidden">
           <header
             className="deed-sheet__band"
             style={{ backgroundColor: "#e9a46c" }}
@@ -455,7 +470,7 @@ export function LobbyScreen({ onStart }: Props) {
                       ? "Convidados entram pelo link ou QR em qualquer aparelho. O anfitrião sincroniza a partida."
                       : "Falta configurar o Supabase (.env na raiz) para liberar salas entre aparelhos."}
                   </p>
-                  <label className="mb-2 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
+                  <label className="mb-3 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
                     Quantidade de jogadores
                     <select
                       className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-2 font-bold text-[#5c3d2e]"
@@ -465,31 +480,6 @@ export function LobbyScreen({ onStart }: Props) {
                       {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                         <option key={n} value={n}>
                           {n} jogadores
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="mb-2 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                    Seu nome
-                    <input
-                      className="rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 font-bold text-[#5c3d2e]"
-                      value={hostName}
-                      maxLength={24}
-                      onChange={(e) => setHostName(e.target.value)}
-                    />
-                  </label>
-                  <label className="mb-3 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                    Seu peão
-                    <select
-                      className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-1.5 font-bold text-[#5c3d2e]"
-                      value={hostPawn}
-                      onChange={(e) =>
-                        setHostPawn(e.target.value as PawnId)
-                      }
-                    >
-                      {PAWNS.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.label}
                         </option>
                       ))}
                     </select>
@@ -548,7 +538,6 @@ export function LobbyScreen({ onStart }: Props) {
 
                 <ul className="m-0 list-none space-y-2 p-0">
                   {localSeats.map((seat, i) => {
-                    const def = getPawnDef(seat.pawnId);
                     const takenByOthers = new Set(
                       localSeats
                         .filter((_, j) => j !== i)
@@ -559,38 +548,30 @@ export function LobbyScreen({ onStart }: Props) {
                         key={i}
                         className="rounded-xl border-2 border-[#5c3d2e] bg-white/80 p-2 shadow-[2px_2px_0_rgba(92,61,46,0.2)]"
                       >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="inline-block h-4 w-4 flex-none rounded-full border-2 border-[#5c3d2e]"
-                            style={{ backgroundColor: def.color }}
-                          />
-                          <input
-                            aria-label={`Nome do jogador ${i + 1}`}
-                            className="min-w-0 flex-1 rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 text-sm font-bold text-[#5c3d2e]"
-                            value={seat.name}
-                            maxLength={24}
-                            onChange={(e) =>
-                              updateLocalSeat(i, { name: e.target.value })
-                            }
-                          />
-                          <select
-                            aria-label={`Peão do jogador ${i + 1}`}
-                            className="w-28 flex-none rounded-lg border-2 border-[#5c3d2e] bg-white px-1.5 py-1.5 text-sm font-bold text-[#5c3d2e]"
-                            value={seat.pawnId}
-                            onChange={(e) =>
-                              updateLocalSeat(i, {
-                                pawnId: e.target.value as PawnId,
-                              })
-                            }
-                          >
-                            {PAWNS.filter(
-                              (p) => !takenByOthers.has(p.id),
-                            ).map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.label}
-                              </option>
-                            ))}
-                          </select>
+                        <div className="flex items-start gap-2">
+                          <LobbyPawnToken pawnId={seat.pawnId} size={36} />
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <input
+                              aria-label={`Nome do jogador ${i + 1}`}
+                              className="w-full rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 text-sm font-bold text-[#5c3d2e]"
+                              value={seat.name}
+                              maxLength={24}
+                              onChange={(e) =>
+                                updateLocalSeat(i, { name: e.target.value })
+                              }
+                            />
+                            <LobbyPawnPicker
+                              value={seat.pawnId}
+                              options={PAWNS.filter(
+                                (p) =>
+                                  p.id === seat.pawnId ||
+                                  !takenByOthers.has(p.id),
+                              ).map((p) => p.id)}
+                              onChange={(pawnId) =>
+                                updateLocalSeat(i, { pawnId })
+                              }
+                            />
+                          </div>
                         </div>
                         <label className="mt-1.5 flex cursor-pointer items-center gap-1.5 text-xs font-bold text-[#6b5344]">
                           <input
@@ -661,43 +642,6 @@ export function LobbyScreen({ onStart }: Props) {
                   </p>
                 ) : null}
 
-                <div className="rounded-xl border-2 border-[#5c3d2e] bg-[#fef08a]/70 p-3">
-                  <h3 className="deed-sheet__section-title">Seu perfil</h3>
-                  <div className="mb-2 grid gap-2 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                      Nome
-                      <input
-                        className="rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 font-bold"
-                        value={hostName}
-                        onChange={(e) => setHostName(e.target.value)}
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                      Peão
-                      <select
-                        className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-1.5 font-bold"
-                        value={hostPawn}
-                        onChange={(e) =>
-                          setHostPawn(e.target.value as PawnId)
-                        }
-                      >
-                        {freePawnsFor(hostPawn).map((id) => (
-                          <option key={id} value={id}>
-                            {getPawnDef(id).label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  <button
-                    type="button"
-                    className="deed-btn deed-btn--soft w-full text-xs"
-                    onClick={saveHostProfile}
-                  >
-                    Atualizar meu perfil
-                  </button>
-                </div>
-
                 <MemberList room={room} />
 
                 <p className="deed-sheet__note">
@@ -717,40 +661,13 @@ export function LobbyScreen({ onStart }: Props) {
                 </p>
 
                 {!iAmInRoom ? (
-                  <>
-                    <label className="flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                      Seu nome
-                      <input
-                        className="rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 font-bold"
-                        value={guestName}
-                        maxLength={24}
-                        onChange={(e) => setGuestName(e.target.value)}
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                      Seu peão
-                      <select
-                        className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-1.5 font-bold"
-                        value={guestPawn}
-                        onChange={(e) =>
-                          setGuestPawn(e.target.value as PawnId)
-                        }
-                      >
-                        {freePawnsFor(guestPawn).map((id) => (
-                          <option key={id} value={id}>
-                            {getPawnDef(id).label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      type="button"
-                      className="deed-btn deed-btn--mint w-full"
-                      onClick={confirmGuestJoin}
-                    >
-                      Entrar na sala
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    className="deed-btn deed-btn--mint w-full"
+                    onClick={confirmGuestJoin}
+                  >
+                    Entrar na sala
+                  </button>
                 ) : (
                   <p className="rounded-lg border-2 border-[#5c3d2e] bg-[#ecfdf5] px-3 py-2 text-sm font-bold text-[#166534]">
                     Você está na sala. Aguarde o anfitrião começar a partida.
@@ -815,6 +732,40 @@ export function LobbyScreen({ onStart }: Props) {
             ) : null}
           </footer>
         </section>
+
+        {showPawnCarousel ? (
+          <div className="lobby-identity">
+            <label className="lobby-identity__name">
+              Seu nome
+              <input
+                value={phase === "guest" ? guestName : hostName}
+                maxLength={24}
+                placeholder={phase === "guest" ? "Como quer aparecer" : undefined}
+                onChange={(e) =>
+                  phase === "guest"
+                    ? setGuestName(e.target.value)
+                    : setHostName(e.target.value)
+                }
+              />
+            </label>
+            {phase === "host" ? (
+              <button
+                type="button"
+                className="deed-btn deed-btn--soft w-full text-xs"
+                onClick={saveHostProfile}
+              >
+                Atualizar perfil
+              </button>
+            ) : null}
+            <LobbyPawnCarousel
+              value={carouselValue}
+              options={carouselOptions}
+              taken={phase === "home" ? undefined : usedPawns}
+              onChange={setCarouselValue}
+            />
+          </div>
+        ) : null}
+        </div>
       </div>
     </div>
   );
@@ -839,12 +790,9 @@ function MemberList({ room }: { room: RoomState }) {
         return (
           <li
             key={member.clientId}
-            className="flex items-center gap-2 rounded-lg border-2 border-[#5c3d2e] bg-white/80 px-3 py-2 text-xs font-bold text-[#5c3d2e]"
+            className="flex items-center gap-2.5 rounded-lg border-2 border-[#5c3d2e] bg-white/80 px-2.5 py-2 text-xs font-bold text-[#5c3d2e]"
           >
-            <span
-              className="inline-block h-3 w-3 rounded-full border border-[#5c3d2e]"
-              style={{ backgroundColor: def.color }}
-            />
+            <LobbyPawnToken pawnId={member.pawnId} size={40} />
             <span className="min-w-0 flex-1 truncate">
               {member.name}
               {member.isHost ? " · anfitrião / banqueiro" : ""}
