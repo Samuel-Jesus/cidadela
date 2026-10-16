@@ -43,6 +43,7 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
       layout.index === 10 ||
       layout.index === 12 ||
       layout.index === 15 ||
+      layout.index === 25 ||
       layout.index === 27 ||
       layout.index === 28 ||
       layout.index === 35;

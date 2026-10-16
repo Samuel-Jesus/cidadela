@@ -3,6 +3,7 @@ import { FitToSlot } from "./FitToSlot";
 import { GltfLandmark } from "./GltfLandmark";
 import { CoelbaLandmark } from "./CoelbaLandmark";
 import { MetroDeSalvadorLandmark } from "./MetroDeSalvadorLandmark";
+import { PlanoInclinadoLandmark } from "./PlanoInclinadoLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -17,6 +18,7 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     index === 10 ||
     index === 12 ||
     index === 15 ||
+    index === 25 ||
     index === 27 ||
     index === 28 ||
     index === 35;
@@ -32,6 +34,9 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   }
   if (index === 15) {
     return <ElevadorLacerda accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
+  if (index === 25) {
+    return <PlanoInclinadoLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
   if (index === 27) {
     return <FarolDaBarra accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
@@ -96,8 +101,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
       return <Arraial />;
     case 24:
       return <Caraiva />;
-    case 25:
-      return <PlanoInclinado />;
     case 26:
       return <RioVermelho />;
     case 29:
@@ -423,17 +426,6 @@ function Caraiva() {
       <Box args={[0.35, 0.15, 0.2]} position={[0, 0.28, 0]} color="#f5cba7" />
       <Box args={[1.1, 0.05, 0.7]} position={[0, 0.02, 0]} color="#1a5276" />
       <Cone args={[0.15, 0.25, 5]} position={[-0.35, 0.35, 0.25]} color="#27ae60" />
-    </Group>
-  );
-}
-
-function PlanoInclinado() {
-  return (
-    <Group>
-      <Box args={[0.25, 0.9, 0.15]} position={[-0.35, 0.45, 0]} color="#7f8c8d" />
-      <Box args={[0.25, 0.55, 0.15]} position={[0.35, 0.3, 0]} color="#7f8c8d" />
-      <Box args={[0.95, 0.08, 0.2]} position={[0, 0.55, 0]} rotation={[0, 0, -0.45]} color="#e74c3c" />
-      <Box args={[0.3, 0.18, 0.22]} position={[0, 0.62, 0]} rotation={[0, 0, -0.45]} color="#f5b041" />
     </Group>
   );
 }
