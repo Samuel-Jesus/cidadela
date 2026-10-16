@@ -174,4 +174,5 @@ export function preloadLandmarkModels() {
   useGLTF.preload("/models/elevador-lacerda.gltf");
   useGLTF.preload("/models/forte-sao-marcelo.gltf");
   useGLTF.preload("/models/farol-da-barra.gltf");
+  useGLTF.preload("/models/hidrometro.gltf");
 }

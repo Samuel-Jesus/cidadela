@@ -11,7 +11,7 @@ type Props = {
 };
 
 export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props) {
-  const isGltf = index === 10 || index === 15 || index === 27;
+  const isGltf = index === 10 || index === 15 || index === 27 || index === 28;
   const fitWidth = (slotWidth ?? 1.2) * (isGltf ? 0.98 : 0.95);
   const fitDepth = (slotDepth ?? 1.2) * (isGltf ? 0.98 : 0.55);
 
@@ -24,6 +24,9 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   }
   if (index === 27) {
     return <FarolDaBarra accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
+  if (index === 28) {
+    return <Embasa accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
 
   return (
@@ -85,8 +88,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
       return <PlanoInclinado />;
     case 26:
       return <RioVermelho />;
-    case 28:
-      return <Embasa />;
     case 29:
       return <Pituba />;
     case 30:
@@ -485,13 +486,35 @@ function FarolDaBarra({
   );
 }
 
-function Embasa() {
+function EmbasaFallback() {
   return (
     <Group>
       <Cyl args={[0.35, 0.35, 0.55, 16]} position={[-0.25, 0.3, 0]} color="#5dade2" />
       <Cyl args={[0.28, 0.28, 0.45, 16]} position={[0.3, 0.25, 0.1]} color="#3498db" />
       <Box args={[0.9, 0.08, 0.5]} position={[0, 0.05, 0]} color="#85929e" />
     </Group>
+  );
+}
+
+function Embasa({
+  accent,
+  fitWidth,
+  fitDepth,
+}: {
+  accent?: boolean;
+  fitWidth: number;
+  fitDepth: number;
+}) {
+  return (
+    <Suspense fallback={<EmbasaFallback />}>
+      <GltfLandmark
+        url="/models/hidrometro.gltf"
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+        polish
+        accent={accent}
+      />
+    </Suspense>
   );
 }
 
