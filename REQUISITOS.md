@@ -117,6 +117,76 @@ A casa **nº 10** (“Forte de São Marcelo”) também serve como **só visita*
 
 ---
 
+## Carteira e fluxos de dinheiro
+
+Cada jogador tem uma **carteira**: o conjunto do que possui e o registro das transferências de dinheiro durante a partida.
+
+### O que a carteira mostra
+
+- **Dinheiro (saldo)** em mãos
+- **Escrituras** — propriedades, transportes e companhias que o jogador possui (com indicação se estão **hipotecadas**, nº de **pousadas** ou se há **resort**)
+- **Cartas** em mãos (ex.: “Saia do Forte”)
+
+Na versão digital, a carteira do jogador da vez (ou do peão selecionado) deve ficar **visível o tempo todo**, atualizando-se a cada transferência.
+
+### Receber dinheiro
+
+| Situação | Quem paga | Quem recebe | Valor |
+| --- | --- | --- | --- |
+| Passar ou parar na Chegada | Banco | Jogador | $200 |
+| Aluguel cobrado | Visitante | Dono | Conforme escritura / tabela |
+| Hipotecar propriedade | Banco | Jogador | 50% do preço da propriedade |
+| Vender pousada/resort ao banco | Banco | Jogador | 50% do preço pago na construção |
+| Carta que concede dinheiro | Banco ou outros jogadores | Jogador | Texto da carta |
+| Negociação | Outro jogador | Jogador | Valor combinado |
+
+### Pagar / cobrar dinheiro
+
+| Situação | Quem paga | Quem recebe | Valor |
+| --- | --- | --- | --- |
+| Comprar propriedade / transporte / companhia | Jogador | Banco | Preço marcado |
+| Cair em propriedade / transporte / companhia alheia **não hipotecada** | Visitante | Dono | Aluguel (cobrança imediata) |
+| Imposto / taxa (Pedágio, Abadá, etc.) | Jogador | Banco | Valor da casa |
+| Resgatar hipoteca | Jogador | Banco | Valor da hipoteca + 10% |
+| Construir pousada / resort | Jogador | Banco | Custo da construção (tabela) |
+| Sair do Forte pagando | Jogador | Banco | $50 |
+| Carta que exige pagamento | Jogador | Banco ou outros | Texto da carta |
+| Negociação | Jogador | Outro jogador | Valor combinado |
+
+### Comprar
+
+1. Ao cair em bem **sem dono**, o jogador pode **comprar pelo preço marcado**, se tiver saldo suficiente.
+2. O pagamento vai ao **banco**; a escritura passa para a carteira do comprador.
+3. Se **recusar** ou **não puder** pagar o preço, o bem vai a **leilão** entre todos.
+4. Não é permitido comprar bem que já tenha dono.
+
+### Cobrar e pagar aluguel
+
+1. Ao cair em bem de outro jogador **não hipotecado**, o visitante **paga** e o dono **recebe** o aluguel na hora.
+2. Propriedade **hipotecada** não gera aluguel (visitante não paga).
+3. Com **monopólio de cor** e sem construções, o aluguel base **dobra**.
+4. Transportes e companhias usam as regras próprias de aluguel (quantidade / dados).
+5. Mesmo **preso no Forte**, o dono **pode cobrar** aluguel normalmente.
+
+### Hipotecar e resgatar
+
+1. Para levantar dinheiro, o jogador **hipoteca** um bem ao banco e **recebe metade** do preço.
+2. Antes de hipotecar, **venda todas as construções** daquele bem (e, se as regras do grupo exigirem, as construções do grupo) ao banco pela metade.
+3. Bem hipotecado aparece na carteira como **hipotecado** e **não rende aluguel**.
+4. Para **resgatar**, pague ao banco o valor da hipoteca **+ 10%** de juros; o bem volta a render normalmente.
+
+### Vender construções
+
+- Pousadas e resorts podem ser vendidos ao banco a qualquer momento por **50%** do preço pago, para levantar dinheiro (inclusive antes de hipotecar ou para quitar dívida).
+
+### Saldo insuficiente
+
+1. Se o jogador **deve** e não tem saldo, deve **liquidar** bens: vender construções e/ou hipotecar, até cobrir a dívida.
+2. Se mesmo assim não conseguir pagar, declara **falência** (ver seção seguinte).
+3. Compra e construção **não** são permitidas sem saldo suficiente (a ação é rejeitada).
+
+---
+
 ## Falência
 
 - Se você deve mais do que consegue pagar, mesmo vendendo construções e hipotecando tudo, está **falido**.
@@ -222,4 +292,5 @@ A mecânica permanece a mesma: quanto mais transportes você tem, maior o alugue
 - [ ] Baralho completo da Fitinha do Bonfim
 - [ ] Baralho completo da Bença
 - [ ] Custo de pousadas/resorts por grupo de cor
-- [ ] Regras digitais / implementação (se aplicável)
+- [x] Carteira e fluxos de dinheiro (cobrar, receber, comprar, hipotecar) — ver seção acima
+- [ ] Demais regras digitais (leilão detalhado, UI de negociação, multiplayer)

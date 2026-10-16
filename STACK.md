@@ -34,7 +34,7 @@ Tabuleiro e cena em **Three.js** via **React Three Fiber**, com shell React/Vite
 | Motor de regras determinístico | FR-10…FR-83 |
 | Estado de partida (2–8 jogadores) | FR-01 |
 | Tabuleiro 3D + landmarks por casa | FR-90, NFR-10 |
-| HUD React (saldo, escrituras, cartas) | PUC / NFR |
+| HUD React (carteira: saldo, escrituras, cartas) | PUC / NFR |
 | Hot-seat local → multiplayer depois | SPECS §27 |
 | pt-BR e temática baiana | NFR-70, NFR-71 |
 
@@ -84,7 +84,7 @@ cidadela/
       src/
         landmarks/     # modelos 3D por casa
         scene/         # BoardCanvas, tiles, mesa
-        ui/            # BoardHud
+        ui/            # BoardHud · WalletPanel
 ```
 
 ---
@@ -118,6 +118,7 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Elevador Lacerda via GLTF (`/models/elevador-lacerda.gltf`)
 - [x] Peões na casa (8 tokens baianos, slots, animação)
 - [x] Dados 3D com física (cantos/pips Codrops + cannon-es; dupla / 3ª → Forte)
+- [x] Carteira (saldo $1.500, escrituras, cartas; compra básica; +$200 Chegada)
 - [ ] Path/waypoints para movimento casa a casa
 
 ---

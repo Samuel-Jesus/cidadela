@@ -1,4 +1,4 @@
-/** Peões disponíveis (2–8 jogadores). */
+import { getSpace } from "./board";
 
 export type PawnId =
   | "acaraje"
@@ -28,10 +28,25 @@ export const PAWNS: readonly PawnDef[] = [
   { id: "concha", label: "Concha", color: "#e91e63", accent: "#fadbd8" },
 ] as const;
 
+export const STARTING_CASH = 1500;
+
+export const GO_BONUS = 200;
+
+export type PropertyHolding = {
+  spaceIndex: number;
+  mortgaged: boolean;
+  pousadas: number;
+  hasResort: boolean;
+};
+
 export type PlayerState = {
   id: string;
   pawnId: PawnId;
   position: number;
+  cash: number;
+  properties: PropertyHolding[];
+  getOutOfJailCards: number;
+  inJail: boolean;
 };
 
 export function createPlayers(count: number): PlayerState[] {
@@ -40,6 +55,10 @@ export function createPlayers(count: number): PlayerState[] {
     id: `player-${i + 1}`,
     pawnId: pawn.id,
     position: 0,
+    cash: STARTING_CASH,
+    properties: [],
+    getOutOfJailCards: 0,
+    inJail: false,
   }));
 }
 
@@ -47,4 +66,52 @@ export function getPawnDef(pawnId: PawnId): PawnDef {
   const found = PAWNS.find((p) => p.id === pawnId);
   if (!found) throw new Error(`Peão inválido: ${pawnId}`);
   return found;
+}
+
+export function formatCash(amount: number): string {
+  return `$${amount.toLocaleString("pt-BR")}`;
+}
+
+export function findPropertyOwner(
+  players: readonly PlayerState[],
+  spaceIndex: number,
+): PlayerState | null {
+  return (
+    players.find((p) => p.properties.some((h) => h.spaceIndex === spaceIndex)) ??
+    null
+  );
+}
+
+export function isBuyableKind(kind: string): boolean {
+  return kind === "propriedade" || kind === "transporte" || kind === "companhia";
+}
+
+export function buyProperty(
+  players: readonly PlayerState[],
+  playerId: string,
+  spaceIndex: number,
+): PlayerState[] | null {
+  const space = getSpace(spaceIndex);
+  if (space.price === undefined || !isBuyableKind(space.kind)) return null;
+  if (findPropertyOwner(players, spaceIndex)) return null;
+
+  const buyer = players.find((p) => p.id === playerId);
+  if (!buyer || buyer.cash < space.price) return null;
+
+  return players.map((p) => {
+    if (p.id !== playerId) return p;
+    return {
+      ...p,
+      cash: p.cash - space.price!,
+      properties: [
+        ...p.properties,
+        {
+          spaceIndex,
+          mortgaged: false,
+          pousadas: 0,
+          hasResort: false,
+        },
+      ],
+    };
+  });
 }

@@ -147,6 +147,7 @@ Permitir que 2 a 8 jogadores dispute uma partida de **Cidadela**, jogo de tabule
 - Venda de construções ao banco: **50%** do preço pago.
 - Monopólio de cor: aluguel **dobra** (sem construções).
 - Carnaval (casa 20): **não gera dinheiro**.
+- Carteira = saldo + escrituras + cartas; toda movimentação de dinheiro é transferência (banco↔jogador ou jogador↔jogador).
 
 ### 5b. Premissas
 
@@ -169,6 +170,7 @@ O trabalho cobre a especificação e (futura) implementação de um produto que 
 - Preparação e gestão de partida
 - Turnos, movimento e dados
 - Compra, leilão, aluguel, transportes e companhias
+- Carteira e transferências (cobrar, receber, comprar, hipotecar, resgatar)
 - Cartas Fitinha / Bença
 - Construção (pousadas/resorts)
 - Hipotecas, Forte, negociações e falência
@@ -184,13 +186,15 @@ O trabalho cobre a especificação e (futura) implementação de um produto que 
 | Entidade | Atributos principais |
 | --- | --- |
 | **Partida** | id, status, jogador_da_vez, estoque_pousadas, estoque_resorts |
-| **Jogador** | id, peão, saldo, posição (0–39), preso (bool), tentativas_dupla_forte, cartas_saia_do_forte |
+| **Jogador** | id, peão, saldo, posição (0–39), preso (bool), tentativas_dupla_forte, cartas_saia_do_forte, escrituras[] |
+| **Carteira** | visão do jogador: saldo + escrituras (com status) + cartas em mãos |
 | **Casa** | número, nome, tipo, preço?, grupo_cor?, valor_taxa? |
 | **Propriedade** | casa_id, dono?, hipotecada, n_pousadas, tem_resort |
-| **Transporte** | casa_id, dono? |
-| **Companhia** | casa_id, dono? |
+| **Transporte** | casa_id, dono?, hipotecada? |
+| **Companhia** | casa_id, dono?, hipotecada? |
 | **Carta** | baralho (Fitinha\|Bença), texto, efeito |
 | **Escritura** | propriedade_id, tabela_aluguel (pendente) |
+| **Transferência** | de, para (banco\|jogador), valor, motivo (aluguel\|compra\|chegada\|imposto\|hipoteca\|resgate\|construção\|carta\|negociação\|forte) |
 | **Negociação** | participantes, itens (dinheiro/propriedades/cartas), status |
 
 ### 7b. Tipos de casa
@@ -224,6 +228,8 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | 9 | Entrar / sair do Forte | Jogador |
 | 10 | Negociar | Jogadores |
 | 11 | Declarar falência / encerrar partida | Jogadores, Banqueiro |
+| 12 | Consultar carteira (saldo, escrituras, cartas) | Jogador |
+| 13 | Cobrar / pagar transferência de dinheiro | Jogador, Dono, Banqueiro |
 
 ---
 
@@ -251,10 +257,11 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 
 | ID | Descrição | Fit Criterion | Prioridade | Origem |
 | --- | --- | --- | --- | --- |
-| FR-20 | Propriedade sem dono pode ser comprada pelo preço marcado | Dono = jogador e saldo -= preço | Alta | Tipos de casas → Propriedades |
+| FR-20 | Propriedade/transporte/companhia sem dono pode ser comprada pelo preço marcado | Dono = jogador; saldo -= preço; escritura na carteira | Alta | Tipos de casas → Propriedades / Carteira |
 | FR-21 | Se recusar compra, a propriedade vai a leilão entre todos | Ao final do leilão, há dono ou permanece do banco conforme regras do leilão | Alta | Propriedades |
-| FR-22 | Ao cair em propriedade alheia não hipotecada, paga aluguel da escritura | saldo_visitante -= aluguel; saldo_dono += aluguel | Alta | Propriedades |
+| FR-22 | Ao cair em bem alheio não hipotecado, paga aluguel; dono recebe na hora | saldo_visitante -= aluguel; saldo_dono += aluguel | Alta | Propriedades / Carteira |
 | FR-23 | Com monopólio de cor (sem construções), aluguel dobra | Aluguel aplicado = 2 × aluguel base | Alta | Construção |
+| FR-24 | Compra exige saldo ≥ preço; caso contrário a ação é rejeitada (ou segue para leilão se recusou/não pôde) | Tentativa com saldo insuficiente não altera dono nem saldo | Alta | Carteira → Comprar |
 
 ### 9.4 Transportes e companhias
 
@@ -289,10 +296,11 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 
 | ID | Descrição | Fit Criterion | Prioridade | Origem |
 | --- | --- | --- | --- | --- |
-| FR-60 | Hipotecar concede 50% do valor da propriedade | saldo += floor(preço/2); hipotecada=true | Alta | Hipotecas |
+| FR-60 | Hipotecar concede 50% do valor da propriedade | saldo += floor(preço/2); hipotecada=true; carteira marca hipotecada | Alta | Hipotecas / Carteira |
 | FR-61 | Propriedade hipotecada não gera aluguel | Visitante não paga | Alta | Hipotecas |
-| FR-62 | Resgate = valor da hipoteca + 10% | saldo -= valor_hipoteca * 1.10 | Alta | Hipotecas |
+| FR-62 | Resgate = valor da hipoteca + 10% | saldo -= ceil(valor_hipoteca * 1.10) ou regra de arredondamento definida; hipotecada=false | Alta | Hipotecas / Carteira |
 | FR-63 | Construções devem ser vendidas (50%) antes de hipotecar | Hipoteca bloqueada se houver pousada/resort | Alta | Hipotecas |
+| FR-64 | Vender pousada/resort ao banco a qualquer momento por 50% do preço pago | saldo += floor(custo/2); construção removida; estoque do banco incrementa | Alta | Carteira → Vender construções |
 
 ### 9.8 Forte de São Marcelo
 
@@ -321,6 +329,19 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | FR-90 | O tabuleiro contém exatamente as 40 casas listadas | Comparação 1:1 com tabela de `REQUISITOS.md` | Alta | O tabuleiro |
 | FR-91 | Grupos de cor conforme tabela | 8 grupos com as propriedades listadas | Alta | Grupos de cor |
 
+### 9.11 Carteira e transferências de dinheiro
+
+| ID | Descrição | Fit Criterion | Prioridade | Origem |
+| --- | --- | --- | --- | --- |
+| FR-100 | A carteira exibe saldo, escrituras (com status) e cartas do jogador | UI/mesa reflete exatamente o estado do jogador selecionado/da vez | Alta | Carteira e fluxos de dinheiro |
+| FR-101 | Toda mudança de saldo ocorre via transferência tipada (motivo conhecido) | Cada crédito/débito tem motivo ∈ {aluguel, compra, chegada, imposto, hipoteca, resgate, construção, venda_construção, carta, negociação, forte, falência} | Alta | Carteira |
+| FR-102 | Transferência banco→jogador credita o saldo (Chegada, hipoteca, venda de construção, cartas a favor) | saldo_jogador += valor; banco não precisa de saldo finito no MVP | Alta | Carteira → Receber |
+| FR-103 | Transferência jogador→banco debita o saldo (compra, imposto, resgate, construção, saída do Forte, cartas contra) | saldo_jogador -= valor; rejeitada se saldo insuficiente sem liquidação prévia | Alta | Carteira → Pagar |
+| FR-104 | Transferência jogador→jogador move o valor (aluguel, cartas entre jogadores, negociação) | saldo_pagador -= v; saldo_recebedor += v atomicamente | Alta | Carteira → Cobrar aluguel |
+| FR-105 | Escritura entra na carteira na compra (ou leilão/negociação/falência) e sai quando o bem deixa de ser do jogador | Lista de escrituras = bens com dono = esse jogador | Alta | Carteira → Comprar |
+| FR-106 | Com dívida e saldo insuficiente, o jogador deve poder liquidar (vender construções / hipotecar) antes da falência | Após liquidação voluntária, se saldo ≥ dívida, a dívida é quitada; senão FR-82 | Alta | Carteira → Saldo insuficiente |
+| FR-107 | A carteira atualiza imediatamente após cada transferência ou mudança de escritura/carta | Observador vê novo saldo/escrituras sem recarregar a partida | Alta | Carteira (digital) |
+
 ---
 
 # Non-functional Requirements
@@ -338,6 +359,7 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | --- | --- | --- | --- |
 | NFR-20 | Fluxo de turno compreensível para quem conhece jogos do gênero | Jogador conclui 1 turno sem consultar regras externas além do painel de ajuda | Média |
 | NFR-21 | Regras críticas (Forte, hipoteca, falência) têm confirmação clara | Ações irreversíveis pedem confirmação | Média |
+| NFR-22 | Carteira do jogador ativo/selecionado permanece legível durante o turno | Saldo e escrituras visíveis sem abrir modal obrigatório | Alta |
 
 ## 12. Desempenho
 
@@ -448,10 +470,12 @@ Itens adiados, copiados de `REQUISITOS.md` → Próximos tópicos:
 - [ ] Baralho completo da Fitinha do Bonfim
 - [ ] Baralho completo da Bença
 - [ ] Custo de pousadas/resorts por grupo de cor
-- [ ] Regras digitais / implementação
+- [x] Carteira e fluxos de dinheiro (cobrar/receber/comprar/hipotecar) — FR-100…FR-107
+- [ ] Demais regras digitais (leilão detalhado, UI de negociação, multiplayer)
 - [ ] Quantidade do estoque de pousadas e resorts
 - [ ] Procedimento detalhado de leilão
 - [ ] Multiplicadores clássicos de transporte/companhia confirmados para Cidadela
+- [ ] Arredondamento oficial do resgate de hipoteca (10% — floor/ceil)
 
 ## 27. Ideias de solução
 
@@ -475,6 +499,7 @@ Itens adiados, copiados de `REQUISITOS.md` → Próximos tópicos:
 | Prisão / Forte | FR-70–FR-75, C-02 |
 | Negociações | FR-80–FR-81 |
 | Falência | FR-82–FR-83 |
+| Carteira e fluxos de dinheiro | FR-24, FR-64, FR-100–FR-107, PUC 12–13, NFR-22 |
 | Adaptações baianas | §4, NFR-10, NFR-70 |
 | Tabuleiro | FR-90–FR-91, C-04 |
 | Exemplos de cartas | FR-40, Waiting Room |

@@ -2,8 +2,11 @@ import type { DiceRoll } from "@cidadela/engine";
 import {
   COLOR_GROUP_LABELS,
   KIND_LABELS,
+  findPropertyOwner,
+  formatCash,
   getPawnDef,
   getSpace,
+  isBuyableKind,
   type BoardSpace,
   type PlayerState,
 } from "@cidadela/shared";
@@ -21,6 +24,7 @@ type Props = {
   onMoveActiveToSelected: () => void;
   onAdvanceActive: (steps: number) => void;
   onRollDice: () => void;
+  onBuySelected: () => void;
 };
 
 export function BoardHud({
@@ -36,9 +40,20 @@ export function BoardHud({
   onMoveActiveToSelected,
   onAdvanceActive,
   onRollDice,
+  onBuySelected,
 }: Props) {
   const space = selectedIndex === null ? null : getSpace(selectedIndex);
   const active = players.find((p) => p.id === activePlayerId) ?? null;
+  const owner =
+    selectedIndex === null
+      ? null
+      : findPropertyOwner(players, selectedIndex);
+  const canBuy =
+    Boolean(active && space && space.price !== undefined && isBuyableKind(space.kind)) &&
+    !owner &&
+    active !== null &&
+    space !== null &&
+    active.cash >= (space.price ?? Infinity);
 
   return (
     <aside className="pointer-events-auto absolute right-4 top-4 z-10 flex max-h-[calc(100dvh-2rem)] w-80 flex-col gap-3 overflow-y-auto rounded-xl border border-[#c4a484]/40 bg-gradient-to-b from-[#2a1c14]/95 to-[#1a120c]/95 p-4 text-[#f5f0e8] shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md">
@@ -71,14 +86,17 @@ export function BoardHud({
             </p>
             {diceRoll.isDouble ? (
               <p className="mt-1 text-xs text-[#ffd166]">
-                Dupla! {consecutiveDoubles >= 3
+                Dupla!{" "}
+                {consecutiveDoubles >= 3
                   ? "3ª dupla → Forte de São Marcelo"
                   : consecutiveDoubles > 0
                     ? `Duplas seguidas: ${consecutiveDoubles}/3 · jogue de novo`
                     : "Jogue de novo"}
               </p>
             ) : (
-              <p className="mt-1 text-xs text-[#c9ada7]">Avance {diceRoll.total} casas</p>
+              <p className="mt-1 text-xs text-[#c9ada7]">
+                Avance {diceRoll.total} casas
+              </p>
             )}
           </div>
         ) : null}
@@ -122,8 +140,10 @@ export function BoardHud({
                     className="inline-block h-3.5 w-3.5 rounded-full ring-2 ring-black/30"
                     style={{ backgroundColor: def.color }}
                   />
-                  <span className="flex-1">{def.label}</span>
-                  <span className="text-xs text-[#c9ada7]">casa {player.position}</span>
+                  <span className="min-w-0 flex-1 truncate">{def.label}</span>
+                  <span className="shrink-0 text-xs tabular-nums text-[#ffd166]/90">
+                    {formatCash(player.cash)}
+                  </span>
                 </button>
               </li>
             );
@@ -152,14 +172,34 @@ export function BoardHud({
 
       {space ? (
         <section className="border-t border-[#c4a484]/25 pt-3">
-          <SpaceDetails space={space} />
+          <SpaceDetails
+            space={space}
+            owner={owner}
+            canBuy={canBuy}
+            buyDisabled={!active || diceRolling}
+            onBuy={onBuySelected}
+          />
         </section>
       ) : null}
     </aside>
   );
 }
 
-function SpaceDetails({ space }: { space: BoardSpace }) {
+function SpaceDetails({
+  space,
+  owner,
+  canBuy,
+  buyDisabled,
+  onBuy,
+}: {
+  space: BoardSpace;
+  owner: PlayerState | null;
+  canBuy: boolean;
+  buyDisabled: boolean;
+  onBuy: () => void;
+}) {
+  const ownerDef = owner ? getPawnDef(owner.pawnId) : null;
+
   return (
     <div className="space-y-2 text-sm">
       <p className="text-xs text-[#d4a373]">Casa nº {space.index}</p>
@@ -176,16 +216,45 @@ function SpaceDetails({ space }: { space: BoardSpace }) {
         {space.price !== undefined ? (
           <>
             <dt className="text-[#c9ada7]">Preço</dt>
-            <dd>${space.price}</dd>
+            <dd>{formatCash(space.price)}</dd>
           </>
         ) : null}
         {space.taxAmount !== undefined ? (
           <>
             <dt className="text-[#c9ada7]">Taxa</dt>
-            <dd>Pague ${space.taxAmount}</dd>
+            <dd>Pague {formatCash(space.taxAmount)}</dd>
+          </>
+        ) : null}
+        {space.price !== undefined && isBuyableKind(space.kind) ? (
+          <>
+            <dt className="text-[#c9ada7]">Dono</dt>
+            <dd className="flex items-center gap-1.5">
+              {ownerDef ? (
+                <>
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: ownerDef.color }}
+                  />
+                  {ownerDef.label}
+                </>
+              ) : (
+                <span className="text-[#c9ada7]">Banco</span>
+              )}
+            </dd>
           </>
         ) : null}
       </dl>
+
+      {canBuy ? (
+        <button
+          type="button"
+          disabled={buyDisabled}
+          onClick={onBuy}
+          className="mt-1 w-full rounded-lg bg-[#2a9d8f] px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+        >
+          Comprar por {formatCash(space.price!)}
+        </button>
+      ) : null}
     </div>
   );
 }

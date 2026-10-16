@@ -25,3 +25,8 @@ export function rollDice(rng: () => number = Math.random): DiceRoll {
 export function nextPosition(from: number, steps: number, boardSize = 40): number {
   return ((from + steps) % boardSize + boardSize) % boardSize;
 }
+
+export function crossesGo(from: number, steps: number, boardSize = 40): boolean {
+  if (steps <= 0) return false;
+  return from + steps >= boardSize;
+}

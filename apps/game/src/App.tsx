@@ -1,18 +1,51 @@
 import { useCallback, useRef, useState } from "react";
-import { nextPosition, type DiceRoll } from "@cidadela/engine";
-import { createPlayers, type PlayerState } from "@cidadela/shared";
+import { crossesGo, nextPosition, type DiceRoll } from "@cidadela/engine";
+import {
+  GO_BONUS,
+  buyProperty,
+  createPlayers,
+  type PlayerState,
+} from "@cidadela/shared";
 import { preloadLandmarkModels } from "./landmarks/GltfLandmark";
 import { BoardCanvas } from "./scene/BoardCanvas";
 import { BoardHud } from "./ui/BoardHud";
+import { WalletPanel } from "./ui/WalletPanel";
 
 preloadLandmarkModels();
+
+function applyMove(
+  player: PlayerState,
+  steps: number,
+  opts: { grantGoBonus: boolean; forcePosition?: number; inJail?: boolean },
+): PlayerState {
+  if (opts.forcePosition !== undefined) {
+    return {
+      ...player,
+      position: opts.forcePosition,
+      inJail: opts.inJail ?? player.inJail,
+    };
+  }
+
+  const from = player.position;
+  const position = nextPosition(from, steps);
+  const bonus =
+    opts.grantGoBonus && crossesGo(from, steps) ? GO_BONUS : 0;
+
+  return {
+    ...player,
+    position,
+    cash: player.cash + bonus,
+  };
+}
 
 export function App() {
   const initial = createPlayers(4);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(0);
   const [playerCount, setPlayerCount] = useState(4);
   const [players, setPlayers] = useState<PlayerState[]>(initial);
-  const [activePlayerId, setActivePlayerId] = useState<string | null>(initial[0]?.id ?? null);
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(
+    initial[0]?.id ?? null,
+  );
 
   const [diceRoll, setDiceRoll] = useState<DiceRoll | null>(null);
   const [diceRolling, setDiceRolling] = useState(false);
@@ -22,6 +55,9 @@ export function App() {
   const doublesRef = useRef(0);
   const activeRef = useRef(activePlayerId);
   activeRef.current = activePlayerId;
+
+  const activePlayer =
+    players.find((p) => p.id === activePlayerId) ?? null;
 
   const handlePlayerCountChange = useCallback((count: number) => {
     const next = createPlayers(count);
@@ -49,13 +85,21 @@ export function App() {
       setPlayers((prev) =>
         prev.map((p) =>
           p.id === activePlayerId
-            ? { ...p, position: nextPosition(p.position, steps) }
+            ? applyMove(p, steps, { grantGoBonus: true })
             : p,
         ),
       );
     },
     [activePlayerId],
   );
+
+  const onBuySelected = useCallback(() => {
+    if (!activePlayerId || selectedIndex === null) return;
+    setPlayers((prev) => {
+      const next = buyProperty(prev, activePlayerId, selectedIndex);
+      return next ?? prev;
+    });
+  }, [activePlayerId, selectedIndex]);
 
   const onRollDice = useCallback(() => {
     if (!activeRef.current || diceRolling) return;
@@ -81,7 +125,15 @@ export function App() {
       doublesRef.current = 0;
       setConsecutiveDoubles(0);
       setPlayers((prev) =>
-        prev.map((p) => (p.id === playerId ? { ...p, position: 10 } : p)),
+        prev.map((p) =>
+          p.id === playerId
+            ? applyMove(p, 0, {
+                grantGoBonus: false,
+                forcePosition: 10,
+                inJail: true,
+              })
+            : p,
+        ),
       );
       return;
     }
@@ -89,7 +141,7 @@ export function App() {
     setPlayers((prev) =>
       prev.map((p) =>
         p.id === playerId
-          ? { ...p, position: nextPosition(p.position, roll.total) }
+          ? applyMove(p, roll.total, { grantGoBonus: true })
           : p,
       ),
     );
@@ -118,6 +170,7 @@ export function App() {
         onRollComplete={onRollComplete}
         onPawnArrive={onPawnArrive}
       />
+      <WalletPanel player={activePlayer} />
       <BoardHud
         selectedIndex={selectedIndex}
         players={players}
@@ -131,6 +184,7 @@ export function App() {
         onMoveActiveToSelected={onMoveActiveToSelected}
         onAdvanceActive={onAdvanceActive}
         onRollDice={onRollDice}
+        onBuySelected={onBuySelected}
       />
       <p className="pointer-events-none absolute bottom-4 left-4 z-10 text-xs text-[#c9ada7]/80">
         Arraste para orbitar · toque duplo na bandeja para lançar os dados
