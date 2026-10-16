@@ -40,7 +40,11 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
     const cornerSize = Math.min(layout.width, layout.depth);
 
     const isGltf =
-      layout.index === 10 || layout.index === 15 || layout.index === 27 || layout.index === 28;
+      layout.index === 10 ||
+      layout.index === 15 ||
+      layout.index === 27 ||
+      layout.index === 28 ||
+      layout.index === 35;
     let landmarkPos: [number, number, number];
     if (corner) {
       const inset = cornerSize * (isGltf ? 0.03 : 0.18);

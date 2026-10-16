@@ -1,6 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import { FitToSlot } from "./FitToSlot";
 import { GltfLandmark } from "./GltfLandmark";
+import { MetroDeSalvadorLandmark } from "./MetroDeSalvadorLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -11,7 +12,8 @@ type Props = {
 };
 
 export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props) {
-  const isGltf = index === 10 || index === 15 || index === 27 || index === 28;
+  const isGltf =
+    index === 10 || index === 15 || index === 27 || index === 28 || index === 35;
   const fitWidth = (slotWidth ?? 1.2) * (isGltf ? 0.98 : 0.95);
   const fitDepth = (slotDepth ?? 1.2) * (isGltf ? 0.98 : 0.55);
 
@@ -27,6 +29,9 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   }
   if (index === 28) {
     return <Embasa accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
+  if (index === 35) {
+    return <MetroDeSalvadorLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
 
   return (
@@ -98,8 +103,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
       return <CostaSauipe />;
     case 34:
       return <PortoSeguro />;
-    case 35:
-      return <Metro />;
     case 37:
       return <CorredorVitoria />;
     case 38:
@@ -570,19 +573,6 @@ function PortoSeguro() {
       <Box args={[0.45, 0.08, 0.08]} position={[0, 0.65, 0]} color="#6d4c41" />
       <Box args={[0.35, 0.25, 0.3]} position={[0.3, 0.15, 0.2]} color="#f5cba7" />
       <Box args={[0.8, 0.04, 0.5]} position={[0, 0.02, 0.35]} color="#f9e79f" />
-    </Group>
-  );
-}
-
-function Metro() {
-  return (
-    <Group>
-      <Box args={[1.1, 0.3, 0.4]} position={[0, 0.25, 0]} color="#1abc9c" />
-      <Box args={[0.2, 0.18, 0.35]} position={[-0.35, 0.28, 0]} color="#5dade2" />
-      <Box args={[0.2, 0.18, 0.35]} position={[0, 0.28, 0]} color="#5dade2" />
-      <Box args={[0.2, 0.18, 0.35]} position={[0.35, 0.28, 0]} color="#5dade2" />
-      <Cyl args={[0.1, 0.1, 0.1, 12]} position={[-0.35, 0.08, 0.25]} color="#2c3e50" />
-      <Cyl args={[0.1, 0.1, 0.1, 12]} position={[0.35, 0.08, 0.25]} color="#2c3e50" />
     </Group>
   );
 }
