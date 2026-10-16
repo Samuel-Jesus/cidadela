@@ -1,3 +1,4 @@
+import type { DiceRoll } from "@cidadela/engine";
 import {
   COLOR_GROUP_LABELS,
   KIND_LABELS,
@@ -12,10 +13,14 @@ type Props = {
   players: PlayerState[];
   activePlayerId: string | null;
   playerCount: number;
+  diceRoll: DiceRoll | null;
+  diceRolling: boolean;
+  consecutiveDoubles: number;
   onSelectPlayer: (playerId: string) => void;
   onPlayerCountChange: (count: number) => void;
   onMoveActiveToSelected: () => void;
   onAdvanceActive: (steps: number) => void;
+  onRollDice: () => void;
 };
 
 export function BoardHud({
@@ -23,10 +28,14 @@ export function BoardHud({
   players,
   activePlayerId,
   playerCount,
+  diceRoll,
+  diceRolling,
+  consecutiveDoubles,
   onSelectPlayer,
   onPlayerCountChange,
   onMoveActiveToSelected,
   onAdvanceActive,
+  onRollDice,
 }: Props) {
   const space = selectedIndex === null ? null : getSpace(selectedIndex);
   const active = players.find((p) => p.id === activePlayerId) ?? null;
@@ -39,6 +48,41 @@ export function BoardHud({
         </p>
         <h1 className="font-serif text-xl leading-tight">Tabuleiro 3D</h1>
       </div>
+
+      <section className="space-y-2 border-t border-[#c4a484]/25 pt-3">
+        <h2 className="text-sm font-medium text-[#d4a373]">Dados</h2>
+        <p className="text-xs text-[#c9ada7]">
+          Toque duplo (ou duplo clique) na bandeja do centro para lançar
+        </p>
+        <button
+          type="button"
+          disabled={!active || diceRolling}
+          onClick={onRollDice}
+          className="w-full rounded-lg bg-[#d4a373] px-3 py-2.5 text-sm font-semibold text-[#1a120c] disabled:opacity-40"
+        >
+          {diceRolling ? "Rolando…" : "Rolar dados"}
+        </button>
+
+        {diceRoll ? (
+          <div className="rounded-lg bg-white/5 px-3 py-2 text-sm">
+            <p className="font-serif text-lg text-white">
+              {diceRoll.die1} + {diceRoll.die2} ={" "}
+              <span className="text-[#ffd166]">{diceRoll.total}</span>
+            </p>
+            {diceRoll.isDouble ? (
+              <p className="mt-1 text-xs text-[#ffd166]">
+                Dupla! {consecutiveDoubles >= 3
+                  ? "3ª dupla → Forte de São Marcelo"
+                  : consecutiveDoubles > 0
+                    ? `Duplas seguidas: ${consecutiveDoubles}/3 · jogue de novo`
+                    : "Jogue de novo"}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-[#c9ada7]">Avance {diceRoll.total} casas</p>
+            )}
+          </div>
+        ) : null}
+      </section>
 
       <section className="space-y-2 border-t border-[#c4a484]/25 pt-3">
         <div className="flex items-center justify-between gap-2">
@@ -89,46 +133,28 @@ export function BoardHud({
         <div className="flex flex-wrap gap-2 pt-1">
           <button
             type="button"
-            disabled={!active}
+            disabled={!active || diceRolling}
             onClick={() => onAdvanceActive(1)}
-            className="rounded-lg bg-[#d4a373] px-3 py-1.5 text-xs font-medium text-[#1a120c] disabled:opacity-40"
+            className="rounded-lg bg-[#c4a484]/30 px-3 py-1.5 text-xs text-[#f5f0e8] disabled:opacity-40"
           >
             Avançar 1
           </button>
           <button
             type="button"
-            disabled={!active}
-            onClick={() => onAdvanceActive(2)}
-            className="rounded-lg bg-[#c4a484]/30 px-3 py-1.5 text-xs text-[#f5f0e8] disabled:opacity-40"
-          >
-            Avançar 2
-          </button>
-          <button
-            type="button"
-            disabled={!active || selectedIndex === null}
+            disabled={!active || selectedIndex === null || diceRolling}
             onClick={onMoveActiveToSelected}
             className="rounded-lg bg-[#c4a484]/30 px-3 py-1.5 text-xs text-[#f5f0e8] disabled:opacity-40"
           >
-            Ir à casa selecionada
+            Ir à casa
           </button>
         </div>
-
-        {active ? (
-          <p className="text-xs text-[#c9ada7]">
-            Ativo: <span className="text-[#ffd166]">{getPawnDef(active.pawnId).label}</span>
-          </p>
-        ) : null}
       </section>
 
       {space ? (
         <section className="border-t border-[#c4a484]/25 pt-3">
           <SpaceDetails space={space} />
         </section>
-      ) : (
-        <p className="border-t border-[#c4a484]/25 pt-3 text-sm text-[#c9ada7]">
-          Clique em uma casa para ver os detalhes.
-        </p>
-      )}
+      ) : null}
     </aside>
   );
 }
@@ -141,21 +167,18 @@ function SpaceDetails({ space }: { space: BoardSpace }) {
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
         <dt className="text-[#c9ada7]">Tipo</dt>
         <dd>{KIND_LABELS[space.kind]}</dd>
-
         {space.colorGroup ? (
           <>
             <dt className="text-[#c9ada7]">Grupo</dt>
             <dd>{COLOR_GROUP_LABELS[space.colorGroup]}</dd>
           </>
         ) : null}
-
         {space.price !== undefined ? (
           <>
             <dt className="text-[#c9ada7]">Preço</dt>
             <dd>${space.price}</dd>
           </>
         ) : null}
-
         {space.taxAmount !== undefined ? (
           <>
             <dt className="text-[#c9ada7]">Taxa</dt>

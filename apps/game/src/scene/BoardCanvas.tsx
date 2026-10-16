@@ -1,8 +1,10 @@
 import { Canvas } from "@react-three/fiber";
 import { ContactShadows, Html, OrbitControls } from "@react-three/drei";
 import { useMemo } from "react";
+import type { DiceRoll } from "@cidadela/engine";
 import { BOARD, type PlayerState } from "@cidadela/shared";
 import { BoardTable } from "./BoardTable";
+import { DiceTray } from "./DiceTray";
 import { computeSpaceLayouts } from "./layout";
 import { PawnsLayer } from "./PawnsLayer";
 import { SpaceTile } from "./SpaceTile";
@@ -13,6 +15,11 @@ type Props = {
   players: PlayerState[];
   activePlayerId: string | null;
   onSelectPlayer: (playerId: string) => void;
+  diceRolling: boolean;
+  diceRollId: number;
+  canRoll: boolean;
+  onRollRequest: () => void;
+  onRollComplete: (roll: DiceRoll) => void;
 };
 
 export function BoardCanvas({
@@ -21,6 +28,11 @@ export function BoardCanvas({
   players,
   activePlayerId,
   onSelectPlayer,
+  diceRolling,
+  diceRollId,
+  canRoll,
+  onRollRequest,
+  onRollComplete,
 }: Props) {
   const layouts = useMemo(() => computeSpaceLayouts(), []);
 
@@ -57,6 +69,14 @@ export function BoardCanvas({
           onSelect={onSelect}
         />
       ))}
+
+      <DiceTray
+        rolling={diceRolling}
+        rollId={diceRollId}
+        canRoll={canRoll}
+        onRollRequest={onRollRequest}
+        onRollComplete={onRollComplete}
+      />
 
       <PawnsLayer
         players={players}

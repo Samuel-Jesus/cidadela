@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@cidadela/shared": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
+      "@cidadela/engine": path.resolve(__dirname, "../../packages/engine/src/index.ts"),
     },
   },
   server: {
