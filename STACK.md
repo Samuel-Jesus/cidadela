@@ -129,7 +129,8 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Negociação entre jogadores
 - [x] Aluguel pedido (FR-22a) + overlay de vitória
 - [ ] Pousadas/resorts visíveis nas casas 3D
-- [x] Lobby / preparação de partida (nomes, peões, banqueiro)
+- [x] Lobby anfitrião (qtd + link/QR) e entrada de convidados (nome/peão)
+- [ ] Sync de sala multi-aparelho (fase 2)
 - [x] Loading inicial com avião (pré-carga de assets)
 - [ ] Áudio/FX (`SPECS.md` §17b): SFX dinheiro/imposto; Carnaval+Canário; viatura → Forte; guincho ao vender construção
 

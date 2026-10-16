@@ -248,12 +248,14 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | FR-02 | Cada jogador inicia com $1.500 | Saldo inicial = 1500 para todos | Alta | Preparação |
 | FR-03 | Todos começam na casa 0 (Chegada) | posição = 0 no início | Alta | Preparação |
 | FR-04 | Existe o papel de banqueiro (pode ser jogador) | Banqueiro identificado na partida | Média | Preparação |
-| FR-05 | (Digital) Antes da partida, o **Lobby** configura a mesa | App abre no Lobby; “Começar” só com setup válido | Alta | Preparação / Lobby |
-| FR-05a | Lobby: escolher quantidade 2–8 | Contador/slots refletem C-03 / FR-01 | Alta | Lobby |
-| FR-05b | Lobby: cada assento tem **nome** editável e **peão** único (8 tokens) | Dois jogadores não compartilham o mesmo peão; nome não vazio | Alta | Lobby |
-| FR-05c | Lobby: designar **um banqueiro** entre os assentos (FR-04) | Exatamente um `isBanker`; UI mostra o papel | Média | Lobby |
-| FR-05d | Ao iniciar, aplica FR-02/FR-03 e entra no hot-seat | Jogadores criados com $1500, posição 0, peões/nomes do Lobby | Alta | Lobby |
-| FR-05e | Nova partida / vitória pode voltar ao Lobby | Estado da mesa anterior é descartado ao confirmar novo setup | Média | Lobby |
+| FR-05 | (Digital) Lobby em modo **anfitrião + convidados** | App abre no Lobby (ou join via link); partida só inicia com setup válido | Alta | Preparação / Lobby |
+| FR-05a | **Anfitrião** escolhe só a **quantidade** de jogadores (2–8) e cria a sessão | Não preenche nomes/peões dos outros | Alta | Lobby |
+| FR-05b | Sessão gera **link compartilhável** e **QR Code** para entrada | Link contém id da sala; QR codifica o mesmo URL | Alta | Lobby |
+| FR-05c | Convidado abre o link/QR, escolhe **nome** e **peão** único e entra na sala | Peões não se repetem; nome obrigatório; capacidade = quantidade do anfitrião | Alta | Lobby |
+| FR-05d | Anfitrião é o **banqueiro** (FR-04) e também jogador (nome/peão próprios na sala) | `isBanker` = anfitrião | Média | Lobby |
+| FR-05e | Anfitrião inicia quando há ≥2 jogadores na sala (idealmente a mesa cheia) | `Começar` cria jogadores FR-02/FR-03 a partir dos membros conectados | Alta | Lobby |
+| FR-05f | Nova partida / vitória volta ao Lobby (nova sessão) | Estado da sala anterior descartado | Média | Lobby |
+| FR-05g | Sync da sala: até multiplayer servidor (fase 2), canal local (mesma origem / abas) é aceitável no MVP | Convidados em outro dispositivo exigem backend na fase 2; UI de link/QR já está pronta | Média | Lobby / Fase 2 |
 | FR-06 | (Digital) Tela de **Loading** antes do Lobby, com **avião** | Splash/loading visível até assets críticos prontos (ou timeout seguro) | Alta | Boot / Loading |
 | FR-06a | Loading: avião em movimento (temática Bahia / aeroporto) | Animação contínua; marca “Cidadela” legível | Alta | Loading |
 | FR-06b | Loading cobre pré-carga de modelos 3D (landmarks GLTF) e shell | Lobby só aparece após loading concluir (mínimo visual opcional ~1,5s) | Média | Loading |
@@ -524,7 +526,7 @@ Feedback sensorial **não altera regras** (saldo, posição, dono). Mute global 
 | 5 | Engine: resolver casa (aluguel, imposto, Forte, cartas) | 4 | Feito |
 | 6 | Hot-seat completo + hipotecas / construção / leilão / negociação / falência / fim de jogo | 5 | Feito |
 | 7 | Vitest FRs críticos (`packages/shared`) | 6 | Feito (base) |
-| 8 | Lobby digital (FR-05…05e): nomes, peões, banqueiro, 2–8 | 6 | Feito |
+| 8 | Lobby anfitrião + link/QR + join (FR-05…05g) | 6 | Feito (sync multi-device = fase 2) |
 | 8b | Loading com avião (FR-06…06b) antes do Lobby | 6 | Feito |
 | 9 | Playtest de balanceamento | 6 | Pendente |
 | 10 | Áudio: SFX dinheiro / imposto + pools Carnaval & Canário (§17b) | 6 | Pendente |
@@ -583,8 +585,9 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 
 - [ ] Toggle UI cobrança automática vs pedida (hoje só `claim`)
 - [ ] Playtest formal de balanceamento (§8)
-- [x] **Lobby** (FR-05…05e): quantidade, nomes, peões únicos, banqueiro → começar partida
+- [x] **Lobby** anfitrião (só qtd) + link/QR; convidado escolhe nome/peão (FR-05…05g)
 - [x] **Loading** com avião (FR-06…06b) na entrada do app
+- [ ] Sync de sala entre aparelhos (servidor / PartyKit — FR-05g fase 2)
 - [ ] Cobertura Vitest ampliada (cartas, Forte, falência ponta a ponta)
 - [ ] **Áudio:** SFX de recebimento, pagamento/transferência e impostos (NFR-AV-01…04)
 - [ ] **Carnaval:** músicas aleatórias (pools Carnaval + Canário) + efeitos leves (FR-43a / NFR-AV-10…11)
