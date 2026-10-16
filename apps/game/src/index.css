@@ -15,3 +15,38 @@ body {
 canvas {
   display: block;
 }
+
+@keyframes wallet-open-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes wallet-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.wallet-open {
+  animation: wallet-open-in 0.28s ease-out;
+  transform-origin: bottom left;
+}
+
+.wallet-card-detail {
+  animation: wallet-card-in 0.22s ease-out;
+}
+
+.wallet-closed {
+  transform-origin: bottom left;
+}

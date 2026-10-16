@@ -55,6 +55,8 @@ export {
   PROPERTY_RENT,
   countTransports,
   countUtilities,
+  ownsFullColorGroup,
+  colorGroupHasMortgage,
   propertyRentAmount,
   transportRentAmount,
   utilityRentAmount,
@@ -62,3 +64,20 @@ export {
   payBank,
   chargeRentIfOwned,
 } from "./rent";
+export type { ActionResult } from "./propertyActions";
+export {
+  BUILD_COST_BY_GROUP,
+  mortgageValue,
+  mortgageInterest,
+  redeemCost,
+  buildCostForSpace,
+  canMortgage,
+  mortgageProperty,
+  redeemProperty,
+  canBuildPousada,
+  buildPousada,
+  canBuildResort,
+  buildResort,
+  canSellBuilding,
+  sellBuilding,
+} from "./propertyActions";

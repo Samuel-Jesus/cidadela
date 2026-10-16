@@ -214,7 +214,11 @@ export function App() {
         onRollComplete={onRollComplete}
         onPawnArrive={onPawnArrive}
       />
-      <WalletPanel player={activePlayer} />
+      <WalletPanel
+        player={activePlayer}
+        players={players}
+        onPlayersChange={setPlayers}
+      />
       <BoardHud
         selectedIndex={selectedIndex}
         players={players}
@@ -244,7 +248,7 @@ export function App() {
           }}
         />
       ) : null}
-      <p className="pointer-events-none absolute bottom-4 left-4 z-10 text-xs text-[#c9ada7]/80">
+      <p className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 text-center text-xs text-[#c9ada7]/75">
         Arraste para orbitar · toque duplo na bandeja para lançar os dados
       </p>
     </div>
