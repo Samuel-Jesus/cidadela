@@ -12,6 +12,7 @@ import {
   deckIdFromSpaceKind,
   drawAndResolveCard,
   findPropertyOwner,
+  findWinner,
   forceLeaveJailAfterFailedAttempts,
   getSpace,
   isBuyableKind,
@@ -35,11 +36,12 @@ import { AuctionOverlay } from "./ui/AuctionOverlay";
 import { BoardCanvas } from "./scene/BoardCanvas";
 import { BoardHud } from "./ui/BoardHud";
 import { DrawnCardModal } from "./ui/DrawnCardModal";
+import { VictoryOverlay } from "./ui/VictoryOverlay";
 import { WalletPanel } from "./ui/WalletPanel";
 
 preloadLandmarkModels();
 
-type TurnPhase = "roll" | "busy" | "action" | "debt" | "auction";
+type TurnPhase = "roll" | "busy" | "action" | "debt" | "auction" | "ended";
 
 type AuctionSession = {
   lot: AuctionLot;
@@ -130,6 +132,7 @@ export function App() {
   const [jailError, setJailError] = useState<string | null>(null);
   const [pendingDebt, setPendingDebt] = useState<DebtInfo | null>(null);
   const [auction, setAuction] = useState<AuctionSession | null>(null);
+  const [winnerId, setWinnerId] = useState<string | null>(null);
   const pendingAuctionsRef = useRef<AuctionLot[]>([]);
   const auctionAdvanceAfterModalRef = useRef<AuctionSession | null>(null);
 
@@ -148,6 +151,9 @@ export function App() {
 
   const activePlayer =
     players.find((p) => p.id === activePlayerId) ?? null;
+  const winner = winnerId
+    ? players.find((p) => p.id === winnerId) ?? null
+    : null;
 
   const dismissEventUi = useCallback(() => {
     setShowEventModal(false);
@@ -170,23 +176,42 @@ export function App() {
     return false;
   }, []);
 
-  const startNextTurn = useCallback((fromPlayerId: string) => {
-    const nextId = nextPlayerId(playersRef.current, fromPlayerId);
-    doublesRef.current = 0;
-    extraRollRef.current = false;
-    forceEndTurnRef.current = false;
-    setConsecutiveDoubles(0);
-    setDiceRoll(null);
-    setJailError(null);
-    setActivePlayerId(nextId);
-    setTurnPhase("roll");
-    const next = playersRef.current.find((p) => p.id === nextId);
-    if (next) setSelectedIndex(next.position);
+  const endGameIfWon = useCallback((list: readonly PlayerState[]) => {
+    const w = findWinner(list);
+    if (!w) return false;
+    setWinnerId(w.id);
+    setActivePlayerId(w.id);
+    setAuction(null);
+    pendingAuctionsRef.current = [];
+    auctionAdvanceAfterModalRef.current = null;
+    setPendingDebt(null);
+    setTurnPhase("ended");
+    setSelectedIndex(w.position);
+    return true;
   }, []);
+
+  const startNextTurn = useCallback(
+    (fromPlayerId: string) => {
+      if (endGameIfWon(playersRef.current)) return;
+      const nextId = nextPlayerId(playersRef.current, fromPlayerId);
+      doublesRef.current = 0;
+      extraRollRef.current = false;
+      forceEndTurnRef.current = false;
+      setConsecutiveDoubles(0);
+      setDiceRoll(null);
+      setJailError(null);
+      setActivePlayerId(nextId);
+      setTurnPhase("roll");
+      const next = playersRef.current.find((p) => p.id === nextId);
+      if (next) setSelectedIndex(next.position);
+    },
+    [endGameIfWon],
+  );
 
   const resumeAfterAuctions = useCallback(
     (playerId: string) => {
       setAuction(null);
+      if (endGameIfWon(playersRef.current)) return;
       if (extraRollRef.current) {
         extraRollRef.current = false;
         setTurnPhase("roll");
@@ -194,7 +219,7 @@ export function App() {
       }
       startNextTurn(playerId);
     },
-    [startNextTurn],
+    [startNextTurn, endGameIfWon],
   );
 
   const beginAuctions = useCallback(
@@ -292,6 +317,7 @@ export function App() {
       afterPlayerId: string,
       spaceIndex: number,
     ) => {
+      if (endGameIfWon(playersRef.current)) return;
       if (queue?.length) enqueueAuctions(queue);
       if (debt) {
         setPendingDebt(debt);
@@ -313,7 +339,13 @@ export function App() {
       }
       advanceAfterResolve(afterPlayerId, spaceIndex);
     },
-    [advanceAfterResolve, startNextTurn, enqueueAuctions, beginAuctions],
+    [
+      advanceAfterResolve,
+      startNextTurn,
+      enqueueAuctions,
+      beginAuctions,
+      endGameIfWon,
+    ],
   );
 
   const onPayJailFine = useCallback(() => {
@@ -355,6 +387,7 @@ export function App() {
       setPlayers(next);
       playersRef.current = next;
       setActivePlayerId(next[0]?.id ?? null);
+      setWinnerId(null);
       setDecks(createDecks());
       dismissEventUi();
       setDiceRoll(null);
@@ -367,6 +400,8 @@ export function App() {
       setPendingDebt(null);
       setAuction(null);
       pendingAuctionsRef.current = [];
+      auctionAdvanceAfterModalRef.current = null;
+      setSelectedIndex(0);
       setTurnPhase("roll");
     },
     [dismissEventUi],
@@ -513,7 +548,13 @@ export function App() {
     if (pendingAdvance) {
       auctionAdvanceAfterModalRef.current = null;
       dismissEventUi();
+      if (endGameIfWon(playersRef.current)) return;
       advanceAuctionQueue(pendingAdvance);
+      return;
+    }
+    if (winnerId) {
+      dismissEventUi();
+      setTurnPhase("ended");
       return;
     }
     if (auction) {
@@ -541,6 +582,8 @@ export function App() {
     applyDebtOutcome,
     advanceAuctionQueue,
     auction,
+    endGameIfWon,
+    winnerId,
   ]);
 
   const onPayDebt = useCallback(() => {
@@ -574,6 +617,13 @@ export function App() {
 
     if (settled.status === "bankrupt") {
       setPendingDebt(null);
+      if (endGameIfWon(settled.players)) {
+        presentEvent(
+          [...settled.notes, "Fim de jogo — resta um jogador de pé."],
+          [],
+        );
+        return;
+      }
       if (settled.auctionQueue.length) {
         enqueueAuctions(settled.auctionQueue);
       }
@@ -591,6 +641,7 @@ export function App() {
     advanceAfterResolve,
     selectedIndex,
     enqueueAuctions,
+    endGameIfWon,
   ]);
 
   const onLiquidateForDebt = useCallback(() => {
@@ -613,11 +664,18 @@ export function App() {
     decksRef.current = broke.decks;
     setDecks(broke.decks);
     setPendingDebt(null);
+    if (endGameIfWon(broke.players)) {
+      presentEvent(
+        [...broke.notes, "Fim de jogo — resta um jogador de pé."],
+        [],
+      );
+      return;
+    }
     if (broke.auctionQueue.length) {
       enqueueAuctions(broke.auctionQueue);
     }
     presentEvent(broke.notes, []);
-  }, [pendingDebt, turnPhase, presentEvent, enqueueAuctions]);
+  }, [pendingDebt, turnPhase, presentEvent, enqueueAuctions, endGameIfWon]);
 
   const onRollDice = useCallback(() => {
     if (!activeRef.current || diceRolling || turnPhase !== "roll") return;
@@ -935,6 +993,9 @@ export function App() {
   }, [auction, finishAuctionLot]);
 
   const turnLabel = (() => {
+    if (turnPhase === "ended" && winner) {
+      return `Fim de jogo — vencedor`;
+    }
     if (!activePlayer) return null;
     if (turnPhase === "auction") return "Leilão em andamento";
     if (turnPhase === "roll" && activePlayer.inJail) {
@@ -971,7 +1032,7 @@ export function App() {
         onSelectPlayer={() => { }}
         diceRolling={diceRolling}
         diceRollId={diceRollId}
-        canRoll={turnPhase === "roll" && !showEventModal}
+        canRoll={turnPhase === "roll" && !showEventModal && !winnerId}
         onRollRequest={onRollDice}
         onRollComplete={onRollComplete}
         onPawnArrive={onPawnArrive}
@@ -980,6 +1041,7 @@ export function App() {
         player={activePlayer}
         players={players}
         onPlayersChange={(next) => {
+          if (winnerId) return;
           playersRef.current = next;
           setPlayers(next);
         }}
@@ -990,7 +1052,7 @@ export function App() {
         activePlayerId={activePlayerId}
         playerCount={playerCount}
         diceRoll={diceRoll}
-        diceRolling={turnPhase !== "roll" || diceRolling}
+        diceRolling={turnPhase !== "roll" || diceRolling || Boolean(winnerId)}
         consecutiveDoubles={consecutiveDoubles}
         decks={decks}
         turnPhase={turnPhase}
@@ -1021,7 +1083,7 @@ export function App() {
           onDismiss={onDismissEvent}
         />
       ) : null}
-      {auction && turnPhase === "auction" && !showEventModal ? (
+      {auction && turnPhase === "auction" && !showEventModal && !winnerId ? (
         <AuctionOverlay
           key={auction.lot.spaceIndex}
           lot={auction.lot}
@@ -1036,6 +1098,13 @@ export function App() {
           onPass={onAuctionPass}
           onSell={onAuctionSell}
           onNoBids={onAuctionNoBids}
+        />
+      ) : null}
+      {winner && !showEventModal ? (
+        <VictoryOverlay
+          winner={winner}
+          players={players}
+          onNewGame={() => handlePlayerCountChange(playerCount)}
         />
       ) : null}
       <p className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-[#ffe8c8]/80">

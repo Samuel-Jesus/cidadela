@@ -114,3 +114,8 @@ export {
   bankStockFromPlayers,
   countBuildingsInHoldings,
 } from "./bankStock";
+export {
+  alivePlayers,
+  findWinner,
+  isGameOver,
+} from "./gameEnd";

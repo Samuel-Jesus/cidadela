@@ -20,7 +20,7 @@ import {
   type PlayerState,
 } from "@cidadela/shared";
 
-type TurnPhase = "roll" | "busy" | "action" | "debt" | "auction";
+type TurnPhase = "roll" | "busy" | "action" | "debt" | "auction" | "ended";
 
 type Props = {
   selectedIndex: number | null;
@@ -263,7 +263,11 @@ export function BoardHud({
                   />
                   <span className="min-w-0 flex-1 truncate font-[family-name:var(--font-game)]">
                     {def.label}
-                    {player.bankrupt ? " · falido" : ""}
+                    {player.bankrupt
+                      ? " · falido"
+                      : turnPhase === "ended"
+                        ? " · vencedor"
+                        : ""}
                   </span>
                   <span className="shrink-0 text-xs tabular-nums text-[#1f6b45]">
                     {formatCash(player.cash)}
