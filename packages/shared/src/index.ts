@@ -58,6 +58,14 @@ export {
   useProtectionToLeaveJail,
   forceLeaveJailAfterFailedAttempts,
 } from "./jail";
+export type { Creditor, DebtInfo, SettleResult } from "./bankruptcy";
+export {
+  maxRaisableCash,
+  liquidateAll,
+  settleDebt,
+  payPendingDebt,
+  declareBankruptcy,
+} from "./bankruptcy";
 export type { PropertyRentRow } from "./rent";
 export {
   TRANSPORT_RENT_BY_COUNT,

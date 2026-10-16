@@ -5,9 +5,17 @@ import {
   type DeckId,
   type DecksState,
 } from "./cards";
+import {
+  settleDebt,
+  type DebtInfo,
+} from "./bankruptcy";
 import { sendToJail } from "./jail";
 import { findPropertyOwner, type PlayerState } from "./pawns";
-import { chargeRentIfOwned, payBank } from "./rent";
+import {
+  propertyRentAmount,
+  transportRentAmount,
+  utilityRentAmount,
+} from "./rent";
 
 export type SpaceResolveOptions = {
   transportMultiplier?: number;
@@ -24,6 +32,8 @@ export type SpaceResolveOptions = {
     decks: DecksState;
     notes: string[];
     followUpCards: CardDef[];
+    pendingDebt?: DebtInfo | null;
+    auctionQueue?: number[];
   };
 };
 
@@ -32,6 +42,8 @@ export type SpaceResolveResult = {
   decks: DecksState;
   notes: string[];
   followUpCards: CardDef[];
+  pendingDebt: DebtInfo | null;
+  auctionQueue: number[];
 };
 
 export function resolveSpaceLanding(
@@ -45,18 +57,40 @@ export function resolveSpaceLanding(
   const followUpCards: CardDef[] = [];
   let nextPlayers = [...players];
   let nextDecks = decks;
+  let pendingDebt: DebtInfo | null = null;
+  const auctionQueue: number[] = [];
 
   const space = getSpace(spaceIndex);
   if (!nextPlayers.some((p) => p.id === playerId)) {
-    return { players: nextPlayers, decks: nextDecks, notes, followUpCards };
+    return {
+      players: nextPlayers,
+      decks: nextDecks,
+      notes,
+      followUpCards,
+      pendingDebt,
+      auctionQueue,
+    };
   }
 
   switch (space.kind) {
     case "imposto": {
       const tax = space.taxAmount ?? 0;
       if (tax > 0) {
-        nextPlayers = payBank(nextPlayers, playerId, tax);
-        notes.push(`Imposto: pagou $${tax} ao banco.`);
+        const settled = settleDebt(
+          nextPlayers,
+          nextDecks,
+          playerId,
+          tax,
+          { type: "bank" },
+          `Imposto (${space.name})`,
+        );
+        nextPlayers = settled.players;
+        nextDecks = settled.decks;
+        notes.push(...settled.notes);
+        if (settled.status === "shortfall") pendingDebt = settled.debt;
+        if (settled.status === "bankrupt") {
+          auctionQueue.push(...settled.auctionQueue);
+        }
       }
       break;
     }
@@ -72,39 +106,62 @@ export function resolveSpaceLanding(
     case "propriedade":
     case "transporte":
     case "companhia": {
+      const owner = findPropertyOwner(nextPlayers, spaceIndex);
+      if (!owner || owner.id === playerId || owner.bankrupt) {
+        if (!owner && (space.kind === "propriedade" || space.kind === "transporte" || space.kind === "companhia")) {
+          notes.push(`${space.name} está sem dono — você pode comprar.`);
+        }
+        break;
+      }
+
       let utilityDiceTotal = opts.utilityDiceTotal;
       let utilityTimes = opts.utilityTimes;
       if (space.kind === "companhia" && utilityDiceTotal == null) {
-        const owner = findPropertyOwner(nextPlayers, spaceIndex);
-        if (owner && owner.id !== playerId) {
-          const rng = opts.rng ?? Math.random;
-          const die1 = Math.floor(rng() * 6) + 1;
-          const die2 = Math.floor(rng() * 6) + 1;
-          utilityDiceTotal = die1 + die2;
-          notes.push(
-            `Companhia: rolou ${die1}+${die2}=${utilityDiceTotal} para o aluguel.`,
-          );
-        }
+        const rng = opts.rng ?? Math.random;
+        const die1 = Math.floor(rng() * 6) + 1;
+        const die2 = Math.floor(rng() * 6) + 1;
+        utilityDiceTotal = die1 + die2;
+        notes.push(
+          `Companhia: rolou ${die1}+${die2}=${utilityDiceTotal} para o aluguel.`,
+        );
       }
 
-      const rent = chargeRentIfOwned(nextPlayers, playerId, spaceIndex, {
-        transportMultiplier: opts.transportMultiplier,
-        utilityDiceTotal,
-        utilityTimes,
-      });
-      nextPlayers = rent.players;
-      if (rent.amount > 0) {
-        if (space.kind === "transporte" && (opts.transportMultiplier ?? 1) > 1) {
-          notes.push(`Aluguel dobrado do transporte: pagou $${rent.amount}.`);
-        } else if (space.kind === "companhia" && utilityDiceTotal != null) {
-          notes.push(
-            `Aluguel da companhia: pagou $${rent.amount}.`,
+      let amount: number | null = null;
+      if (space.kind === "transporte") {
+        amount = transportRentAmount(
+          owner,
+          spaceIndex,
+          opts.transportMultiplier ?? 1,
+        );
+      } else if (space.kind === "companhia") {
+        if (utilityDiceTotal != null) {
+          amount = utilityRentAmount(
+            owner,
+            spaceIndex,
+            utilityDiceTotal,
+            utilityTimes,
           );
-        } else {
-          notes.push(`Aluguel: pagou $${rent.amount}.`);
         }
-      } else if (!rent.ownerId) {
-        notes.push(`${space.name} está sem dono — você pode comprar.`);
+      } else {
+        amount = propertyRentAmount(owner, spaceIndex);
+      }
+
+      if (amount != null && amount > 0) {
+        const settled = settleDebt(
+          nextPlayers,
+          nextDecks,
+          playerId,
+          amount,
+          { type: "player", playerId: owner.id },
+          `Aluguel (${space.name})`,
+        );
+        nextPlayers = settled.players;
+        nextDecks = settled.decks;
+        notes.push(...settled.notes);
+        if (settled.status === "shortfall") pendingDebt = settled.debt;
+        if (settled.status === "bankrupt") {
+          auctionQueue.push(...settled.auctionQueue);
+        }
       }
       break;
     }
@@ -120,6 +177,10 @@ export function resolveSpaceLanding(
       nextDecks = nested.decks;
       notes.push(...nested.notes);
       followUpCards.push(...nested.followUpCards);
+      if (nested.pendingDebt) pendingDebt = nested.pendingDebt;
+      if (nested.auctionQueue?.length) {
+        auctionQueue.push(...nested.auctionQueue);
+      }
       break;
     }
 
@@ -127,5 +188,12 @@ export function resolveSpaceLanding(
       break;
   }
 
-  return { players: nextPlayers, decks: nextDecks, notes, followUpCards };
+  return {
+    players: nextPlayers,
+    decks: nextDecks,
+    notes,
+    followUpCards,
+    pendingDebt,
+    auctionQueue,
+  };
 }

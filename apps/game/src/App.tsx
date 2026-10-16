@@ -7,18 +7,23 @@ import {
   buyProperty,
   createDecks,
   createPlayers,
+  declareBankruptcy,
   deckIdFromSpaceKind,
   drawAndResolveCard,
   findPropertyOwner,
   forceLeaveJailAfterFailedAttempts,
   getSpace,
   isBuyableKind,
+  liquidateAll,
+  maxRaisableCash,
   payJailFine,
+  payPendingDebt,
   releaseFromJail,
   resolveSpaceLanding,
   sendToJail,
   useProtectionToLeaveJail,
   type CardDef,
+  type DebtInfo,
   type DecksState,
   type PlayerState,
 } from "@cidadela/shared";
@@ -30,7 +35,7 @@ import { WalletPanel } from "./ui/WalletPanel";
 
 preloadLandmarkModels();
 
-type TurnPhase = "roll" | "busy" | "action";
+type TurnPhase = "roll" | "busy" | "action" | "debt";
 
 type PendingLanding = {
   playerId: string;
@@ -69,9 +74,15 @@ function nextPlayerId(
   players: readonly PlayerState[],
   currentId: string,
 ): string {
-  const i = players.findIndex((p) => p.id === currentId);
-  if (i < 0) return players[0]?.id ?? currentId;
-  return players[(i + 1) % players.length]!.id;
+  const start = players.findIndex((p) => p.id === currentId);
+  if (start < 0) {
+    return players.find((p) => !p.bankrupt)?.id ?? currentId;
+  }
+  for (let step = 1; step <= players.length; step++) {
+    const p = players[(start + step) % players.length]!;
+    if (!p.bankrupt) return p.id;
+  }
+  return currentId;
 }
 
 function isUnownedBuyable(
@@ -103,6 +114,8 @@ export function App() {
   const [diceRollId, setDiceRollId] = useState(0);
   const [consecutiveDoubles, setConsecutiveDoubles] = useState(0);
   const [jailError, setJailError] = useState<string | null>(null);
+  const [pendingDebt, setPendingDebt] = useState<DebtInfo | null>(null);
+  const [auctionQueue, setAuctionQueue] = useState<number[]>([]);
 
   const doublesRef = useRef(0);
   const extraRollRef = useRef(false);
@@ -164,6 +177,12 @@ export function App() {
       }
 
       const player = playersRef.current.find((p) => p.id === playerId);
+      if (player?.bankrupt) {
+        extraRollRef.current = false;
+        startNextTurn(playerId);
+        return;
+      }
+
       if (player?.inJail) {
         extraRollRef.current = false;
         startNextTurn(playerId);
@@ -186,6 +205,31 @@ export function App() {
       startNextTurn(playerId);
     },
     [startNextTurn],
+  );
+
+  const applyDebtOutcome = useCallback(
+    (
+      debt: DebtInfo | null | undefined,
+      queue: number[] | undefined,
+      afterPlayerId: string,
+      spaceIndex: number,
+    ) => {
+      if (queue?.length) {
+        setAuctionQueue((prev) => [...prev, ...queue]);
+      }
+      if (debt) {
+        setPendingDebt(debt);
+        setTurnPhase("debt");
+        return;
+      }
+      const player = playersRef.current.find((p) => p.id === afterPlayerId);
+      if (player?.bankrupt) {
+        startNextTurn(afterPlayerId);
+        return;
+      }
+      advanceAfterResolve(afterPlayerId, spaceIndex);
+    },
+    [advanceAfterResolve, startNextTurn],
   );
 
   const onPayJailFine = useCallback(() => {
@@ -236,6 +280,8 @@ export function App() {
       forceEndTurnRef.current = false;
       setConsecutiveDoubles(0);
       pendingLandingRef.current = null;
+      setPendingDebt(null);
+      setAuctionQueue([]);
       setTurnPhase("roll");
     },
     [dismissEventUi],
@@ -336,9 +382,18 @@ export function App() {
       playersRef.current = resolved.players;
       const moved = resolved.players.find((p) => p.id === activePlayerId);
       if (moved) setSelectedIndex(moved.position);
+      if (resolved.pendingDebt) setPendingDebt(resolved.pendingDebt);
+      if (resolved.auctionQueue?.length) {
+        setAuctionQueue((q) => [...q, ...resolved.auctionQueue!]);
+      }
       const shown = presentEvent(resolved.notes, resolved.followUpCards);
       if (!shown) {
-        advanceAfterResolve(activePlayerId, moved?.position ?? selectedIndex);
+        applyDebtOutcome(
+          resolved.pendingDebt,
+          undefined,
+          activePlayerId,
+          moved?.position ?? selectedIndex,
+        );
       }
       return resolved.players;
     });
@@ -348,7 +403,7 @@ export function App() {
     showEventModal,
     turnPhase,
     presentEvent,
-    advanceAfterResolve,
+    applyDebtOutcome,
   ]);
 
   const onDismissEvent = useCallback(() => {
@@ -359,8 +414,93 @@ export function App() {
       return;
     }
     const player = playersRef.current.find((p) => p.id === playerId);
-    advanceAfterResolve(playerId, player?.position ?? selectedIndex ?? 0);
-  }, [dismissEventUi, advanceAfterResolve, selectedIndex]);
+    const spaceIndex = player?.position ?? selectedIndex ?? 0;
+    if (pendingDebt) {
+      setTurnPhase("debt");
+      return;
+    }
+    applyDebtOutcome(null, undefined, playerId, spaceIndex);
+  }, [
+    dismissEventUi,
+    selectedIndex,
+    pendingDebt,
+    applyDebtOutcome,
+  ]);
+
+  const onPayDebt = useCallback(() => {
+    if (!pendingDebt || turnPhase !== "debt") return;
+    const settled = payPendingDebt(
+      playersRef.current,
+      decksRef.current,
+      pendingDebt,
+    );
+    playersRef.current = settled.players;
+    setPlayers(settled.players);
+    decksRef.current = settled.decks;
+    setDecks(settled.decks);
+
+    if (settled.status === "paid") {
+      const debt = pendingDebt;
+      setPendingDebt(null);
+      presentEvent(settled.notes, []);
+      // After dismiss, continue turn — clear debt first so dismiss doesn't loop
+      const player = settled.players.find((p) => p.id === debt.debtorId);
+      // Use a microtask: presentEvent shows modal; on dismiss pendingDebt is null
+      // Store space for after dismiss via player position
+      if (!settled.notes.length) {
+        advanceAfterResolve(
+          debt.debtorId,
+          player?.position ?? selectedIndex ?? 0,
+        );
+      }
+      return;
+    }
+
+    if (settled.status === "bankrupt") {
+      setPendingDebt(null);
+      if (settled.auctionQueue.length) {
+        setAuctionQueue((q) => [...q, ...settled.auctionQueue]);
+      }
+      presentEvent(settled.notes, []);
+      return;
+    }
+
+    // still shortfall
+    presentEvent(settled.notes, []);
+    setTurnPhase("debt");
+  }, [
+    pendingDebt,
+    turnPhase,
+    presentEvent,
+    advanceAfterResolve,
+    selectedIndex,
+  ]);
+
+  const onLiquidateForDebt = useCallback(() => {
+    if (!pendingDebt || turnPhase !== "debt") return;
+    const next = liquidateAll(playersRef.current, pendingDebt.debtorId);
+    playersRef.current = next;
+    setPlayers(next);
+  }, [pendingDebt, turnPhase]);
+
+  const onDeclareBankruptcy = useCallback(() => {
+    if (!pendingDebt || turnPhase !== "debt") return;
+    const broke = declareBankruptcy(
+      playersRef.current,
+      decksRef.current,
+      pendingDebt.debtorId,
+      pendingDebt.creditor,
+    );
+    playersRef.current = broke.players;
+    setPlayers(broke.players);
+    decksRef.current = broke.decks;
+    setDecks(broke.decks);
+    setPendingDebt(null);
+    if (broke.auctionQueue.length) {
+      setAuctionQueue((q) => [...q, ...broke.auctionQueue]);
+    }
+    presentEvent(broke.notes, []);
+  }, [pendingDebt, turnPhase, presentEvent]);
 
   const onRollDice = useCallback(() => {
     if (!activeRef.current || diceRolling || turnPhase !== "roll") return;
@@ -519,6 +659,8 @@ export function App() {
                 decks: r.decks,
                 notes: r.notes,
                 followUpCards: r.followUpCards,
+                pendingDebt: r.pendingDebt,
+                auctionQueue: r.auctionQueue,
               };
             },
           },
@@ -533,6 +675,13 @@ export function App() {
           setSelectedIndex(moved.position);
         }
 
+        if (resolved.pendingDebt) {
+          setPendingDebt(resolved.pendingDebt);
+        }
+        if (resolved.auctionQueue.length) {
+          setAuctionQueue((q) => [...q, ...resolved.auctionQueue]);
+        }
+
         const prefix = pendingNotesRef.current;
         pendingNotesRef.current = [];
         const shown = presentEvent(
@@ -541,12 +690,17 @@ export function App() {
         );
         resolvingRef.current = false;
         if (!shown) {
-          advanceAfterResolve(playerId, landIndex);
+          applyDebtOutcome(
+            resolved.pendingDebt,
+            undefined,
+            playerId,
+            landIndex,
+          );
         }
         return resolved.players;
       });
     },
-    [presentEvent, advanceAfterResolve],
+    [presentEvent, applyDebtOutcome],
   );
 
   const turnLabel = (() => {
@@ -560,8 +714,16 @@ export function App() {
     if (turnPhase === "roll") return "Sua vez — role os dados";
     if (turnPhase === "busy") return "Resolvendo…";
     if (turnPhase === "action") return "Comprar ou passar a vez";
+    if (turnPhase === "debt" && pendingDebt) {
+      return `Dívida $${pendingDebt.amount} — liquide ou falência`;
+    }
     return null;
   })();
+
+  const debtRaisable =
+    pendingDebt && activePlayer
+      ? maxRaisableCash(activePlayer)
+      : 0;
 
   return (
     <div className="relative h-dvh w-dvw overflow-hidden bg-[#120c08]">
@@ -598,6 +760,9 @@ export function App() {
         turnPhase={turnPhase}
         turnHint={turnLabel}
         jailError={jailError}
+        pendingDebt={pendingDebt}
+        debtRaisable={debtRaisable}
+        auctionQueueCount={auctionQueue.length}
         onSelectPlayer={() => { }}
         onPlayerCountChange={handlePlayerCountChange}
         onMoveActiveToSelected={onMoveActiveToSelected}
@@ -608,6 +773,9 @@ export function App() {
         onPassTurn={onPassTurn}
         onPayJailFine={onPayJailFine}
         onUseJailProtection={onUseJailProtection}
+        onPayDebt={onPayDebt}
+        onLiquidateForDebt={onLiquidateForDebt}
+        onDeclareBankruptcy={onDeclareBankruptcy}
       />
       {showEventModal ? (
         <DrawnCardModal

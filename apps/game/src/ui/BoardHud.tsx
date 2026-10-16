@@ -12,11 +12,12 @@ import {
   getSpace,
   isBuyableKind,
   type BoardSpace,
+  type DebtInfo,
   type DecksState,
   type PlayerState,
 } from "@cidadela/shared";
 
-type TurnPhase = "roll" | "busy" | "action";
+type TurnPhase = "roll" | "busy" | "action" | "debt";
 
 type Props = {
   selectedIndex: number | null;
@@ -30,6 +31,9 @@ type Props = {
   turnPhase: TurnPhase;
   turnHint: string | null;
   jailError: string | null;
+  pendingDebt: DebtInfo | null;
+  debtRaisable: number;
+  auctionQueueCount: number;
   onSelectPlayer: (playerId: string) => void;
   onPlayerCountChange: (count: number) => void;
   onMoveActiveToSelected: () => void;
@@ -40,6 +44,9 @@ type Props = {
   onPassTurn: () => void;
   onPayJailFine: () => void;
   onUseJailProtection: () => void;
+  onPayDebt: () => void;
+  onLiquidateForDebt: () => void;
+  onDeclareBankruptcy: () => void;
 };
 
 export function BoardHud({
@@ -54,6 +61,9 @@ export function BoardHud({
   turnPhase,
   turnHint,
   jailError,
+  pendingDebt,
+  debtRaisable,
+  auctionQueueCount,
   onPlayerCountChange,
   onMoveActiveToSelected,
   onAdvanceActive,
@@ -63,6 +73,9 @@ export function BoardHud({
   onPassTurn,
   onPayJailFine,
   onUseJailProtection,
+  onPayDebt,
+  onLiquidateForDebt,
+  onDeclareBankruptcy,
 }: Props) {
   const space = selectedIndex === null ? null : getSpace(selectedIndex);
   const active = players.find((p) => p.id === activePlayerId) ?? null;
@@ -234,7 +247,7 @@ export function BoardHud({
                 <div
                   className={`hud-player flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm font-bold ${
                     selected ? "hud-player--active" : ""
-                  }`}
+                  } ${player.bankrupt ? "opacity-45" : ""}`}
                 >
                   <span
                     className="inline-block h-4 w-4 rounded-full border-2 border-[#5c3d2e]"
@@ -242,6 +255,7 @@ export function BoardHud({
                   />
                   <span className="min-w-0 flex-1 truncate font-[family-name:var(--font-game)]">
                     {def.label}
+                    {player.bankrupt ? " · falido" : ""}
                   </span>
                   <span className="shrink-0 text-xs tabular-nums text-[#1f6b45]">
                     {formatCash(player.cash)}
@@ -251,6 +265,57 @@ export function BoardHud({
             );
           })}
         </ul>
+
+        {turnPhase === "debt" && pendingDebt && active ? (
+          <div className="space-y-2 rounded-xl border-2 border-[#5c3d2e] bg-[#fff1f2] p-2.5">
+            <p className="font-[family-name:var(--font-game)] text-sm font-bold text-[#9a3412]">
+              Dívida: {formatCash(pendingDebt.amount)}
+            </p>
+            <p className="text-[11px] font-semibold text-[#6b5344]">
+              {pendingDebt.reason}
+              {pendingDebt.creditor.type === "player"
+                ? " · a outro jogador"
+                : " · ao banco"}
+            </p>
+            <p className="text-[11px] font-bold text-[#5c3d2e]">
+              Caixa {formatCash(active.cash)} · liquidável até{" "}
+              {formatCash(debtRaisable)}
+            </p>
+            <p className="text-[10px] font-semibold text-[#8a6a4e]">
+              Abra a carteira pra vender construções/hipotecar, ou liquide
+              tudo de uma vez.
+            </p>
+            <button
+              type="button"
+              disabled={active.cash < pendingDebt.amount}
+              onClick={onPayDebt}
+              className="hud-btn hud-btn--mint w-full px-2.5 py-2 text-sm"
+            >
+              Pagar dívida
+            </button>
+            <button
+              type="button"
+              onClick={onLiquidateForDebt}
+              className="hud-btn hud-btn--soft w-full px-2.5 py-2 text-sm"
+            >
+              Liquidar tudo
+            </button>
+            <button
+              type="button"
+              onClick={onDeclareBankruptcy}
+              className="hud-btn hud-btn--pink w-full px-2.5 py-2 text-sm"
+            >
+              Declarar falência
+            </button>
+          </div>
+        ) : null}
+
+        {auctionQueueCount > 0 ? (
+          <p className="text-[11px] font-bold text-[#b45309]">
+            Leilão pendente: {auctionQueueCount} escritura
+            {auctionQueueCount === 1 ? "" : "s"} (em breve)
+          </p>
+        ) : null}
 
         {turnPhase === "action" ? (
           <button

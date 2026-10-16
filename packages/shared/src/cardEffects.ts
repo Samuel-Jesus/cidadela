@@ -9,6 +9,7 @@ import {
   type DeckId,
   type DecksState,
 } from "./cards";
+import { settleDebt, type DebtInfo } from "./bankruptcy";
 import { sendToJail } from "./jail";
 import { resolveSpaceLanding } from "./spaceResolve";
 
@@ -24,6 +25,8 @@ export type CardResolveResult = {
   notes: string[];
   followUpCards: CardDef[];
   utilityDice?: { die1: number; die2: number; total: number };
+  pendingDebt?: DebtInfo | null;
+  auctionQueue?: number[];
 };
 
 const MAX_CARD_DEPTH = 3;
@@ -75,14 +78,25 @@ function landAfterMove(
   const result = resolveSpaceLanding(players, decks, playerId, spaceIndex, {
     ...landingOpts,
     rng,
-    drawAndResolve: (deckId, p, d) =>
-      drawCardAndResolve(p, d, playerId, deckId, depth + 1, rng),
+    drawAndResolve: (deckId, p, d) => {
+      const nested = drawCardAndResolve(p, d, playerId, deckId, depth + 1, rng);
+      return {
+        players: nested.players,
+        decks: nested.decks,
+        notes: nested.notes,
+        followUpCards: nested.followUpCards,
+        pendingDebt: nested.pendingDebt,
+        auctionQueue: nested.auctionQueue,
+      };
+    },
   });
   return {
     players: result.players,
     decks: result.decks,
     notes: result.notes,
     followUpCards: result.followUpCards,
+    pendingDebt: result.pendingDebt,
+    auctionQueue: result.auctionQueue,
   };
 }
 
@@ -111,6 +125,8 @@ function drawCardAndResolve(
     notes: resolved.notes,
     followUpCards: [drawn.card, ...resolved.followUpCards],
     utilityDice: resolved.utilityDice,
+    pendingDebt: resolved.pendingDebt,
+    auctionQueue: resolved.auctionQueue,
   };
 }
 
@@ -144,6 +160,8 @@ export function resolveCardEffect(
   let nextPlayers = [...players];
   let nextDecks = decks;
   let utilityDice: CardResolveResult["utilityDice"];
+  let pendingDebt: DebtInfo | null = null;
+  let auctionQueue: number[] = [];
   let movedTo: number | null = null;
   let landingOpts: {
     transportMultiplier?: number;
@@ -168,6 +186,24 @@ export function resolveCardEffect(
 
   const effect = card.effect;
 
+  const applyBankDebt = (amount: number, reason: string) => {
+    const settled = settleDebt(
+      nextPlayers,
+      nextDecks,
+      playerId,
+      amount,
+      { type: "bank" },
+      reason,
+    );
+    nextPlayers = settled.players;
+    nextDecks = settled.decks;
+    notes.push(...settled.notes);
+    if (settled.status === "shortfall") pendingDebt = settled.debt;
+    if (settled.status === "bankrupt") {
+      auctionQueue = settled.auctionQueue;
+    }
+  };
+
   switch (effect.type) {
     case "keep":
       notes.push("Carta Proteção guardada na carteira.");
@@ -181,10 +217,7 @@ export function resolveCardEffect(
       break;
 
     case "pay_bank":
-      nextPlayers = updatePlayer(nextPlayers, playerId, {
-        cash: Math.max(0, player.cash - effect.amount),
-      });
-      notes.push(`Pagou $${effect.amount} ao banco.`);
+      applyBankDebt(effect.amount, "Carta — pagar ao banco");
       break;
 
     case "pay_per_building": {
@@ -193,21 +226,18 @@ export function resolveCardEffect(
         if (h.hasResort) total += effect.perResort;
         else total += h.pousadas * effect.perPousada;
       }
-      nextPlayers = updatePlayer(nextPlayers, playerId, {
-        cash: Math.max(0, player.cash - total),
-      });
-      notes.push(
-        total > 0
-          ? `Pagou $${total} por construções.`
-          : "Sem construções — não pagou nada.",
-      );
+      if (total <= 0) {
+        notes.push("Sem construções — não pagou nada.");
+      } else {
+        applyBankDebt(total, "Carta — por construções");
+      }
       break;
     }
 
     case "collect_from_each": {
       let gained = 0;
       nextPlayers = nextPlayers.map((p) => {
-        if (p.id === playerId) return p;
+        if (p.id === playerId || p.bankrupt) return p;
         const pay = Math.min(p.cash, effect.amount);
         gained += pay;
         return { ...p, cash: p.cash - pay };
@@ -220,24 +250,40 @@ export function resolveCardEffect(
     }
 
     case "pay_each": {
-      const others = nextPlayers.filter((p) => p.id !== playerId);
-      const need = effect.amount * others.length;
-      const payEach =
-        others.length === 0
-          ? 0
-          : Math.min(
-            effect.amount,
-            Math.floor(Math.min(player.cash, need) / others.length),
-          );
-      nextPlayers = nextPlayers.map((p) => {
-        if (p.id === playerId) {
-          return { ...p, cash: p.cash - payEach * others.length };
-        }
-        return { ...p, cash: p.cash + payEach };
-      });
-      notes.push(
-        `Pagou $${payEach} a cada jogador (total $${payEach * others.length}).`,
+      const others = nextPlayers.filter(
+        (p) => p.id !== playerId && !p.bankrupt,
       );
+      const need = effect.amount * others.length;
+      if (need <= 0) {
+        notes.push("Ninguém para pagar.");
+        break;
+      }
+      const settled = settleDebt(
+        nextPlayers,
+        nextDecks,
+        playerId,
+        need,
+        { type: "bank" },
+        `Carta — $${effect.amount} a cada jogador`,
+      );
+      nextPlayers = settled.players;
+      nextDecks = settled.decks;
+      notes.push(...settled.notes);
+      if (settled.status === "shortfall") pendingDebt = settled.debt;
+      if (settled.status === "bankrupt") {
+        auctionQueue = settled.auctionQueue;
+      } else if (settled.status === "paid") {
+        // Redistribui o que foi ao banco para os outros (settleDebt bank consome).
+        // Re-paga cada um a partir do pagador (já debitado via bank):
+        // settleDebt com bank remove cash — crédito nos outros:
+        nextPlayers = nextPlayers.map((p) => {
+          if (p.id === playerId || p.bankrupt) return p;
+          return { ...p, cash: p.cash + effect.amount };
+        });
+        notes.push(
+          `Cada jogador recebeu $${effect.amount} (total $${need}).`,
+        );
+      }
       break;
     }
 
@@ -331,6 +377,8 @@ export function resolveCardEffect(
       notes,
       followUpCards: [],
       utilityDice,
+      pendingDebt,
+      auctionQueue,
     };
   }
 
@@ -350,5 +398,10 @@ export function resolveCardEffect(
     notes: [...notes, ...landed.notes],
     followUpCards: landed.followUpCards,
     utilityDice,
+    pendingDebt: landed.pendingDebt ?? pendingDebt,
+    auctionQueue: [
+      ...auctionQueue,
+      ...(landed.auctionQueue ?? []),
+    ],
   };
 }
