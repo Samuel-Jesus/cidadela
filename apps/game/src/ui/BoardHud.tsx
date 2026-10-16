@@ -50,6 +50,7 @@ type Props = {
   onPayDebt: () => void;
   onLiquidateForDebt: () => void;
   onDeclareBankruptcy: () => void;
+  onOpenTrade: () => void;
 };
 
 export function BoardHud({
@@ -79,6 +80,7 @@ export function BoardHud({
   onPayDebt,
   onLiquidateForDebt,
   onDeclareBankruptcy,
+  onOpenTrade,
 }: Props) {
   const space = selectedIndex === null ? null : getSpace(selectedIndex);
   const active = players.find((p) => p.id === activePlayerId) ?? null;
@@ -336,6 +338,20 @@ export function BoardHud({
             className="hud-btn hud-btn--soft w-full px-2.5 py-2 text-sm"
           >
             {canBuy ? "Não comprar · leilão" : "Passar a vez"}
+          </button>
+        ) : null}
+
+        {active &&
+        !active.bankrupt &&
+        turnPhase !== "ended" &&
+        turnPhase !== "auction" &&
+        players.some((p) => !p.bankrupt && p.id !== active.id) ? (
+          <button
+            type="button"
+            onClick={onOpenTrade}
+            className="hud-btn hud-btn--amber w-full px-2.5 py-2 text-sm"
+          >
+            Negociar
           </button>
         ) : null}
 

@@ -36,6 +36,7 @@ import { AuctionOverlay } from "./ui/AuctionOverlay";
 import { BoardCanvas } from "./scene/BoardCanvas";
 import { BoardHud } from "./ui/BoardHud";
 import { DrawnCardModal } from "./ui/DrawnCardModal";
+import { TradeOverlay } from "./ui/TradeOverlay";
 import { VictoryOverlay } from "./ui/VictoryOverlay";
 import { WalletPanel } from "./ui/WalletPanel";
 
@@ -133,8 +134,10 @@ export function App() {
   const [pendingDebt, setPendingDebt] = useState<DebtInfo | null>(null);
   const [auction, setAuction] = useState<AuctionSession | null>(null);
   const [winnerId, setWinnerId] = useState<string | null>(null);
+  const [showTrade, setShowTrade] = useState(false);
   const pendingAuctionsRef = useRef<AuctionLot[]>([]);
   const auctionAdvanceAfterModalRef = useRef<AuctionSession | null>(null);
+  const resumePhaseAfterModalRef = useRef<TurnPhase | null>(null);
 
   const doublesRef = useRef(0);
   const extraRollRef = useRef(false);
@@ -401,6 +404,8 @@ export function App() {
       setAuction(null);
       pendingAuctionsRef.current = [];
       auctionAdvanceAfterModalRef.current = null;
+      setShowTrade(false);
+      resumePhaseAfterModalRef.current = null;
       setSelectedIndex(0);
       setTurnPhase("roll");
     },
@@ -550,6 +555,21 @@ export function App() {
       dismissEventUi();
       if (endGameIfWon(playersRef.current)) return;
       advanceAuctionQueue(pendingAdvance);
+      return;
+    }
+    const resumePhase = resumePhaseAfterModalRef.current;
+    if (resumePhase) {
+      resumePhaseAfterModalRef.current = null;
+      dismissEventUi();
+      if (winnerId) {
+        setTurnPhase("ended");
+        return;
+      }
+      if (pendingDebt) {
+        setTurnPhase("debt");
+        return;
+      }
+      setTurnPhase(resumePhase);
       return;
     }
     if (winnerId) {
@@ -1074,6 +1094,7 @@ export function App() {
         onPayDebt={onPayDebt}
         onLiquidateForDebt={onLiquidateForDebt}
         onDeclareBankruptcy={onDeclareBankruptcy}
+        onOpenTrade={() => setShowTrade(true)}
       />
       {showEventModal ? (
         <DrawnCardModal
@@ -1081,6 +1102,29 @@ export function App() {
           notes={cardNotes}
           followUpCards={followUpCards}
           onDismiss={onDismissEvent}
+        />
+      ) : null}
+      {showTrade && activePlayerId && !winnerId && !showEventModal ? (
+        <TradeOverlay
+          initiatorId={activePlayerId}
+          players={players}
+          onClose={() => setShowTrade(false)}
+          onApplied={(next, notes) => {
+            playersRef.current = next;
+            setPlayers(next);
+            setShowTrade(false);
+            const resume =
+              turnPhase === "debt"
+                ? "debt"
+                : turnPhase === "action"
+                  ? "action"
+                  : turnPhase === "roll"
+                    ? "roll"
+                    : "roll";
+            if (presentEvent(notes, [])) {
+              resumePhaseAfterModalRef.current = resume;
+            }
+          }}
         />
       ) : null}
       {auction && turnPhase === "auction" && !showEventModal && !winnerId ? (

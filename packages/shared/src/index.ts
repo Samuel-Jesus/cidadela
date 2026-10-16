@@ -119,3 +119,15 @@ export {
   findWinner,
   isGameOver,
 } from "./gameEnd";
+export type {
+  TradeSide,
+  TradeOffer,
+  MortgageChoice,
+  TradeValidation,
+  TradeResult,
+} from "./trade";
+export {
+  validateTrade,
+  applyTrade,
+  mortgagedSpacesInTrade,
+} from "./trade";
