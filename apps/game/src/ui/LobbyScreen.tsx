@@ -79,6 +79,7 @@ export function LobbyScreen({ onStart }: Props) {
     resizeSeats([], 4),
   );
   const [localBanker, setLocalBanker] = useState(0);
+  const [homePanel, setHomePanel] = useState<"host" | "join" | null>(null);
   const startedRef = useRef(false);
 
   const joinUrl = room ? roomJoinUrl(room.roomId) : "";
@@ -377,6 +378,7 @@ export function LobbyScreen({ onStart }: Props) {
     clearRoomParam();
     setRoom(null);
     setPhase("home");
+    setHomePanel(null);
     setError(null);
   };
 
@@ -386,7 +388,7 @@ export function LobbyScreen({ onStart }: Props) {
     );
 
   const showPawnCarousel =
-    phase === "home" ||
+    (phase === "home" && homePanel !== null) ||
     phase === "host" ||
     (phase === "guest" && !iAmInRoom);
 
@@ -401,7 +403,7 @@ export function LobbyScreen({ onStart }: Props) {
     <div className="lobby relative flex min-h-dvh w-full flex-col overflow-x-hidden overflow-y-auto">
       <div className="lobby__bg" aria-hidden />
 
-      <div className="lobby-shell relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8 sm:py-12">
+      <div className="lobby-shell relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:py-12">
         <header className="text-center sm:text-left">
           <p className="hud-kicker text-[#5eead4]">Tabuleiro da Bahia</p>
           <h1 className="font-[family-name:var(--font-game)] text-5xl font-bold leading-none tracking-tight text-[#fff7ed] sm:text-6xl">
@@ -414,8 +416,8 @@ export function LobbyScreen({ onStart }: Props) {
           </p>
         </header>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-6 lg:flex-row lg:items-center">
-        <section className="deed-sheet flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="mx-auto flex w-full min-w-0 flex-1 flex-col items-stretch justify-center gap-6 lg:flex-row lg:items-center">
+        <section className="deed-sheet flex w-full max-w-md flex-col overflow-hidden lg:flex-none">
           <header
             className="deed-sheet__band"
             style={{ backgroundColor: "#e9a46c" }}
@@ -441,81 +443,145 @@ export function LobbyScreen({ onStart }: Props) {
             {phase === "home" ? (
               <>
                 {allowLocalHotSeat ? (
-                  <div className="rounded-xl border-2 border-[#5c3d2e] bg-[#ecfdf5] p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
-                    <h3 className="deed-sheet__section-title">
-                      Jogar neste aparelho · só dev
-                    </h3>
-                    <p className="deed-sheet__note mb-3">
-                      Hot-seat na mesma tela. Não aparece no build de produção.
-                    </p>
+                  <button
+                    type="button"
+                    className="lobby-cta lobby-cta--dev"
+                    onClick={() => {
+                      setError(null);
+                      setHomePanel(null);
+                      setPhase("local");
+                    }}
+                  >
+                    <span className="lobby-cta__title">
+                      Jogar neste aparelho
+                    </span>
+                    <span className="lobby-cta__sub">Hot-seat · só em dev</span>
+                  </button>
+                ) : null}
+
+                {homePanel === null ? (
+                  <>
                     <button
                       type="button"
-                      className="deed-btn deed-btn--mint w-full"
+                      className="lobby-cta lobby-cta--create"
+                      disabled={!online}
                       onClick={() => {
                         setError(null);
-                        setPhase("local");
+                        setHomePanel("host");
                       }}
                     >
-                      Montar a mesa
+                      <span className="lobby-cta__title">
+                        Criar sala · link ou QR
+                      </span>
+                      <span className="lobby-cta__sub">
+                        Você é o anfitrião e convida os outros
+                      </span>
                     </button>
+                    <button
+                      type="button"
+                      className="lobby-cta lobby-cta--join"
+                      onClick={() => {
+                        setError(null);
+                        setHomePanel("join");
+                      }}
+                    >
+                      <span className="lobby-cta__title">Entrar na sala</span>
+                      <span className="lobby-cta__sub">
+                        Use o código, link ou QR do anfitrião
+                      </span>
+                    </button>
+                    {!online ? (
+                      <p className="deed-sheet__note">
+                        Falta configurar o Supabase (.env na raiz) para liberar
+                        salas entre aparelhos.
+                      </p>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {homePanel === "host" ? (
+                  <div className="rounded-xl border-2 border-[#5c3d2e] bg-white/80 p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
+                    <h3 className="deed-sheet__section-title">
+                      Criar sala · link ou QR
+                    </h3>
+                    <p className="deed-sheet__note mb-2">
+                      Convidados entram pelo link ou QR em qualquer aparelho. O
+                      anfitrião sincroniza a partida. Escolha nome e peão na
+                      lateral.
+                    </p>
+                    <label className="mb-3 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
+                      Quantidade de jogadores
+                      <select
+                        className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-2 font-bold text-[#5c3d2e]"
+                        value={maxPlayers}
+                        onChange={(e) =>
+                          setMaxPlayers(Number(e.target.value))
+                        }
+                      >
+                        {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+                          <option key={n} value={n}>
+                            {n} jogadores
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        className="deed-btn deed-btn--soft flex-1"
+                        onClick={() => setHomePanel(null)}
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        type="button"
+                        className="deed-btn deed-btn--mint flex-1"
+                        disabled={busy || !online}
+                        onClick={createAsHost}
+                      >
+                        {busy ? "Criando…" : "Criar sala e gerar QR"}
+                      </button>
+                    </div>
                   </div>
                 ) : null}
 
-                <div className="rounded-xl border-2 border-[#5c3d2e] bg-white/80 p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
-                  <h3 className="deed-sheet__section-title">
-                    Sala online · link / QR
-                  </h3>
-                  <p className="deed-sheet__note mb-2">
-                    {online
-                      ? "Convidados entram pelo link ou QR em qualquer aparelho. O anfitrião sincroniza a partida."
-                      : "Falta configurar o Supabase (.env na raiz) para liberar salas entre aparelhos."}
-                  </p>
-                  <label className="mb-3 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                    Quantidade de jogadores
-                    <select
-                      className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-2 font-bold text-[#5c3d2e]"
-                      value={maxPlayers}
-                      onChange={(e) => setMaxPlayers(Number(e.target.value))}
-                    >
-                      {[2, 3, 4, 5, 6, 7, 8].map((n) => (
-                        <option key={n} value={n}>
-                          {n} jogadores
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    className="deed-btn deed-btn--soft w-full"
-                    disabled={busy || !online}
-                    onClick={createAsHost}
-                  >
-                    {busy ? "Criando…" : "Criar sala e gerar QR"}
-                  </button>
-                </div>
-
-                <div className="rounded-xl border-2 border-[#5c3d2e] bg-white/80 p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
-                  <h3 className="deed-sheet__section-title">Tenho um código</h3>
-                  <label className="mb-3 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                    Código da sala
-                    <input
-                      className="rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 font-bold uppercase tracking-widest text-[#5c3d2e]"
-                      value={roomIdInput}
-                      maxLength={8}
-                      placeholder="Ex.: A3K9PQ"
-                      onChange={(e) =>
-                        setRoomIdInput(e.target.value.toUpperCase())
-                      }
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className="deed-btn deed-btn--amber w-full"
-                    onClick={enterAsGuest}
-                  >
-                    Continuar para entrar
-                  </button>
-                </div>
+                {homePanel === "join" ? (
+                  <div className="rounded-xl border-2 border-[#5c3d2e] bg-white/80 p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
+                    <h3 className="deed-sheet__section-title">Entrar na sala</h3>
+                    <p className="deed-sheet__note mb-2">
+                      Digite o código e escolha nome e peão na lateral.
+                    </p>
+                    <label className="mb-3 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
+                      Código da sala
+                      <input
+                        className="rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 font-bold uppercase tracking-widest text-[#5c3d2e]"
+                        value={roomIdInput}
+                        maxLength={8}
+                        placeholder="Ex.: A3K9PQ"
+                        autoFocus
+                        onChange={(e) =>
+                          setRoomIdInput(e.target.value.toUpperCase())
+                        }
+                      />
+                    </label>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        className="deed-btn deed-btn--soft flex-1"
+                        onClick={() => setHomePanel(null)}
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        type="button"
+                        className="deed-btn deed-btn--amber flex-1"
+                        onClick={enterAsGuest}
+                      >
+                        Continuar
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </>
             ) : null}
 
