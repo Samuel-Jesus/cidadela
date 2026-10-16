@@ -3,9 +3,9 @@
 > **Referências:** [`REQUISITOS.md`](./REQUISITOS.md) · [`SPECS.md`](./SPECS.md)  
 > Stack oficial alinhada aos FRs do `SPECS.md` (turnos, tabuleiro, banco, Forte, negociações, falência).
 
-**Versão:** 0.3  
-**Status:** Stack oficial — **Three.js + React Three Fiber**  
-**Decisão:** 2026-03-15 (evoluiu da Opção B Phaser → 3D real)
+**Versão:** 0.4  
+**Status:** Stack oficial — **Three.js + React Three Fiber** · hot-seat jogável  
+**Decisão:** 2026-03-15 (evoluiu da Opção B Phaser → 3D real) · sync implementação 2026-10-16
 
 ---
 
@@ -69,7 +69,7 @@ Tabuleiro e cena em **Three.js** via **React Three Fiber**, com shell React/Vite
 | UI shell | React 19 + Tailwind |
 | 3D | three + @react-three/fiber + @react-three/drei |
 | Dados | @cidadela/shared |
-| Testes (futuro) | Vitest no engine |
+| Testes | Vitest em `packages/shared` (`pnpm test`) |
 | Pacotes | pnpm workspaces |
 
 ### Estrutura
@@ -77,14 +77,14 @@ Tabuleiro e cena em **Three.js** via **React Three Fiber**, com shell React/Vite
 ```
 cidadela/
   packages/
-    engine/
-    shared/
+    engine/          # dados (roll)
+    shared/          # regras: board, rent, jail, auction, trade, falência…
   apps/
     game/
       src/
         landmarks/     # modelos 3D por casa
-        scene/         # BoardCanvas, tiles, mesa
-        ui/            # BoardHud · WalletPanel
+        scene/         # BoardCanvas, tiles, peões, dados
+        ui/            # BoardHud · Wallet · Auction · Trade · Victory
 ```
 
 ---
@@ -102,12 +102,13 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Three.js + R3F (tabuleiro 3D)
 - [x] Landmarks 3D para as 40 casas
 - [x] Bridge “Rolar dados” → engine → peão
-- [ ] `engine` com estado inicial completo (dice ok; partida TBD)
-- [ ] Vitest FRs
-- [ ] Hot-seat local completo
+- [x] Regras de partida em `packages/shared` (casa, Forte, cartas, leilão, trade, falência, fim)
+- [x] Vitest FRs críticos (`pnpm test` / `@cidadela/shared`)
+- [x] Hot-seat local completo (turnos, dívida, leilão, negociação, vitória)
+- [ ] Estado de partida unificado no `engine` (hoje orquestrado no `App.tsx`)
 - [ ] Colyseus/PartyKit fase 2
 
-### Checklist do tabuleiro
+### Checklist do tabuleiro / UI
 
 - [x] Dados 0–39 em `packages/shared`
 - [x] Render 10 casas por lado (plano XZ)
@@ -117,13 +118,18 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Landmark por casa (low-poly)
 - [x] Elevador Lacerda via GLTF (`/models/elevador-lacerda.gltf`)
 - [x] Peões na casa (8 tokens baianos, slots, animação)
+- [x] Path/waypoints — movimento casa a casa no perímetro
 - [x] Dados 3D com física (cantos/pips Codrops + cannon-es; dupla / 3ª → Forte)
 - [x] Carteira (saldo $1.500, escrituras, cartas; compra básica; +$200 Chegada)
 - [x] Baralhos Fitinha (16) + Bença (16); comprar carta; Proteção na carteira
 - [x] Cartas: transporte×2 / companhia 10×dados; resolve casa após movimento
 - [x] Escritura detalhada (aluguel/construção) + hipotecar/resgatar/vender/construir
 - [x] Carteira UI 2D fixa na tela (abrir/fechar animado, escrituras e cartas)
-- [ ] Path/waypoints para movimento casa a casa
+- [x] Leilão (escritura, peça escassa, empate nos dados)
+- [x] Negociação entre jogadores
+- [x] Aluguel pedido (FR-22a) + overlay de vitória
+- [ ] Pousadas/resorts visíveis nas casas 3D
+- [ ] Tela de preparação de partida
 
 ---
 
@@ -133,7 +139,9 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 2. HUD **React overlay**
 3. Tabuleiro **Three.js** com landmarks procedurais
 4. Phaser **descontinuado** neste projeto
+5. Regras tipadas em **`packages/shared`**; `engine` focado em dados por enquanto
+6. Aluguel digital padrão: **claim** (dono cobra); auto só via opção de API (`rentMode`)
 
 ---
 
-*Stack oficial v0.3 — Three.js. Atualizar se landmarks passarem a GLTF externos.*
+*Stack oficial v0.4 — Three.js + hot-seat. Atualizar se landmarks passarem a GLTF externos ou se o multiplayer entrar.*

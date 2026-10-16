@@ -5,8 +5,8 @@
 > Sempre que `REQUISITOS.md` mudar, esta especificação deve ser revisada e alinhada.
 
 **Template:** Volere Requirements Specification (adaptado)  
-**Versão:** 0.2  
-**Status:** Alinhado às regras completas em `REQUISITOS.md`  
+**Versão:** 0.3  
+**Status:** Alinhado às regras em `REQUISITOS.md` · hot-seat digital implementado em `apps/game` + `packages/shared`  
 
 ---
 
@@ -428,21 +428,22 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 ## 18. Questões em aberto
 
 1. Playtest de balanceamento das tabelas §8 (aviso em `REQUISITOS.md` §14).
-2. Incremento mínimo de leilão digital: fixar $10 sempre ou permitir $5 em bens baratos?
-3. UX digital da cobrança de aluguel (FR-22a mesa vs cobrança automática no app).
+2. ~~Incremento mínimo de leilão digital~~ — **fechado:** $5 em bens ≤$100, senão $10 (`minBidIncrement` / peças usam custo de grupo).
+3. ~~UX digital da cobrança de aluguel (FR-22a)~~ — **fechado no MVP:** modo `claim` (dono cobra no HUD; próximo roll perde o direito). Toggle “auto” opcional ainda não existe na UI.
 4. Multiplayer online (fase 2) — fora do MVP hot-seat.
+5. Papel de banqueiro explícito (FR-04) e tela de preparação (nomes/peões).
 
 ## 19. Soluções prontas
 
 - Mecânica base do gênero Monopoly (regras genéricas; não da marca).
 - Template Volere.
-- `REQUISITOS.md` v completa (tabuleiro, tabelas, baralhos, leilão, hipotecas).
-- Protótipo digital parcial (`STACK.md` — tabuleiro 3D, dados, carteira/compra básica).
+- `REQUISITOS.md` completo (tabuleiro, tabelas, baralhos, leilão, hipotecas).
+- Hot-seat digital jogável (`STACK.md` / `apps/game`): tabuleiro 3D, dados, carteira, turnos, Forte, falência, leilão (escritura + peça escassa + empate), negociação, fim de jogo, Vitest nos FRs críticos.
 
 ## 20. Novos problemas
 
 - Possível conflito de marca/nome com lugares e empresas reais da Bahia.
-- Complexidade de negociação livre e leilão oral na automação digital.
+- Complexidade de negociação livre e leilão oral na automação digital (mitigado com overlays hot-seat).
 - Balanceamento ainda sem playtest.
 
 ## 21. Tarefas
@@ -452,10 +453,12 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | 1 | Completar tabelas de aluguel e custos | — | Feito |
 | 2 | Baralhos Fitinha e Bença | — | Feito |
 | 3 | Atualizar `SPECS.md` com FRs dos valores | 1–2 | Feito (v0.2) |
-| 4 | Codificar tabelas §8–§9 e baralhos §13 em `packages/shared` | Specs | Pendente |
-| 5 | Engine: resolver casa (aluguel, imposto, Forte, cartas) | 4 | Pendente |
-| 6 | Hot-seat completo + hipotecas / construção / leilão | 5 | Pendente |
-| 7 | Playtest de balanceamento | 6 | Pendente |
+| 4 | Codificar tabelas §8–§9 e baralhos §13 em `packages/shared` | Specs | Feito |
+| 5 | Engine: resolver casa (aluguel, imposto, Forte, cartas) | 4 | Feito |
+| 6 | Hot-seat completo + hipotecas / construção / leilão / negociação / falência / fim de jogo | 5 | Feito |
+| 7 | Vitest FRs críticos (`packages/shared`) | 6 | Feito (base) |
+| 8 | Playtest de balanceamento | 6 | Pendente |
+| 9 | Multiplayer (Colyseus/PartyKit) | 8 | Pendente (fase 2) |
 
 ## 22. Migração
 
@@ -484,46 +487,62 @@ A estimar (arte temática, componentes físicos, desenvolvimento digital, juríd
 
 ## 26. Waiting Room
 
-Regras de mesa fechadas em `REQUISITOS.md`. Itens restantes são de **implementação / produto**:
+Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital** (hot-seat):
 
-- [x] Tabelas de aluguel e custos (§8)
-- [x] Baralhos Fitinha e Bença (§13)
-- [x] Estoque 32 pousadas / 12 resorts
-- [x] Leilão detalhado (§10)
+### Feito no código
+
+- [x] Tabelas de aluguel e custos (§8) em `packages/shared`
 - [x] Hipoteca + ceil (§9)
-- [x] Carteira e fluxos (§15) — FR-100…FR-107
-- [x] Baralhos §13 em `packages/shared` (draw/discard/resolve básico)
-- [ ] Tabelas §8–§9 em `packages/shared` + engine completo
-- [ ] Cobrança automática vs FR-22a (mesa) na UI digital
-- [ ] UI de leilão / negociação / multiplayer
+- [x] Baralhos Fitinha e Bença (§13) — draw / discard / resolve tipado
+- [x] Estoque 32 pousadas / 12 resorts (derivado do tabuleiro)
+- [x] Resolver casa ao aterrissar (aluguel, imposto, Forte, cartas)
+- [x] Máquina de turno hot-seat (roll → busy → action / debt / auction / ended)
+- [x] Forte (preso, $50, Proteção, 3 tentativas / 3 duplas)
+- [x] Falência / dívida real + leilão ao banco
+- [x] Leilão de escritura (recusa de compra) + peça escassa + empate (FR-85–89)
+- [x] Negociação (FR-80–81) + FR-65 em bens hipotecados na troca
+- [x] Fim de jogo / vencedor (FR-83)
+- [x] FR-22a digital: aluguel **pedido** (`rentMode: "claim"`); perde se rolar dados sem cobrar
+- [x] Movimento peão casa a casa (path/waypoints)
+- [x] Carteira e fluxos (§15) — UI + ações de escritura
+- [x] Vitest FRs críticos em `packages/shared` (`pnpm test`)
+
+### Ainda pendente / fase 2
+
+- [ ] Toggle UI cobrança automática vs pedida (hoje só `claim`)
+- [ ] Playtest formal de balanceamento (§8)
+- [ ] FR-04 papel de banqueiro / tela de preparação
+- [ ] Cobertura Vitest ampliada (cartas, Forte, falência ponta a ponta)
+- [ ] Multiplayer online (Colyseus/PartyKit)
+- [ ] Pousadas/resorts visíveis no tabuleiro 3D
 
 ## 27. Ideias de solução
 
-- Hot-seat local antes de multiplayer.
-- Banqueiro automático na versão digital.
-- Cartas com efeitos tipados (`avance_para`, `receba_de_cada`, `volte_n`, `va_para_transporte`, `protecao`, `pague_por_construcao`) conforme §13.
+- ~~Hot-seat local antes de multiplayer~~ — feito no MVP.
+- Banqueiro automático na versão digital (implícito); papel nomeado (FR-04) ainda aberto.
+- Cartas com efeitos tipados conforme §13 — feitos no shared.
 - Playtests com as tabelas §8; ajustar se necessário e refletir em `REQUISITOS.md`.
 
 ---
 
 ## Rastreabilidade
 
-| Área em `REQUISITOS.md` | IDs neste `SPECS.md` |
-| --- | --- |
-| §1 Objetivo / material | §1, FR-83, FR-53 |
-| §2 Preparação | FR-01–FR-04, C-03 |
-| §3 Vez | FR-10–FR-13 |
-| §4–5 Tabuleiro / tipos | FR-20–FR-25, FR-30–31, FR-40–46, FR-90–91, C-04 |
-| §6 Forte | FR-70–FR-75 |
-| §7–8 Construção / tabelas | FR-50–FR-56, FR-25 |
-| §9 Hipotecas | FR-60–FR-65 |
-| §10 Leilão | FR-85–FR-89 |
-| §11–12 Negociação / falência | FR-80–FR-84 |
-| §13 Baralhos | FR-40–FR-46 |
-| §14 Adaptações | §4, NFR-10, NFR-70, NFR-80 |
-| §15 Carteira | FR-24, FR-64, FR-100–FR-107, PUC 12–13, NFR-22 |
-| Waiting Room / implementação | §18, §21, §26 |
+| Área em `REQUISITOS.md` | IDs neste `SPECS.md` | Digital (hot-seat) |
+| --- | --- | --- |
+| §1 Objetivo / material | §1, FR-83, FR-53 | Feito (fim de jogo + estoque) |
+| §2 Preparação | FR-01–FR-04, C-03 | Parcial (2–8 jogadores; FR-04 aberto) |
+| §3 Vez | FR-10–FR-13 | Feito |
+| §4–5 Tabuleiro / tipos | FR-20–FR-25, FR-30–31, FR-40–46, FR-90–91, C-04 | Feito (FR-22a em modo claim) |
+| §6 Forte | FR-70–FR-75 | Feito |
+| §7–8 Construção / tabelas | FR-50–FR-56, FR-25 | Feito (+ leilão de peça escassa) |
+| §9 Hipotecas | FR-60–FR-65 | Feito |
+| §10 Leilão | FR-85–FR-89 | Feito |
+| §11–12 Negociação / falência | FR-80–FR-84 | Feito |
+| §13 Baralhos | FR-40–FR-46 | Feito (confirmar edge FR-46 em playtest) |
+| §14 Adaptações | §4, NFR-10, NFR-70, NFR-80 | Doc |
+| §15 Carteira | FR-24, FR-64, FR-100–FR-107, PUC 12–13, NFR-22 | Feito |
+| Waiting Room / implementação | §18, §21, §26 | Atualizado v0.3 |
 
 ---
 
-*Fim da especificação Volere v0.2 — manter sincronizado com `REQUISITOS.md`.*
+*Fim da especificação Volere v0.3 — manter sincronizado com `REQUISITOS.md` e o código.*
