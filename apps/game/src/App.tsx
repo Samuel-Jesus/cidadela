@@ -317,6 +317,13 @@ export function App() {
     }
   }, [buildSnapshot]);
 
+  const isLocalActor = useCallback((playerId: string | null | undefined) => {
+    const session = onlineRef.current;
+    if (!session) return true;
+    if (!playerId) return false;
+    return session.localPlayerId === playerId;
+  }, []);
+
   const sendIntent = useCallback(
     (intent: GameIntent, localApply: () => void) => {
       const session = onlineRef.current;
@@ -775,11 +782,12 @@ export function App() {
 
   const onBuySelected = useCallback(() => {
     if (selectedIndex === null) return;
+    if (!isLocalActor(activeRef.current)) return;
     sendIntent(
       { type: "buySelected", spaceIndex: selectedIndex },
       onBuySelectedLocal,
     );
-  }, [sendIntent, onBuySelectedLocal, selectedIndex]);
+  }, [sendIntent, onBuySelectedLocal, selectedIndex, isLocalActor]);
 
   const onPassTurnLocal = useCallback(() => {
     if (!activePlayerId || turnPhase !== "action") return;
@@ -808,8 +816,9 @@ export function App() {
   ]);
 
   const onPassTurn = useCallback(() => {
+    if (!isLocalActor(activeRef.current)) return;
     sendIntent({ type: "passTurn" }, onPassTurnLocal);
-  }, [sendIntent, onPassTurnLocal]);
+  }, [sendIntent, onPassTurnLocal, isLocalActor]);
 
   const onDrawCard = useCallback(() => {
     if (!activePlayerId || selectedIndex === null || showEventModal) return;
@@ -1059,8 +1068,9 @@ export function App() {
   }, [diceRolling, turnPhase, pendingRent]);
 
   const onRollDice = useCallback(() => {
+    if (!isLocalActor(activeRef.current)) return;
     sendIntent({ type: "rollDice" }, onRollDiceLocal);
-  }, [sendIntent, onRollDiceLocal]);
+  }, [sendIntent, onRollDiceLocal, isLocalActor]);
 
   const onRollComplete = useCallback(
     (roll: DiceRoll) => {
@@ -1632,6 +1642,9 @@ export function App() {
         pendingRent={pendingRentForLocal}
         debtRaisable={debtRaisable}
         auctionQueueCount={auctionQueueCount}
+        controlsTurn={localControlsTurn}
+        isOnline={onlineSession != null}
+        localPlayerId={localPlayerId}
         onSelectPlayer={() => { }}
         onPlayerCountChange={handlePlayerCountChange}
         onMoveActiveToSelected={onMoveActiveToSelected}
@@ -1663,9 +1676,10 @@ export function App() {
           card={drawnCard}
           notes={cardNotes}
           followUpCards={followUpCards}
-          onDismiss={() =>
-            sendIntent({ type: "dismissEvent" }, onDismissEvent)
-          }
+          onDismiss={() => {
+            if (!isLocalActor(activePlayerId)) return;
+            sendIntent({ type: "dismissEvent" }, onDismissEvent);
+          }}
         />
       ) : null}
       {showTradeToLocal &&
@@ -1715,36 +1729,37 @@ export function App() {
           excludedIds={auction.excludedIds}
           passesNeeded={auctionPassesNeeded}
           passesSinceBid={auction.passesSinceBid}
+          lockedBidderId={onlineSession?.localPlayerId ?? null}
           onBid={(playerId, amount) => {
-            if (
-              onlineSession &&
-              playerId !== onlineSession.localPlayerId &&
-              !onlineSession.isHost
-            ) {
-              return;
-            }
-            const bidAs =
-              onlineSession && !onlineSession.isHost
-                ? onlineSession.localPlayerId
-                : playerId;
+            const bidAs = onlineSession?.localPlayerId ?? playerId;
+            if (onlineSession && bidAs !== onlineSession.localPlayerId) return;
             sendIntent({ type: "auctionBid", amount }, () =>
               onAuctionBid(bidAs, amount),
             );
           }}
           onPass={(playerId) => {
-            const passAs =
-              onlineSession && !onlineSession.isHost
-                ? onlineSession.localPlayerId
-                : playerId;
+            const passAs = onlineSession?.localPlayerId ?? playerId;
+            if (onlineSession && passAs !== onlineSession.localPlayerId) return;
             sendIntent({ type: "auctionPass" }, () => onAuctionPass(passAs));
           }}
-          onSell={() => sendIntent({ type: "auctionSell" }, onAuctionSell)}
-          onNoBids={() =>
-            sendIntent({ type: "auctionNoBids" }, onAuctionNoBids)
-          }
-          onResolveTieDice={() =>
-            sendIntent({ type: "auctionResolveTie" }, onResolveTieDice)
-          }
+          onSell={() => {
+            if (onlineSession && !isLocalActor(activePlayerId)) return;
+            sendIntent({ type: "auctionSell" }, onAuctionSell);
+          }}
+          onNoBids={() => {
+            if (onlineSession && !isLocalActor(activePlayerId)) return;
+            sendIntent({ type: "auctionNoBids" }, onAuctionNoBids);
+          }}
+          onResolveTieDice={() => {
+            if (
+              onlineSession &&
+              auction?.tiedBidderIds &&
+              !auction.tiedBidderIds.includes(onlineSession.localPlayerId)
+            ) {
+              return;
+            }
+            sendIntent({ type: "auctionResolveTie" }, onResolveTieDice);
+          }}
         />
       ) : null}
       {winner && !showEventToLocal ? (

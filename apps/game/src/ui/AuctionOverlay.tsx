@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   COLOR_GROUP_LABELS,
   KIND_LABELS,
@@ -29,6 +29,7 @@ type Props = {
   onSell: () => void;
   onNoBids: () => void;
   onResolveTieDice: () => void;
+  lockedBidderId?: string | null;
 };
 
 function bandInk(hex: string): "light" | "dark" {
@@ -55,6 +56,7 @@ export function AuctionOverlay({
   onSell,
   onNoBids,
   onResolveTieDice,
+  lockedBidderId = null,
 }: Props) {
   const space = getSpace(lot.spaceIndex);
   const accent =
@@ -82,8 +84,23 @@ export function AuctionOverlay({
     [players],
   );
 
+  const selectable = useMemo(() => {
+    const base = alive.filter((p) => !excludedIds.includes(p.id));
+    if (lockedBidderId) {
+      return base.filter((p) => p.id === lockedBidderId);
+    }
+    return base;
+  }, [alive, excludedIds, lockedBidderId]);
+
   const [bidderId, setBidderId] = useState(
-    () => alive.find((p) => !excludedIds.includes(p.id))?.id ?? "",
+    () =>
+      (lockedBidderId &&
+        !excludedIds.includes(lockedBidderId) &&
+        alive.some((p) => p.id === lockedBidderId)
+        ? lockedBidderId
+        : null) ??
+      alive.find((p) => !excludedIds.includes(p.id))?.id ??
+      "",
   );
   const bidder = alive.find((p) => p.id === bidderId) ?? null;
   const [amount, setAmount] = useState(minNext);
@@ -92,7 +109,15 @@ export function AuctionOverlay({
     setAmount(Math.min(Math.max(nextMin, nextMin), cash));
   };
 
-  const selectable = alive.filter((p) => !excludedIds.includes(p.id));
+  useEffect(() => {
+    if (
+      lockedBidderId &&
+      bidderId !== lockedBidderId &&
+      selectable.some((p) => p.id === lockedBidderId)
+    ) {
+      setBidderId(lockedBidderId);
+    }
+  }, [lockedBidderId, bidderId, selectable]);
 
   const kicker =
     lot.kind === "pousada"
@@ -196,22 +221,30 @@ export function AuctionOverlay({
             <h4 className="deed-sheet__section-title">Dar lance</h4>
             <label className="mb-2 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
               Jogador
-              <select
-                className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-1.5 font-bold text-[#5c3d2e]"
-                value={bidderId}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setBidderId(id);
-                  const p = alive.find((x) => x.id === id);
-                  if (p) syncAmount(minNext, p.cash);
-                }}
-              >
-                {selectable.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {getPlayerLabel(p)} ({formatCash(p.cash)})
-                  </option>
-                ))}
-              </select>
+              {lockedBidderId ? (
+                <p className="m-0 rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-1.5 font-bold text-[#5c3d2e]">
+                  {bidder
+                    ? `${getPlayerLabel(bidder)} (${formatCash(bidder.cash)})`
+                    : "Seu peão"}
+                </p>
+              ) : (
+                <select
+                  className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-1.5 font-bold text-[#5c3d2e]"
+                  value={bidderId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setBidderId(id);
+                    const p = alive.find((x) => x.id === id);
+                    if (p) syncAmount(minNext, p.cash);
+                  }}
+                >
+                  {selectable.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {getPlayerLabel(p)} ({formatCash(p.cash)})
+                    </option>
+                  ))}
+                </select>
+              )}
             </label>
 
             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -308,15 +341,14 @@ export function AuctionOverlay({
               return (
                 <li
                   key={p.id}
-                  className={`rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 text-xs font-bold ${
-                    tied
+                  className={`rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 text-xs font-bold ${tied
                       ? "bg-[#fde68a]"
                       : leading
                         ? "bg-[#fef08a]"
                         : excluded
                           ? "bg-[#fecaca] opacity-70"
                           : "bg-white/70"
-                  }`}
+                    }`}
                 >
                   <span
                     className="mr-1 inline-block h-2.5 w-2.5 rounded-full border border-[#5c3d2e]"

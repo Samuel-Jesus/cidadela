@@ -40,6 +40,9 @@ type Props = {
   pendingRent: PendingRentClaim | null;
   debtRaisable: number;
   auctionQueueCount: number;
+  controlsTurn?: boolean;
+  isOnline?: boolean;
+  localPlayerId?: string | null;
   onSelectPlayer: (playerId: string) => void;
   onPlayerCountChange: (count: number) => void;
   onMoveActiveToSelected: () => void;
@@ -73,6 +76,9 @@ export function BoardHud({
   pendingRent,
   debtRaisable,
   auctionQueueCount,
+  controlsTurn = true,
+  isOnline = false,
+  localPlayerId = null,
   onPlayerCountChange,
   onMoveActiveToSelected,
   onAdvanceActive,
@@ -94,6 +100,7 @@ export function BoardHud({
   const owner =
     selectedIndex === null ? null : findPropertyOwner(players, selectedIndex);
   const canBuy =
+    controlsTurn &&
     turnPhase === "action" &&
     Boolean(
       active && space && space.price !== undefined && isBuyableKind(space.kind),
@@ -104,9 +111,14 @@ export function BoardHud({
     active.cash >= (space.price ?? Infinity);
   const cardDeck = space ? deckIdFromSpaceKind(space.kind) : null;
   const canDrawCard = Boolean(
-    active && cardDeck && turnPhase !== "busy" && !diceRolling,
+    controlsTurn &&
+    active &&
+    cardDeck &&
+    turnPhase !== "busy" &&
+    !diceRolling,
   );
   const bankStock = bankStockFromPlayers(players);
+  const waitingOnline = isOnline && !controlsTurn && turnPhase !== "ended";
 
   return (
     <aside className="hud-panel pointer-events-auto absolute right-4 top-4 z-10 flex max-h-[calc(100dvh-2rem)] w-[19.5rem] flex-col gap-3 overflow-y-auto p-3.5">
@@ -123,7 +135,11 @@ export function BoardHud({
               <p className="truncate font-[family-name:var(--font-game)] text-sm font-bold text-[#9a3412]">
                 Vez de {active ? getPlayerLabel(active) : activeDef.label}
               </p>
-              {turnHint ? (
+              {waitingOnline ? (
+                <p className="text-[11px] font-bold text-[#b45309]">
+                  Aguarde — não é a sua vez
+                </p>
+              ) : turnHint ? (
                 <p className="text-[11px] font-bold text-[#6b5344]">{turnHint}</p>
               ) : null}
             </div>
@@ -167,7 +183,9 @@ export function BoardHud({
             </p>
             <button
               type="button"
-              disabled={diceRolling || active.cash < JAIL_FINE}
+              disabled={
+                !controlsTurn || diceRolling || active.cash < JAIL_FINE
+              }
               onClick={onPayJailFine}
               className="hud-btn hud-btn--mint w-full px-3 py-2 text-sm"
             >
@@ -175,7 +193,11 @@ export function BoardHud({
             </button>
             <button
               type="button"
-              disabled={diceRolling || active.protectionCardIds.length === 0}
+              disabled={
+                !controlsTurn ||
+                diceRolling ||
+                active.protectionCardIds.length === 0
+              }
               onClick={onUseJailProtection}
               className="hud-btn hud-btn--pink w-full px-3 py-2 text-sm"
             >
@@ -200,15 +222,17 @@ export function BoardHud({
         )}
         <button
           type="button"
-          disabled={!active || diceRolling}
+          disabled={!active || diceRolling || !controlsTurn}
           onClick={onRollDice}
           className="hud-btn hud-btn--primary w-full px-3 py-2.5 text-base"
         >
           {diceRolling
             ? "Rolando…"
-            : active?.inJail
-              ? "Tentar dupla"
-              : "Rolar dados"}
+            : !controlsTurn
+              ? "Aguardando oponente…"
+              : active?.inJail
+                ? "Tentar dupla"
+                : "Rolar dados"}
         </button>
 
         {diceRoll ? (
@@ -255,9 +279,8 @@ export function BoardHud({
             return (
               <li key={player.id}>
                 <div
-                  className={`hud-player flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm font-bold ${
-                    selected ? "hud-player--active" : ""
-                  } ${player.bankrupt ? "opacity-45" : ""}`}
+                  className={`hud-player flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm font-bold ${selected ? "hud-player--active" : ""
+                    } ${player.bankrupt ? "opacity-45" : ""}`}
                 >
                   <span
                     className="inline-block h-4 w-4 rounded-full border-2 border-[#5c3d2e]"
@@ -265,6 +288,7 @@ export function BoardHud({
                   />
                   <span className="min-w-0 flex-1 truncate font-[family-name:var(--font-game)]">
                     {getPlayerLabel(player)}
+                    {localPlayerId === player.id ? " · você" : ""}
                     {player.isBanker ? " · banq." : ""}
                     {player.bankrupt
                       ? " · falido"
@@ -357,7 +381,7 @@ export function BoardHud({
           </p>
         ) : null}
 
-        {turnPhase === "action" ? (
+        {turnPhase === "action" && controlsTurn ? (
           <button
             type="button"
             onClick={onPassTurn}
@@ -367,11 +391,12 @@ export function BoardHud({
           </button>
         ) : null}
 
-        {active &&
-        !active.bankrupt &&
-        turnPhase !== "ended" &&
-        turnPhase !== "auction" &&
-        players.some((p) => !p.bankrupt && p.id !== active.id) ? (
+        {controlsTurn &&
+          active &&
+          !active.bankrupt &&
+          turnPhase !== "ended" &&
+          turnPhase !== "auction" &&
+          players.some((p) => !p.bankrupt && p.id !== active.id) ? (
           <button
             type="button"
             onClick={onOpenTrade}
@@ -381,29 +406,31 @@ export function BoardHud({
           </button>
         ) : null}
 
-        <div className="flex flex-wrap gap-1.5 pt-0.5">
-          <button
-            type="button"
-            disabled={!active || diceRolling || turnPhase === "busy"}
-            onClick={() => onAdvanceActive(1)}
-            className="hud-btn hud-btn--soft px-2.5 py-1.5 text-xs"
-          >
-            +1 casa
-          </button>
-          <button
-            type="button"
-            disabled={
-              !active ||
-              selectedIndex === null ||
-              diceRolling ||
-              turnPhase === "busy"
-            }
-            onClick={onMoveActiveToSelected}
-            className="hud-btn hud-btn--soft px-2.5 py-1.5 text-xs"
-          >
-            Ir à casa
-          </button>
-        </div>
+        {!isOnline ? (
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            <button
+              type="button"
+              disabled={!active || diceRolling || turnPhase === "busy"}
+              onClick={() => onAdvanceActive(1)}
+              className="hud-btn hud-btn--soft px-2.5 py-1.5 text-xs"
+            >
+              +1 casa
+            </button>
+            <button
+              type="button"
+              disabled={
+                !active ||
+                selectedIndex === null ||
+                diceRolling ||
+                turnPhase === "busy"
+              }
+              onClick={onMoveActiveToSelected}
+              className="hud-btn hud-btn--soft px-2.5 py-1.5 text-xs"
+            >
+              Ir à casa
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {space ? (
