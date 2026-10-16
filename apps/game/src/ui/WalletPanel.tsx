@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   COLOR_GROUP_LABELS,
   KIND_LABELS,
@@ -31,23 +31,36 @@ function bandInk(hex: string): "light" | "dark" {
   return lum > 0.55 ? "dark" : "light";
 }
 
+function cssVars(vars: Record<string, string | number>): CSSProperties {
+  return vars as CSSProperties;
+}
+
+function fanAngle(i: number) {
+  const steps = [-2.2, 1.6, -1, 2.4, -1.6, 1.1];
+  return `${steps[i % steps.length]}deg`;
+}
+
 export function WalletPanel({ player, players, onPlayersChange }: Props) {
   const [open, setOpen] = useState(false);
   const [detailDeed, setDetailDeed] = useState<PropertyHolding | null>(null);
   const [detailCard, setDetailCard] = useState<CardDef | null>(null);
-  const titleId = useId();
+  const cardsRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     setDetailDeed(null);
     setDetailCard(null);
   }, [player?.id]);
 
+  const closeWallet = () => {
+    setOpen(false);
+    setDetailDeed(null);
+    setDetailCard(null);
+  };
+
   if (!player) {
     return (
       <div className="pointer-events-auto absolute bottom-4 left-4 z-20">
-        <div className="wallet-ui wallet-ui--closed px-4 py-3 text-sm text-[#6b4f3a]">
-          Escolhe um peão pra ver a carteira
-        </div>
+        <div className="wlt-none">Escolhe um peão pra ver a carteira</div>
       </div>
     );
   }
@@ -57,171 +70,144 @@ export function WalletPanel({ player, players, onPlayersChange }: Props) {
     (a, b) => a.spaceIndex - b.spaceIndex,
   );
   const cards = player.protectionCardIds.map((id) => getCard(id));
+  const totalItems = holdings.length + cards.length;
+  const billCount =
+    player.cash <= 0 ? 0 : Math.min(4, Math.max(1, Math.ceil(player.cash / 500)));
+
+  const activate = (fn: () => void) => {
+    if (!open) {
+      setOpen(true);
+      return;
+    }
+    fn();
+  };
 
   return (
     <>
-      <div className="pointer-events-auto absolute bottom-4 left-4 z-20">
-        {!open ? (
-          <button
-            type="button"
-            className="wallet-ui wallet-ui--closed group"
-            onClick={() => setOpen(true)}
-            aria-expanded={false}
-            aria-label={`Abrir carteira de ${def.label}`}
-          >
-            <div className="wallet-cash-peek" aria-hidden>
-              <span className="wallet-cash-peek__bill" />
-              <span className="wallet-cash-peek__bill wallet-cash-peek__bill--2" />
-              <span className="wallet-cash-peek__bill wallet-cash-peek__bill--3" />
-            </div>
-            <span className="wallet-snap" style={{ borderColor: def.color }} />
-            <div className="wallet-closed-body">
-              <div className="flex items-center gap-2">
+      <div className="pointer-events-auto absolute bottom-5 left-4 z-20">
+        <div
+          className={`wlt ${open ? "wlt--open" : ""}`}
+          style={cssVars({ "--wlt-accent": def.color })}
+        >
+          <div className="wlt__lining">
+            <div className="wlt__head">
+              <span className="wlt__who">
                 <span
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm shadow-sm ring-2 ring-white/70"
+                  className="wlt__dot"
                   style={{ backgroundColor: def.color }}
-                  aria-hidden
-                >
-                  ✦
-                </span>
-                <div className="min-w-0 text-left">
-                  <p className="truncate font-semibold text-[#5c3d2e]">
-                    {def.label}
-                  </p>
-                  <p className="text-[11px] text-[#8a6a4e]">
-                    {player.inJail ? "no Forte" : "sua carteira"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex items-end justify-between gap-2">
-                <p className="font-[family-name:var(--font-game)] text-2xl leading-none tabular-nums text-[#1f6b45]">
-                  {formatCash(player.cash)}
-                </p>
-                <p className="rounded-full bg-[#fff3d6] px-2 py-0.5 text-[11px] font-medium text-[#b45309] group-hover:bg-[#ffe8a3]">
-                  abrir
-                </p>
-              </div>
-              <p className="mt-2 text-[11px] text-[#9a7b5c]">
-                {holdings.length} escritura{holdings.length === 1 ? "" : "s"} ·{" "}
-                {cards.length} carta{cards.length === 1 ? "" : "s"}
-              </p>
-            </div>
-          </button>
-        ) : (
-          <div
-            className="wallet-ui wallet-ui--open"
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby={titleId}
-          >
-            <div className="wallet-hinge" aria-hidden />
-
-            <div className="wallet-flap wallet-flap--left">
-              <div className="wallet-flap__head">
-                <p className="wallet-label">Dinheirinho</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    setDetailDeed(null);
-                    setDetailCard(null);
-                  }}
-                  className="wallet-close"
-                >
-                  fechar
-                </button>
-              </div>
-
-              <div className="wallet-pocket wallet-pocket--cash">
-                <div className="wallet-bill-stack" aria-hidden>
-                  <span />
-                  <span />
-                  <span />
-                </div>
-                <p id={titleId} className="relative z-[1] text-sm text-[#d8f3e4]">
-                  {def.label}
-                </p>
-                <p className="relative z-[1] mt-1 font-[family-name:var(--font-game)] text-3xl tabular-nums text-white">
-                  {formatCash(player.cash)}
-                </p>
-                <p className="relative z-[1] mt-2 text-[11px] text-[#b7e4cb]">
-                  {player.inJail
-                    ? "Preso, mas o bolso continua aí"
-                    : "Pronto pra gastar em Salvador"}
-                </p>
-              </div>
-            </div>
-
-            <div className="wallet-flap wallet-flap--right">
-              <div className="wallet-pocket">
-                <div className="wallet-pocket__label">
-                  <span>Escrituras</span>
-                  <span className="wallet-chip">{holdings.length}</span>
-                </div>
-                {holdings.length === 0 ? (
-                  <p className="wallet-empty">
-                    Bolso vazio… hora de comprar um terreninho!
-                  </p>
-                ) : (
-                  <ul className="wallet-deed-grid">
-                    {holdings.map((holding, i) => (
-                      <DeedCard
-                        key={holding.spaceIndex}
-                        holding={holding}
-                        delayMs={70 + i * 35}
-                        onClick={() => {
-                          setDetailCard(null);
-                          setDetailDeed(holding);
-                        }}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="wallet-pocket mt-2">
-                <div className="wallet-pocket__label">
-                  <span>Cartas</span>
-                  <span className="wallet-chip">{cards.length}</span>
-                </div>
-                {cards.length === 0 ? (
-                  <p className="wallet-empty">
-                    Nenhuma Proteção guardada ainda.
-                  </p>
-                ) : (
-                  <ul className="wallet-card-grid">
-                    {cards.map((card, i) => (
-                      <li
-                        key={card.id}
-                        className="wallet-item-in"
-                        style={{ animationDelay: `${100 + i * 40}ms` }}
-                      >
-                        <button
-                          type="button"
-                          className="wallet-prot-card"
-                          onClick={() => {
-                            setDetailDeed(null);
-                            setDetailCard(card);
-                          }}
-                        >
-                          <span className="wallet-prot-card__deck">
-                            {card.deck === "fitinha" ? "Fitinha" : "Bença"}
-                          </span>
-                          <span className="wallet-prot-card__title">
-                            {card.effect.type === "keep"
-                              ? PROTECTION_LABELS[card.effect.kind]
-                              : card.text.replace(/^PROTEÇÃO[^:]+:\s*/i, "")}
-                          </span>
-                          <span className="wallet-prot-card__cta">olhar</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+                />
+                <span className="wlt__who-name">{def.label}</span>
+              </span>
+              {totalItems > 3 ? <span className="wlt__hint">role →</span> : null}
+              <button
+                type="button"
+                className="wlt__close"
+                tabIndex={open ? 0 : -1}
+                onClick={closeWallet}
+              >
+                fechar
+              </button>
             </div>
           </div>
-        )}
+
+          <div className="wlt__tray">
+            <div className="wlt__bills" aria-hidden>
+              {Array.from({ length: billCount }, (_, i) => (
+                <span
+                  key={i}
+                  className="wlt__bill"
+                  style={cssVars({
+                    "--i": i,
+                    "--rot": `${(i - (billCount - 1) / 2) * 5 + 2}deg`,
+                  })}
+                >
+                  <span className="wlt__coin">$</span>
+                  {i === billCount - 1 ? (
+                    <span className="wlt__amount">
+                      {formatCash(player.cash)}
+                    </span>
+                  ) : null}
+                </span>
+              ))}
+            </div>
+
+            <ul
+              ref={cardsRef}
+              className="wlt__cards"
+              onWheel={(e) => {
+                if (cardsRef.current) cardsRef.current.scrollLeft += e.deltaY;
+              }}
+            >
+              {totalItems === 0 ? (
+                <li className="wlt-empty">
+                  Sem escrituras ainda… hora de comprar um terreninho!
+                </li>
+              ) : null}
+
+              {holdings.map((holding, i) => (
+                <DeedCard
+                  key={holding.spaceIndex}
+                  holding={holding}
+                  index={i}
+                  focusable={open}
+                  onClick={() =>
+                    activate(() => {
+                      setDetailCard(null);
+                      setDetailDeed(holding);
+                    })
+                  }
+                />
+              ))}
+
+              {cards.map((card, i) => (
+                <ProtectionCard
+                  key={card.id}
+                  card={card}
+                  index={holdings.length + i}
+                  focusable={open}
+                  onClick={() =>
+                    activate(() => {
+                      setDetailDeed(null);
+                      setDetailCard(card);
+                    })
+                  }
+                />
+              ))}
+            </ul>
+          </div>
+
+          <button
+            type="button"
+            className="wlt__pocket"
+            aria-expanded={open}
+            aria-label={
+              open
+                ? `Fechar carteira de ${def.label}`
+                : `Abrir carteira de ${def.label}`
+            }
+            onClick={() => (open ? closeWallet() : setOpen(true))}
+          >
+            <span className="wlt__pocket-main">
+              <span className="wlt__label">{def.label}</span>
+              <span className="wlt__cash">{formatCash(player.cash)}</span>
+            </span>
+            <span className="wlt__pocket-meta">
+              {player.inJail ? (
+                <span className="wlt__chip wlt__chip--jail">no Forte</span>
+              ) : null}
+              <span className="wlt__chip">
+                {holdings.length} escritura{holdings.length === 1 ? "" : "s"}
+              </span>
+              <span className="wlt__chip">
+                {cards.length} carta{cards.length === 1 ? "" : "s"}
+              </span>
+            </span>
+          </button>
+
+          <span className="wlt__strap" aria-hidden>
+            <span className="wlt__snap" />
+          </span>
+        </div>
       </div>
 
       <WalletOverlays
@@ -239,12 +225,14 @@ export function WalletPanel({ player, players, onPlayersChange }: Props) {
 
 function DeedCard({
   holding,
+  index,
+  focusable,
   onClick,
-  delayMs,
 }: {
   holding: PropertyHolding;
+  index: number;
+  focusable: boolean;
   onClick: () => void;
-  delayMs: number;
 }) {
   const space = getSpace(holding.spaceIndex);
   const stripe =
@@ -270,45 +258,88 @@ function DeedCard({
   else if (holding.pousadas > 0) badge = `${holding.pousadas} pous.`;
 
   return (
-    <li className="wallet-item-in" style={{ animationDelay: `${delayMs}ms` }}>
+    <li className="wlt-card-li">
       <button
         type="button"
+        tabIndex={focusable ? 0 : -1}
         onClick={onClick}
-        className={`wallet-deed-card ${holding.mortgaged ? "wallet-deed-card--muted" : ""}`}
+        aria-label={`Escritura: ${space.name}`}
+        style={cssVars({ "--rot": fanAngle(index) })}
+        className={`wlt-card ${holding.mortgaged ? "wlt-card--muted" : ""}`}
       >
-        <span
-          className="wallet-deed-card__band"
-          style={{ backgroundColor: accent }}
-        >
+        <span className="wlt-card__band" style={{ backgroundColor: accent }}>
           <span
-            className={`wallet-deed-card__name ${ink === "dark" ? "wallet-deed-card__name--dark" : ""}`}
+            className={`wlt-card__name ${ink === "dark" ? "wlt-card__name--dark" : ""}`}
           >
             {space.name}
           </span>
         </span>
-        <span className="wallet-deed-card__body">
-          <span className="wallet-deed-card__kicker">
+        <span className="wlt-card__body">
+          <span className="wlt-card__kicker">
             {space.colorGroup
               ? COLOR_GROUP_LABELS[space.colorGroup]
               : KIND_LABELS[space.kind]}
           </span>
-          <span className="wallet-deed-card__rent">{rentLine}</span>
-          <span className="wallet-deed-card__meta">
+          <span className="wlt-card__rent">{rentLine}</span>
+          <span className="wlt-card__meta">
             {space.price !== undefined ? (
-              <span className="wallet-deed-card__price">
-                {formatCash(space.price)}
-              </span>
+              <span className="wlt-card__price">{formatCash(space.price)}</span>
             ) : (
               <span />
             )}
             {badge ? (
               <span
-                className={`wallet-deed-card__badge ${holding.mortgaged ? "wallet-deed-card__badge--mortgage" : ""}`}
+                className={`wlt-card__badge ${holding.mortgaged ? "wlt-card__badge--mortgage" : ""}`}
               >
                 {badge}
               </span>
             ) : null}
           </span>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function ProtectionCard({
+  card,
+  index,
+  focusable,
+  onClick,
+}: {
+  card: CardDef;
+  index: number;
+  focusable: boolean;
+  onClick: () => void;
+}) {
+  const accent = card.deck === "fitinha" ? "#fbbf24" : "#fb7185";
+  const ink = bandInk(accent);
+  const title =
+    card.effect.type === "keep"
+      ? PROTECTION_LABELS[card.effect.kind]
+      : card.text.replace(/^PROTEÇÃO[^:]+:\s*/i, "");
+
+  return (
+    <li className="wlt-card-li">
+      <button
+        type="button"
+        tabIndex={focusable ? 0 : -1}
+        onClick={onClick}
+        aria-label={`Carta: ${title}`}
+        style={cssVars({ "--rot": fanAngle(index) })}
+        className="wlt-card wlt-card--prot"
+      >
+        <span className="wlt-card__band" style={{ backgroundColor: accent }}>
+          <span
+            className={`wlt-card__name ${ink === "dark" ? "wlt-card__name--dark" : ""}`}
+          >
+            {card.deck === "fitinha" ? "Fitinha do Bonfim" : "Bença"}
+          </span>
+        </span>
+        <span className="wlt-card__body">
+          <span className="wlt-card__kicker">Proteção</span>
+          <span className="wlt-card__text">{title}</span>
+          <span className="wlt-card__cta">olhar →</span>
         </span>
       </button>
     </li>

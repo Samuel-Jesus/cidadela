@@ -111,7 +111,8 @@ function CardDetailOverlay({
   card: CardDef;
   onClose: () => void;
 }) {
-  const accent = card.deck === "fitinha" ? "#f0c75e" : "#d4b5b0";
+  const accent = card.deck === "fitinha" ? "#fbbf24" : "#fb7185";
+  const dark = card.deck === "fitinha";
   const title =
     card.effect.type === "keep"
       ? PROTECTION_LABELS[card.effect.kind]
@@ -119,7 +120,7 @@ function CardDetailOverlay({
 
   return (
     <div
-      className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+      className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
       role="presentation"
       onClick={onClose}
     >
@@ -127,36 +128,43 @@ function CardDetailOverlay({
         role="dialog"
         aria-modal="true"
         aria-label="Detalhe da carta"
-        className="wallet-card-detail w-full max-w-sm rounded-2xl border bg-gradient-to-b from-[#2a1c14] to-[#1a120c] p-5 text-[#f5f0e8] shadow-[0_24px_60px_rgba(0,0,0,0.55)]"
-        style={{ borderColor: `${accent}66` }}
+        className="wallet-card-detail deed-sheet w-full max-w-sm"
         onClick={(e) => e.stopPropagation()}
       >
-        <p
-          className="text-[10px] uppercase tracking-[0.28em]"
-          style={{ color: accent }}
-        >
-          {DECK_LABELS[card.deck]} · nº {card.number}
-        </p>
-        <h3 className="mt-3 font-serif text-xl leading-snug text-white">
-          {title}
-        </h3>
-        <p className="mt-3 text-sm leading-relaxed text-[#c9ada7]">
-          {card.text}
-        </p>
-        {card.keepable ? (
-          <p className="mt-3 rounded-lg bg-[#ffd166]/10 px-3 py-2 text-xs text-[#ffd166]">
-            Guarde para sair do Forte sem pagar. Pode ser negociada com outros
-            jogadores.
-          </p>
-        ) : null}
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-5 w-full rounded-lg px-3 py-2.5 text-sm font-semibold text-[#1a120c]"
+        <header
+          className="deed-sheet__band"
           style={{ backgroundColor: accent }}
         >
-          Fechar carta
-        </button>
+          <p
+            className={`deed-sheet__kicker ${dark ? "deed-sheet__kicker--dark" : ""}`}
+          >
+            {DECK_LABELS[card.deck]} · nº {card.number}
+          </p>
+          <h3
+            className={`deed-sheet__title ${dark ? "deed-sheet__title--dark" : ""}`}
+          >
+            {title}
+          </h3>
+        </header>
+        <div className="deed-sheet__body">
+          <p className="m-0 text-sm font-bold leading-relaxed text-[#5c3d2e]">
+            {card.text}
+          </p>
+          {card.keepable ? (
+            <p className="deed-sheet__status mt-3">
+              Guarde para sair do Forte sem pagar. Pode ser negociada.
+            </p>
+          ) : null}
+        </div>
+        <footer className="deed-sheet__footer">
+          <button
+            type="button"
+            onClick={onClose}
+            className="deed-btn deed-btn--amber w-full"
+          >
+            Fechar carta
+          </button>
+        </footer>
       </div>
     </div>
   );
