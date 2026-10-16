@@ -39,7 +39,7 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
     const radialDepth = side ? layout.width : layout.depth;
     const cornerSize = Math.min(layout.width, layout.depth);
 
-    const isGltf = layout.index === 10 || layout.index === 15;
+    const isGltf = layout.index === 10 || layout.index === 15 || layout.index === 27;
     let landmarkPos: [number, number, number];
     if (corner) {
       const inset = cornerSize * (isGltf ? 0.03 : 0.18);

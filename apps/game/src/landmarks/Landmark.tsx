@@ -11,7 +11,7 @@ type Props = {
 };
 
 export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props) {
-  const isGltf = index === 10 || index === 15;
+  const isGltf = index === 10 || index === 15 || index === 27;
   const fitWidth = (slotWidth ?? 1.2) * (isGltf ? 0.98 : 0.95);
   const fitDepth = (slotDepth ?? 1.2) * (isGltf ? 0.98 : 0.55);
 
@@ -21,6 +21,9 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   }
   if (index === 15) {
     return <ElevadorLacerda accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
+  if (index === 27) {
+    return <FarolDaBarra accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
 
   return (
@@ -82,8 +85,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
       return <PlanoInclinado />;
     case 26:
       return <RioVermelho />;
-    case 27:
-      return <Barra />;
     case 28:
       return <Embasa />;
     case 29:
@@ -450,16 +451,37 @@ function RioVermelho() {
   );
 }
 
-function Barra() {
+function FarolDaBarraFallback() {
   return (
     <Group>
-      {/* Farol da Barra */}
       <Cyl args={[0.18, 0.22, 1.0, 10]} position={[0, 0.55, 0]} color="#fdfefe" />
       <Box args={[0.08, 0.55, 0.35]} position={[0, 0.55, 0]} color="#c0392b" />
       <Box args={[0.35, 0.12, 0.35]} position={[0, 1.1, 0]} color="#2c3e50" />
       <Sphere args={[0.08]} position={[0, 1.25, 0]} color="#f4d03f" />
       <Box args={[0.7, 0.2, 0.5]} position={[0, 0.1, 0.35]} color="#5d6d7e" />
     </Group>
+  );
+}
+
+function FarolDaBarra({
+  accent,
+  fitWidth,
+  fitDepth,
+}: {
+  accent?: boolean;
+  fitWidth: number;
+  fitDepth: number;
+}) {
+  return (
+    <Suspense fallback={<FarolDaBarraFallback />}>
+      <GltfLandmark
+        url="/models/farol-da-barra.gltf"
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+        polish
+        accent={accent}
+      />
+    </Suspense>
   );
 }
 
