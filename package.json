@@ -1,0 +1,14 @@
+{
+  "name": "cidadela",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "pnpm --filter @cidadela/game dev",
+    "build": "pnpm --filter @cidadela/game build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.12.1"
+}
