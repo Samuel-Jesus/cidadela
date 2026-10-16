@@ -8,10 +8,17 @@ type Props = {
   layouts: SpaceLayout[];
   activePlayerId: string | null;
   onSelectPlayer: (playerId: string) => void;
+  onPawnArrive?: (playerId: string, spaceIndex: number) => void;
 };
 
-export function PawnsLayer({ players, layouts, activePlayerId, onSelectPlayer }: Props) {
-  const layoutByIndex = useMemo(() => {
+export function PawnsLayer({
+  players,
+  layouts,
+  activePlayerId,
+  onSelectPlayer,
+  onPawnArrive,
+}: Props) {
+  const layoutsByIndex = useMemo(() => {
     const map = new Map<number, SpaceLayout>();
     for (const l of layouts) map.set(l.index, l);
     return map;
@@ -30,19 +37,20 @@ export function PawnsLayer({ players, layouts, activePlayerId, onSelectPlayer }:
   return (
     <group>
       {players.map((player) => {
-        const layout = layoutByIndex.get(player.position);
-        if (!layout) return null;
+        if (!layoutsByIndex.has(player.position)) return null;
         const onSpace = slotsBySpace.get(player.position) ?? [player];
         const slotIndex = onSpace.findIndex((p) => p.id === player.id);
         return (
           <Pawn
             key={player.id}
             pawnId={player.pawnId}
-            layout={layout}
+            spaceIndex={player.position}
+            layoutsByIndex={layoutsByIndex}
             slotIndex={Math.max(0, slotIndex)}
             slotCount={onSpace.length}
             active={player.id === activePlayerId}
             onClick={() => onSelectPlayer(player.id)}
+            onArrive={(spaceIndex) => onPawnArrive?.(player.id, spaceIndex)}
           />
         );
       })}

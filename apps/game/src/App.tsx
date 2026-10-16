@@ -83,21 +83,25 @@ export function App() {
       setPlayers((prev) =>
         prev.map((p) => (p.id === playerId ? { ...p, position: 10 } : p)),
       );
-      setSelectedIndex(10);
       return;
     }
 
-    setPlayers((prev) => {
-      const updated = prev.map((p) =>
+    setPlayers((prev) =>
+      prev.map((p) =>
         p.id === playerId
           ? { ...p, position: nextPosition(p.position, roll.total) }
           : p,
-      );
-      const me = updated.find((p) => p.id === playerId);
-      if (me) setSelectedIndex(me.position);
-      return updated;
-    });
+      ),
+    );
   }, []);
+
+  const onPawnArrive = useCallback(
+    (playerId: string, spaceIndex: number) => {
+      if (playerId !== activeRef.current) return;
+      setSelectedIndex(spaceIndex);
+    },
+    [],
+  );
 
   return (
     <div className="relative h-dvh w-dvw overflow-hidden bg-[#120c08]">
@@ -112,6 +116,7 @@ export function App() {
         canRoll={Boolean(activePlayerId)}
         onRollRequest={onRollDice}
         onRollComplete={onRollComplete}
+        onPawnArrive={onPawnArrive}
       />
       <BoardHud
         selectedIndex={selectedIndex}

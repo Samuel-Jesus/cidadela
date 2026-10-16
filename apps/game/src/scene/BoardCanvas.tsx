@@ -20,6 +20,7 @@ type Props = {
   canRoll: boolean;
   onRollRequest: () => void;
   onRollComplete: (roll: DiceRoll) => void;
+  onPawnArrive?: (playerId: string, spaceIndex: number) => void;
 };
 
 export function BoardCanvas({
@@ -33,6 +34,7 @@ export function BoardCanvas({
   canRoll,
   onRollRequest,
   onRollComplete,
+  onPawnArrive,
 }: Props) {
   const layouts = useMemo(() => computeSpaceLayouts(), []);
 
@@ -85,6 +87,7 @@ export function BoardCanvas({
         layouts={layouts}
         activePlayerId={activePlayerId}
         onSelectPlayer={onSelectPlayer}
+        onPawnArrive={onPawnArrive}
       />
 
       <ContactShadows position={[0, 0.03, 0]} opacity={0.45} scale={32} blur={2.5} far={12} />
