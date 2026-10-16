@@ -155,7 +155,7 @@ Permitir que 2 a 8 jogadores dispute uma partida de **Cidadela**, jogo de tabule
 ### 5b. Premissas
 
 - Balanceamento ainda **sem playtest** formal (`REQUISITOS.md` §14 — Aviso).
-- Produto digital: hot-seat local + multiplayer Supabase (`STACK.md`).
+- Produto digital: multiplayer Supabase em produção; hot-seat local só em dev (`STACK.md`).
 - Leilão digital pode simplificar a “contagem oral” preservando lance mínimo, limite de caixa e empate.
 
 ### 5c. Regras de negócio (resumo)
@@ -256,7 +256,7 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | FR-05e | Anfitrião inicia quando há ≥2 jogadores na sala (idealmente a mesa cheia) | `Começar` cria jogadores FR-02/FR-03 a partir dos membros conectados | Alta | Lobby |
 | FR-05f | Nova partida / vitória volta ao Lobby (nova sessão) | Estado da sala anterior descartado | Média | Lobby |
 | FR-05g | Sync da sala e da partida via **Supabase** (Realtime + Postgres) | Auth anônima; anfitrião aplica regras e grava `games.state`; convidados enviam `game_actions` e hidratam | Alta | Lobby / Online |
-| FR-05h | **Jogar neste aparelho** (hot-seat): uma pessoa monta a mesa toda (2–8 assentos com nome, peão único e banqueiro) e começa direto | Offline; valida com `validateLobbySetup` | Alta | Lobby |
+| FR-05h | **Jogar neste aparelho** (hot-seat): uma pessoa monta a mesa toda (2–8 assentos com nome, peão único e banqueiro) e começa direto | **Só em `import.meta.env.DEV`** — não vai para produção; valida com `validateLobbySetup` | Baixa | Lobby / Dev |
 | FR-06 | (Digital) Tela de **Loading** antes do Lobby, com **avião** | Splash/loading visível até assets críticos prontos (ou timeout seguro) | Alta | Boot / Loading |
 | FR-06a | Loading: avião em movimento (temática Bahia / aeroporto) | Animação contínua; marca “Cidadela” legível | Alta | Loading |
 | FR-06b | Loading cobre pré-carga de modelos 3D (landmarks GLTF) e shell | Lobby só aparece após loading concluir (mínimo visual opcional ~1,5s) | Média | Loading |
@@ -587,7 +587,7 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 - [ ] Toggle UI cobrança automática vs pedida (hoje só `claim`)
 - [ ] Playtest formal de balanceamento (§8)
 - [x] **Lobby** anfitrião (só qtd) + link/QR; convidado escolhe nome/peão (FR-05…05g)
-- [x] **Lobby local** "Jogar neste aparelho" — mesa montada num só aparelho (FR-05h)
+- [x] **Lobby local** "Jogar neste aparelho" — só em dev (FR-05h; oculto em prod)
 - [x] **Loading** com avião (FR-06…06b) na entrada do app
 - [x] Sync de sala e partida entre aparelhos (Supabase — FR-05g)
 - [ ] Cobertura Vitest ampliada (cartas, Forte, falência ponta a ponta)

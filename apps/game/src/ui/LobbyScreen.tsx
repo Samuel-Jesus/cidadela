@@ -55,6 +55,7 @@ function resizeSeats(seats: LobbySeat[], count: number): LobbySeat[] {
 
 export function LobbyScreen({ onStart }: Props) {
   const online = isSupabaseConfigured();
+  const allowLocalHotSeat = import.meta.env.DEV;
   const initialRoom = useMemo(() => readRoomParam(), []);
   const [clientId, setClientId] = useState<string>("");
   const [busy, setBusy] = useState(false);
@@ -79,6 +80,12 @@ export function LobbyScreen({ onStart }: Props) {
   const startedRef = useRef(false);
 
   const joinUrl = room ? roomJoinUrl(room.roomId) : "";
+
+  useEffect(() => {
+    if (!allowLocalHotSeat && phase === "local") {
+      setPhase("home");
+    }
+  }, [allowLocalHotSeat, phase]);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,6 +209,10 @@ export function LobbyScreen({ onStart }: Props) {
   };
 
   const startLocal = () => {
+    if (!allowLocalHotSeat) {
+      setError("Hot-seat local não está disponível nesta versão.");
+      return;
+    }
     const setup: LobbySetup = {
       seats: localSeats.map((s) => ({ ...s, name: s.name.trim() })),
       bankerIndex: localBanker,
@@ -383,7 +394,9 @@ export function LobbyScreen({ onStart }: Props) {
             Cidadela
           </h1>
           <p className="mt-3 max-w-md text-sm font-semibold text-[#ffd7a8] sm:text-base">
-            Hot-seat neste aparelho ou sala online com link e QR Code.
+            {allowLocalHotSeat
+              ? "Dev: hot-seat local ou sala online com link e QR."
+              : "O anfitrião cria a sala; os outros entram pelo link ou QR Code."}
           </p>
         </header>
 
@@ -401,8 +414,8 @@ export function LobbyScreen({ onStart }: Props) {
                 : phase === "local"
                   ? "Mesa neste aparelho"
                   : phase === "host"
-                  ? "Sala do anfitrião"
-                  : "Entrar na sala"}
+                    ? "Sala do anfitrião"
+                    : "Entrar na sala"}
             </h2>
             <p className="deed-sheet__sub deed-sheet__sub--dark">
               Cada um começa com {formatCash(STARTING_CASH)} na Chegada
@@ -412,24 +425,26 @@ export function LobbyScreen({ onStart }: Props) {
           <div className="deed-sheet__body min-h-0 flex-1 space-y-4 overflow-y-auto">
             {phase === "home" ? (
               <>
-                <div className="rounded-xl border-2 border-[#5c3d2e] bg-[#ecfdf5] p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
-                  <h3 className="deed-sheet__section-title">
-                    Jogar neste aparelho
-                  </h3>
-                  <p className="deed-sheet__note mb-3">
-                    Todos jogam na mesma tela, passando a vez.
-                  </p>
-                  <button
-                    type="button"
-                    className="deed-btn deed-btn--mint w-full"
-                    onClick={() => {
-                      setError(null);
-                      setPhase("local");
-                    }}
-                  >
-                    Montar a mesa
-                  </button>
-                </div>
+                {allowLocalHotSeat ? (
+                  <div className="rounded-xl border-2 border-[#5c3d2e] bg-[#ecfdf5] p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
+                    <h3 className="deed-sheet__section-title">
+                      Jogar neste aparelho · só dev
+                    </h3>
+                    <p className="deed-sheet__note mb-3">
+                      Hot-seat na mesma tela. Não aparece no build de produção.
+                    </p>
+                    <button
+                      type="button"
+                      className="deed-btn deed-btn--mint w-full"
+                      onClick={() => {
+                        setError(null);
+                        setPhase("local");
+                      }}
+                    >
+                      Montar a mesa
+                    </button>
+                  </div>
+                ) : null}
 
                 <div className="rounded-xl border-2 border-[#5c3d2e] bg-white/80 p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
                   <h3 className="deed-sheet__section-title">
@@ -514,7 +529,7 @@ export function LobbyScreen({ onStart }: Props) {
               </>
             ) : null}
 
-            {phase === "local" ? (
+            {phase === "local" && allowLocalHotSeat ? (
               <>
                 <label className="flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
                   Quantidade de jogadores
@@ -750,7 +765,7 @@ export function LobbyScreen({ onStart }: Props) {
           </div>
 
           <footer className="deed-sheet__footer">
-            {phase === "local" ? (
+            {phase === "local" && allowLocalHotSeat ? (
               <div className="deed-sheet__actions">
                 <button
                   type="button"

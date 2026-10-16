@@ -135,7 +135,7 @@ cidadela/
 - [x] Aluguel pedido (FR-22a) + overlay de vitória
 - [ ] Pousadas/resorts visíveis nas casas 3D
 - [x] Lobby anfitrião (qtd + link/QR) e entrada de convidados (nome/peão) via Supabase
-- [x] Lobby local "Jogar neste aparelho" (hot-seat, FR-05h)
+- [x] Lobby local "Jogar neste aparelho" (hot-seat FR-05h, **somente DEV**)
 - [x] Sync de sala e partida multi-aparelho (Supabase Realtime)
 - [x] Loading inicial com avião (pré-carga de assets)
 - [ ] Áudio/FX (`SPECS.md` §17b): SFX dinheiro/imposto; Carnaval+Canário; viatura → Forte; guincho ao vender construção
