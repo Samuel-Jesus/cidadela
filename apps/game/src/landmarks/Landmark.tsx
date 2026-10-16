@@ -4,6 +4,7 @@ import { GltfLandmark } from "./GltfLandmark";
 import { CoelbaLandmark } from "./CoelbaLandmark";
 import { FerryBoatLandmark } from "./FerryBoatLandmark";
 import { MetroDeSalvadorLandmark } from "./MetroDeSalvadorLandmark";
+import { PedagioLinhaVerdeLandmark } from "./PedagioLinhaVerdeLandmark";
 import { PlanoInclinadoLandmark } from "./PlanoInclinadoLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
@@ -16,6 +17,7 @@ type Props = {
 
 export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props) {
   const isGltf =
+    index === 4 ||
     index === 5 ||
     index === 10 ||
     index === 12 ||
@@ -27,6 +29,9 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   const fitWidth = (slotWidth ?? 1.2) * (isGltf ? 0.98 : 0.95);
   const fitDepth = (slotDepth ?? 1.2) * (isGltf ? 0.98 : 0.55);
 
+  if (index === 4) {
+    return <PedagioLinhaVerdeLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
   if (index === 5) {
     return <FerryBoatLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
@@ -72,8 +77,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
       return <Benca />;
     case 3:
       return <Paripe />;
-    case 4:
-      return <Pedagio />;
     case 6:
       return <Feira />;
     case 7:
@@ -172,18 +175,6 @@ function Paripe() {
       <Cone args={[0.4, 0.25, 4]} position={[-0.2, 0.5, 0]} color="#922b21" />
       <Box args={[0.35, 0.28, 0.3]} position={[0.25, 0.16, 0.1]} color="#f5cba7" />
       <Box args={[0.8, 0.04, 0.5]} position={[0, 0.02, 0.35]} color="#5dade2" />
-    </Group>
-  );
-}
-
-function Pedagio() {
-  return (
-    <Group>
-      <Box args={[1.1, 0.08, 0.35]} position={[0, 0.08, 0]} color="#566573" />
-      <Cyl args={[0.06, 0.06, 0.7, 8]} position={[-0.4, 0.4, 0]} color="#bdc3c7" />
-      <Cyl args={[0.06, 0.06, 0.7, 8]} position={[0.4, 0.4, 0]} color="#bdc3c7" />
-      <Box args={[0.95, 0.12, 0.12]} position={[0, 0.72, 0]} color="#27ae60" />
-      <Box args={[0.5, 0.18, 0.05]} position={[0, 0.5, 0]} color="#f1c40f" />
     </Group>
   );
 }
