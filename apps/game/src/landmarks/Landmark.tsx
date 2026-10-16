@@ -4,6 +4,7 @@ import { GltfLandmark } from "./GltfLandmark";
 import { CoelbaLandmark } from "./CoelbaLandmark";
 import { FerryBoatLandmark } from "./FerryBoatLandmark";
 import { MetroDeSalvadorLandmark } from "./MetroDeSalvadorLandmark";
+import { CarnavalLandmark } from "./CarnavalLandmark";
 import { PedagioLinhaVerdeLandmark } from "./PedagioLinhaVerdeLandmark";
 import { PlanoInclinadoLandmark } from "./PlanoInclinadoLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
@@ -22,6 +23,7 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     index === 10 ||
     index === 12 ||
     index === 15 ||
+    index === 20 ||
     index === 25 ||
     index === 27 ||
     index === 28 ||
@@ -44,6 +46,9 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   }
   if (index === 15) {
     return <ElevadorLacerda accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
+  if (index === 20) {
+    return <CarnavalLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
   if (index === 25) {
     return <PlanoInclinadoLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
@@ -99,8 +104,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
       return <Mucuge />;
     case 19:
       return <ValeDoCapao />;
-    case 20:
-      return <Carnaval />;
     case 21:
       return <Trancoso />;
     case 23:
@@ -360,20 +363,6 @@ function ValeDoCapao() {
       <Cone args={[0.45, 0.7, 5]} position={[-0.25, 0.35, 0]} color="#27ae60" />
       <Cone args={[0.55, 0.9, 5]} position={[0.25, 0.45, -0.1]} color="#1e8449" />
       <Box args={[0.5, 0.08, 0.25]} position={[0, 0.06, 0.3]} color="#5dade2" />
-    </Group>
-  );
-}
-
-function Carnaval() {
-  return (
-    <Group>
-      <Box args={[1.0, 0.25, 0.45]} position={[0, 0.2, 0]} color="#e74c3c" />
-      <Box args={[0.7, 0.35, 0.4]} position={[0, 0.45, 0]} color="#f1c40f" />
-      <Box args={[0.5, 0.2, 0.35]} position={[0, 0.7, 0]} color="#9b59b6" />
-      <Cyl args={[0.08, 0.08, 0.25, 8]} position={[-0.35, 0.2, 0.3]} color="#2c3e50" />
-      <Cyl args={[0.08, 0.08, 0.25, 8]} position={[0.35, 0.2, 0.3]} color="#2c3e50" />
-      <Sphere args={[0.1]} position={[-0.2, 0.9, 0]} color="#3498db" />
-      <Sphere args={[0.1]} position={[0.2, 0.9, 0]} color="#e91e63" />
     </Group>
   );
 }

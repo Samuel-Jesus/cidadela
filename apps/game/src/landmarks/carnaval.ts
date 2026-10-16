@@ -1,0 +1,535 @@
+import * as THREE from "three";
+
+export type CarnavalGroup = THREE.Group & {
+  userData: {
+    tick: (dt: number) => void;
+    disparar: () => void;
+    alternarFesta: () => boolean;
+  };
+};
+
+export function criarCarnaval(): CarnavalGroup {
+  const g = new THREE.Group() as CarnavalGroup;
+  g.name = "Carnaval";
+  const PI = Math.PI;
+  let sd = 9;
+  const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+
+  const M = (c: number, o?: THREE.MeshStandardMaterialParameters) =>
+    new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.85 }, o || {}));
+
+  const m = {
+    dirt: M(0x8a7a62),
+    sand: M(0xe6d3a0),
+    sea: M(0x1a9ab5, { roughness: 0.3 }),
+    dark: M(0x17171c),
+    spk: M(0x101014),
+    grey: M(0xa9acb2),
+    white: M(0xf4f4f0),
+    cab: M(0xe0a63a),
+    blue: M(0x2b66b8),
+    tire: M(0x1b1b1d),
+    win: M(0x1f2c40, { roughness: 0.2 }),
+    clear: M(0xdcecf5, { transparent: true, opacity: 0.35 }),
+    red: M(0xd9342b),
+    stone: M(0x756f63),
+    black: M(0x16181c),
+    glass: M(0xa8dcec, { transparent: true, opacity: 0.6 }),
+    trunk: M(0x7a6a52),
+    leaf: M(0x2f8a2e),
+    leaf2: M(0x3f9d36),
+    foam: M(0xffffff, { transparent: true, opacity: 0.6 }),
+    pole: M(0xb9bcc2),
+    floor: M(0xe8e6e0),
+  };
+
+  const bx = (
+    w: number,
+    h: number,
+    d: number,
+    mt: THREE.Material | THREE.Material[],
+    x: number,
+    y: number,
+    z: number,
+    p?: THREE.Object3D,
+  ) => {
+    const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mt);
+    o.position.set(x, y, z);
+    (p || g).add(o);
+    return o;
+  };
+
+  const cyl = (
+    rt: number,
+    rb: number,
+    h: number,
+    mt: THREE.Material,
+    x: number,
+    y: number,
+    z: number,
+    p?: THREE.Object3D,
+    seg?: number,
+  ) => {
+    const o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 10), mt);
+    o.position.set(x, y, z);
+    (p || g).add(o);
+    return o;
+  };
+
+  const tex = (w: number, h: number, fn: (c: CanvasRenderingContext2D, w: number, h: number) => void) => {
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext("2d");
+    if (!ctx) throw new Error("2d context unavailable");
+    fn(ctx, w, h);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  };
+
+  const plano = (
+    w: number,
+    h: number,
+    mat: THREE.Material,
+    x: number,
+    y: number,
+    z: number,
+    ry?: number,
+    rx?: number,
+  ) => {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    p.position.set(x, y, z);
+    if (ry) p.rotation.y = ry;
+    if (rx) p.rotation.x = rx;
+    g.add(p);
+    return p;
+  };
+
+  bx(17.5, 0.6, 22, m.dirt, -0.25, -0.3, -2);
+  bx(5.5, 0.6, 22, m.sea, 11.25, -0.4, -2);
+  bx(0.1, 0.01, 22, m.foam, 8.45, -0.09, -2);
+  plano(4.5, 22, M(0xe6d3a0), 6.25, 0.012, -2, 0, -PI / 2);
+
+  const brick = tex(32, 16, (c) => {
+    c.fillStyle = "#8f8e94";
+    c.fillRect(0, 0, 32, 16);
+    c.strokeStyle = "#6c6b72";
+    c.lineWidth = 1;
+    c.strokeRect(0, 0, 16, 8);
+    c.strokeRect(16, 0, 16, 8);
+    c.strokeRect(8, 8, 16, 8);
+    c.strokeRect(-8, 8, 16, 8);
+    c.strokeRect(24, 8, 16, 8);
+  });
+  brick.repeat.set(16, 44);
+  plano(8, 22, new THREE.MeshStandardMaterial({ map: brick, roughness: 0.95 }), 0, 0.011, -2, 0, -PI / 2);
+
+  const ban = tex(256, 64, (c, W, H) => {
+    c.fillStyle = "#f28c28";
+    c.fillRect(0, 0, W, H);
+    c.fillStyle = "#5a2a82";
+    c.fillRect(0, H - 8, W, 8);
+    [44, 128, 212].forEach((x) => {
+      c.fillStyle = "#fff";
+      c.beginPath();
+      c.arc(x, 28, 20, 0, 7);
+      c.fill();
+      c.fillStyle = "#e0553a";
+      c.beginPath();
+      c.arc(x, 28, 9, 0, 7);
+      c.fill();
+    });
+  });
+  ban.repeat.set(3.4, 1);
+  const mban = new THREE.MeshStandardMaterial({ map: ban, roughness: 0.8 });
+  [0.6, 1.8, 3.0].forEach((y) => plano(14, 1.1, mban, -4.2, y, -1, PI / 2));
+  [1.2, 2.4, 3.6].forEach((y) => bx(1.6, 0.1, 14, m.floor, -5, y, -1));
+  bx(1.8, 0.08, 14.4, m.white, -5, 3.8, -1);
+  bx(0.1, 3.8, 14, m.grey, -5.8, 1.9, -1);
+  (
+    [
+      [-8, 4.2, 0xf0f0ec],
+      [-4.8, 6, 0x6aa7d8],
+      [-1.2, 3.6, 0xf0e6d0],
+      [2.2, 5, 0xe8ecf0],
+      [5.6, 4, 0xf2c9a0],
+    ] as const
+  ).forEach((b) => bx(1.8, b[1], 3, M(b[2]), -7.8, b[1] / 2, b[0]));
+
+  const trio = new THREE.Group();
+  g.add(trio);
+  bx(1.9, 0.3, 5.8, m.dark, 0, 0.55, 0.4, trio);
+  [[-1.4], [0.4], [2.8]].forEach((p) =>
+    [-0.95, 0.95].forEach((x) => {
+      const w = cyl(0.35, 0.35, 0.28, m.tire, x, 0.35, p[0], trio, 16);
+      w.rotation.z = PI / 2;
+    }),
+  );
+  bx(2.8, 0.55, 4.4, m.dark, 0, 0.95, -0.1, trio);
+  bx(1.6, 1.25, 1.3, m.cab, 0, 1.1, 2.95, trio);
+  bx(1.62, 0.12, 1.32, m.blue, 0, 0.85, 2.95, trio);
+  bx(1.3, 0.5, 0.02, m.win, 0, 1.45, 3.61, trio);
+  [-0.5, 0.5].forEach((x) =>
+    bx(
+      0.2,
+      0.1,
+      0.02,
+      M(0xfff3b0, { emissive: 0xffe9a0, emissiveIntensity: 0.6 }),
+      x,
+      0.7,
+      3.62,
+      trio,
+    ),
+  );
+
+  const led = document.createElement("canvas");
+  led.width = 256;
+  led.height = 128;
+  const lx = led.getContext("2d");
+  if (!lx) throw new Error("2d context unavailable");
+  const ledT = new THREE.CanvasTexture(led);
+  const ledDraw = (t: number) => {
+    for (let i = 0; i < 8; i++) {
+      lx.fillStyle = `hsl(${(i * 45 + t * 90) % 360},90%,55%)`;
+      lx.fillRect(i * 32, 0, 32, 128);
+    }
+    lx.fillStyle = "rgba(255,230,60,.92)";
+    lx.beginPath();
+    lx.arc(128, 64, 40 + 8 * Math.sin(t * 4), 0, 7);
+    lx.fill();
+    lx.fillStyle = "#1b3a9a";
+    lx.beginPath();
+    lx.arc(128, 64, 22, 0, 7);
+    lx.fill();
+    ledT.needsUpdate = true;
+  };
+  ledDraw(0);
+  const tela = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.4, 1.1),
+    new THREE.MeshBasicMaterial({ map: ledT }),
+  );
+  tela.position.set(0, 1.75, 2.16);
+  trio.add(tela);
+
+  bx(2.6, 0.1, 3.4, m.dark, 0, 2.35, 0.4, trio);
+  [-1.7, 1.7].forEach((x) => {
+    bx(0.8, 2.4, 1.1, m.spk, x, 1.85, 0.3, trio);
+    for (let y = 0.9; y < 3; y += 0.45) bx(0.82, 0.03, 1.12, M(0x3a3a42), x, y + 0.7, 0.3, trio);
+  });
+  bx(2.6, 0.03, 3.4, m.clear, 0, 3.5, 0.4, trio);
+  [-1.2, 1.2].forEach((x) =>
+    [-1, 2].forEach((z) => bx(0.04, 1.1, 0.04, m.pole, x, 2.95, z, trio)),
+  );
+  bx(2.6, 0.04, 0.04, m.white, 0, 2.75, 2.05, trio);
+  for (let x = -1.2; x <= 1.21; x += 0.4) bx(0.03, 0.4, 0.03, m.white, x, 2.55, 2.05, trio);
+
+  const luzes: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>[] = [];
+  for (let i = 0; i < 8; i++) {
+    const s = new THREE.Mesh(
+      new THREE.SphereGeometry(0.06, 8, 6),
+      new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    );
+    s.position.set(-1.05 + i * 0.3, 2.46, 2.1);
+    trio.add(s);
+    luzes.push(s);
+  }
+  (
+    [
+      [-0.9, 0xe8b94a],
+      [-0.3, 0xf4f4f0],
+      [0.3, 0xc23a2a],
+      [0.9, 0xf4f4f0],
+    ] as const
+  ).forEach((p) => {
+    bx(0.16, 0.34, 0.1, M(p[1]), p[0], 2.62, 1.7, trio);
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), M(0x6b4a36));
+    h.position.set(p[0], 2.88, 1.7);
+    trio.add(h);
+    if (p[1] === 0xe8b94a || p[1] === 0xc23a2a) bx(0.2, 0.1, 0.1, M(0xffd23a), p[0], 2.98, 1.7, trio);
+  });
+
+  const disco = tex(32, 32, (c) => {
+    c.fillStyle = "#fff";
+    c.beginPath();
+    c.arc(16, 16, 15, 0, 7);
+    c.fill();
+  });
+  const xs: number[] = [];
+  const zs: number[] = [];
+  const ys: number[] = [];
+  const ph: number[] = [];
+  const add = (x: number, z: number, y: number) => {
+    xs.push(x);
+    zs.push(z);
+    ys.push(y);
+    ph.push(rnd() * 6.28);
+  };
+  for (let n = 0; n < 2300; ) {
+    const x = -3.9 + rnd() * 7.8;
+    const z = -9.5 + rnd() * 18;
+    if (Math.abs(x) < 2.15 && z > -2.7 && z < 3.8) continue;
+    add(x, z, 0);
+    n++;
+  }
+  [1.25, 2.45, 3.65].forEach((y) => {
+    for (let n = 0; n < 200; n++) add(-5.75 + rnd() * 1.5, -7.9 + rnd() * 13.8, y);
+  });
+  for (let n = 0; n < 130; n++) add(4.1 + rnd() * 3.6, -8 + rnd() * 15, 0);
+
+  const N = xs.length;
+  const hp = new Float32Array(N * 3);
+  const tp = new Float32Array(N * 3);
+  const hc = new Float32Array(N * 3);
+  const tc = new Float32Array(N * 3);
+  const pele = [0x6b4a36, 0x8a5a3c, 0xc08a60, 0xf0c9a0];
+  const rou = [0xff8a1e, 0xe03030, 0xffd23a, 0x2e6ee0, 0x35b85a, 0xf4f4f0, 0xff8a1e, 0xe03030, 0x222222];
+  const col = new THREE.Color();
+  for (let i = 0; i < N; i++) {
+    col.setHex(pele[Math.floor(rnd() * 4)]);
+    hc.set([col.r, col.g, col.b], i * 3);
+    col.setHex(rou[Math.floor(rnd() * rou.length)]);
+    tc.set([col.r, col.g, col.b], i * 3);
+    hp.set([xs[i], ys[i] + 0.8, zs[i]], i * 3);
+    tp.set([xs[i], ys[i] + 0.45, zs[i]], i * 3);
+  }
+
+  const pts = (p: Float32Array, c: Float32Array, s: number) => {
+    const gm = new THREE.BufferGeometry();
+    gm.setAttribute("position", new THREE.BufferAttribute(p, 3));
+    gm.setAttribute("color", new THREE.BufferAttribute(c, 3));
+    const o = new THREE.Points(
+      gm,
+      new THREE.PointsMaterial({ size: s, vertexColors: true, map: disco, alphaTest: 0.4 }),
+    );
+    o.frustumCulled = false;
+    g.add(o);
+    return o;
+  };
+  const pH = pts(hp, hc, 0.17);
+  const pT = pts(tp, tc, 0.26);
+
+  const palma = (x: number, z: number, h: number) => {
+    const p = new THREE.Group();
+    p.position.set(x, 0, z);
+    g.add(p);
+    bx(0.12, h, 0.12, m.trunk, 0, h / 2, 0, p);
+    for (let i = 0; i < 8; i++) {
+      const yw = new THREE.Group();
+      yw.position.y = h;
+      yw.rotation.y = (i * PI) / 4;
+      p.add(yw);
+      const tl = new THREE.Group();
+      tl.rotation.z = -0.3 - (i % 2) * 0.25;
+      yw.add(tl);
+      bx(0.9, 0.025, 0.17, i % 2 ? m.leaf : m.leaf2, 0.45, 0, 0, tl);
+    }
+  };
+  [-6, -2, 2, 6].forEach((z) => palma(4.5, z, 1.8 + rnd() * 0.6));
+  for (let z = -7; z <= 6; z += 1.8) {
+    const x = 5.3 + rnd() * 0.9;
+    cyl(0.02, 0.02, 0.9, m.pole, x, 0.45, z, g, 6);
+    cyl(0, 0.4, 0.18, ((z * 10) | 0) % 2 ? m.red : m.white, x, 0.95, z, g, 10);
+  }
+  for (let z = -8; z <= 8; z += 3.2)
+    [-4.1, 4.1].forEach((x) => {
+      cyl(0.04, 0.05, 4.2, m.pole, x, 2.1, z, g, 8);
+      bx(0.6, 0.05, 0.05, m.pole, x - Math.sign(x) * 0.3, 4.2, z);
+      bx(0.3, 0.06, 0.12, m.white, x - Math.sign(x) * 0.6, 4.18, z);
+    });
+  (
+    [
+      [10.5, -5],
+      [12, 1],
+      [11, 6],
+    ] as const
+  ).forEach((p) => {
+    bx(0.55, 0.12, 0.22, m.white, p[0], -0.04, p[1]);
+    bx(0.2, 0.1, 0.16, m.white, p[0] - 0.05, 0.06, p[1]);
+  });
+
+  bx(5.2, 1.1, 1.8, m.stone, 0.8, 0.55, -11.6);
+  bx(5.2, 0.7, 1.4, m.white, 0.8, 1.45, -11.8);
+  const T0 = 1.8;
+  const r = (y: number) => 0.5 - 0.12 * (y / 2.8);
+  (
+    [
+      [0, 0.9, m.white],
+      [0.9, 1.8, m.black],
+      [1.8, 2.8, m.white],
+    ] as const
+  ).forEach((b) =>
+    cyl(r(b[1]), r(b[0]), b[1] - b[0], b[2], -0.8, T0 + (b[0] + b[1]) / 2, -11.9, g, 20),
+  );
+  cyl(0.46, 0.4, 0.25, m.black, -0.8, T0 + 2.92, -11.9, g, 20);
+  cyl(0.25, 0.25, 0.5, m.glass, -0.8, T0 + 3.3, -11.9, g, 14);
+  cyl(0, 0.32, 0.3, m.black, -0.8, T0 + 3.7, -11.9, g, 14);
+
+  const balao = (x: number, y: number, z: number, rr: number, cor: string, tipo: string) => {
+    const t = tex(512, 256, (c, W, H) => {
+      c.fillStyle = cor;
+      c.fillRect(0, 0, W, H);
+      for (let k = 0; k < 4; k++) {
+        const cx = 64 + 128 * k;
+        const cy = 128;
+        if (tipo === "paz") {
+          c.lineWidth = 9;
+          c.strokeStyle = "#f2c200";
+          c.beginPath();
+          c.arc(cx, cy, 48, 0, 7);
+          c.stroke();
+          c.beginPath();
+          c.moveTo(cx, cy - 48);
+          c.lineTo(cx, cy + 48);
+          c.stroke();
+          c.strokeStyle = "#d9342b";
+          c.beginPath();
+          c.moveTo(cx, cy);
+          c.lineTo(cx - 34, cy + 34);
+          c.stroke();
+          c.strokeStyle = "#2fa84f";
+          c.beginPath();
+          c.moveTo(cx, cy);
+          c.lineTo(cx + 34, cy + 34);
+          c.stroke();
+        } else {
+          c.fillStyle = tipo === "verde" ? "#ffd23a" : "#fff";
+          c.beginPath();
+          for (let i = 0; i < 10; i++) {
+            const a = -PI / 2 + (i * PI) / 5;
+            const rr2 = i % 2 ? 20 : 46;
+            c.lineTo(cx + Math.cos(a) * rr2, cy + Math.sin(a) * rr2);
+          }
+          c.closePath();
+          c.fill();
+        }
+      }
+    });
+    const b = new THREE.Group();
+    b.position.set(x, y, z);
+    g.add(b);
+    b.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(rr, 20, 14),
+        new THREE.MeshStandardMaterial({ map: t, roughness: 0.5 }),
+      ),
+    );
+    bx(0.015, y - rr, 0.015, m.dark, 0, -(y - rr) / 2 - rr, 0, b);
+    return { b, y, ph: rnd() * 6 };
+  };
+  const baloes = [
+    balao(-1.2, 4.6, 3.8, 0.8, "#f6f6f2", "paz"),
+    balao(1.8, 5, -4.5, 0.75, "#d9342b", "estrela"),
+    balao(0, 4.2, 6.5, 0.65, "#2fa84f", "verde"),
+  ];
+
+  const cores = [0x14b8c8, 0x2a6df0, 0xe040c0, 0x3ccf80, 0xf0d030];
+  const fum: {
+    s: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
+    d: number;
+    sx: number;
+    sz: number;
+  }[] = [];
+  for (let i = 0; i < 16; i++) {
+    const s = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5, 10, 8),
+      new THREE.MeshBasicMaterial({
+        color: cores[i % 5],
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      }),
+    );
+    s.visible = false;
+    g.add(s);
+    fum.push({ s, d: rnd() * 1.5, sx: (rnd() - 0.5) * 2, sz: (rnd() - 0.5) * 2 });
+  }
+
+  const NC = 320;
+  const cp = new Float32Array(NC * 3);
+  const cc = new Float32Array(NC * 3);
+  const cv2: number[] = [];
+  for (let i = 0; i < NC; i++) {
+    col.setHSL(rnd(), 1, 0.6);
+    cc.set([col.r, col.g, col.b], i * 3);
+    cv2.push(0.8 + rnd() * 0.9);
+  }
+  const confete = pts(cp, cc, 0.07);
+  confete.visible = false;
+  const reset = () => {
+    for (let i = 0; i < NC; i++) cp.set([(rnd() - 0.5) * 5, 3.5 + rnd() * 4, -2 + rnd() * 5], i * 3);
+  };
+  let ativo = false;
+  let tb = 0;
+  let auto = 8;
+  let t = 0;
+  let vai = true;
+  let tled = 0;
+  const disparar = () => {
+    ativo = true;
+    tb = 0;
+    reset();
+    confete.visible = true;
+  };
+
+  g.userData.alternarFesta = () => (vai = !vai);
+  g.userData.disparar = disparar;
+  g.userData.tick = (dt) => {
+    if (!vai) return;
+    t += dt;
+    const ha = pH.geometry.attributes.position;
+    const ta = pT.geometry.attributes.position;
+    for (let i = 0; i < N; i++) {
+      const b = Math.abs(Math.sin(t * 5 + ph[i]));
+      (ha.array as Float32Array)[i * 3 + 1] = ys[i] + 0.8 + 0.09 * b;
+      (ta.array as Float32Array)[i * 3 + 1] = ys[i] + 0.45 + 0.05 * b;
+    }
+    ha.needsUpdate = true;
+    ta.needsUpdate = true;
+    tled += dt;
+    if (tled > 0.12) {
+      tled = 0;
+      ledDraw(t);
+    }
+    luzes.forEach((l, i) =>
+      l.material.color.setHSL((i * 0.12 + t * 0.4) % 1, 1, Math.sin(t * 8 + i) > 0 ? 0.6 : 0.15),
+    );
+    baloes.forEach((o) => {
+      o.b.position.y = o.y + 0.14 * Math.sin(t * 0.9 + o.ph);
+      o.b.rotation.y += dt * 0.15;
+    });
+    auto -= dt;
+    if (auto <= 0) {
+      auto = 14;
+      disparar();
+    }
+    if (ativo) {
+      tb += dt;
+      fum.forEach((f) => {
+        const l = (tb - f.d) / 4;
+        if (l <= 0 || l >= 1) {
+          f.s.visible = false;
+          return;
+        }
+        f.s.visible = true;
+        f.s.position.set(f.sx * (0.3 + l * 1.6), 3.6 + l * 4.5, 0.4 + f.sz * (0.3 + l * 1.6));
+        f.s.scale.setScalar(0.5 + l * 2.6);
+        f.s.material.opacity = 0.38 * (1 - l);
+      });
+      const ca = confete.geometry.attributes.position;
+      for (let i = 0; i < NC; i++) {
+        cp[i * 3 + 1] -= cv2[i] * dt;
+        cp[i * 3] += Math.sin(t * 2 + i) * dt * 0.3;
+        if (cp[i * 3 + 1] < 0.8) cp[i * 3 + 1] = 7.5;
+      }
+      ca.needsUpdate = true;
+      if (tb > 8) {
+        ativo = false;
+        fum.forEach((f) => (f.s.visible = false));
+        confete.visible = false;
+      }
+    }
+  };
+
+  return g;
+}
