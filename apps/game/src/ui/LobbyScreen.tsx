@@ -13,6 +13,7 @@ import {
 import {
   clearRoomParam,
   createRoom,
+  isLocalhostJoinUrl,
   isSupabaseConfigured,
   joinRoom,
   loadRoom,
@@ -98,17 +99,35 @@ export function LobbyScreen({ onStart }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!initialRoom) return;
+    if (!initialRoom || !clientId) return;
     let cancelled = false;
-    void loadRoom(initialRoom).then((existing) => {
-      if (cancelled) return;
-      if (existing) {
-        setRoom(existing);
-        setPhase(existing.hostId === clientId && clientId ? "host" : "guest");
-      } else {
-        setError("Sala não encontrada. Confira o código ou o QR.");
-      }
-    });
+    setBusy(true);
+    void loadRoom(initialRoom)
+      .then((existing) => {
+        if (cancelled) return;
+        if (existing) {
+          setError(null);
+          setRoom(existing);
+          setPhase(
+            existing.hostId === clientId ? "host" : "guest",
+          );
+        } else {
+          setError(
+            "Sala não encontrada. Confira o código/QR ou peça um novo link ao anfitrião.",
+          );
+        }
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Falha ao carregar a sala (auth/rede/RLS).",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -246,10 +265,13 @@ export function LobbyScreen({ onStart }: Props) {
     void loadRoom(id)
       .then((existing) => {
         if (!existing) {
-          setError("Sala não encontrada. Confira o código ou o QR.");
+          setError(
+            "Sala não encontrada. Confira o código/QR ou peça um novo link.",
+          );
           return;
         }
         startedRef.current = false;
+        setError(null);
         setRoom(existing);
         setPhase("guest");
         const url = new URL(window.location.href);
@@ -257,7 +279,11 @@ export function LobbyScreen({ onStart }: Props) {
         window.history.replaceState({}, "", url.toString());
       })
       .catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : "Falha ao buscar sala.");
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Falha ao buscar sala (auth/rede/RLS).",
+        );
       })
       .finally(() => setBusy(false));
   };
@@ -609,6 +635,16 @@ export function LobbyScreen({ onStart }: Props) {
                 >
                   {copied ? "Link copiado!" : "Copiar link"}
                 </button>
+
+                {isLocalhostJoinUrl(joinUrl) ? (
+                  <p className="rounded-lg border-2 border-[#b45309] bg-[#fff7ed] px-3 py-2 text-xs font-bold text-[#9a3412]">
+                    Este link usa <code>localhost</code> — só funciona neste
+                    PC. No terminal do Vite, abra o endereço{" "}
+                    <strong>Network</strong> (ex.:{" "}
+                    <code>http://192.168.x.x:5173</code>), crie a sala de novo
+                    e compartilhe esse QR/link com os outros no mesmo Wi‑Fi.
+                  </p>
+                ) : null}
 
                 <div className="rounded-xl border-2 border-[#5c3d2e] bg-[#fef08a]/70 p-3">
                   <h3 className="deed-sheet__section-title">Seu perfil</h3>

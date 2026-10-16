@@ -79,11 +79,7 @@ async function fetchRoomState(roomId: string): Promise<RoomState | null> {
 
 export async function remoteLoadRoom(roomId: string): Promise<RoomState | null> {
   await ensureAnonSession();
-  try {
-    return await fetchRoomState(roomId);
-  } catch {
-    return null;
-  }
+  return fetchRoomState(roomId);
 }
 
 export async function remoteCreateRoom(

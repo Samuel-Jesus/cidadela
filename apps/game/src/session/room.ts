@@ -38,6 +38,15 @@ export function roomJoinUrl(roomId: string): string {
   return url.toString();
 }
 
+export function isLocalhostJoinUrl(joinUrl: string): boolean {
+  try {
+    const host = new URL(joinUrl).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+  } catch {
+    return false;
+  }
+}
+
 export function readRoomParam(): string | null {
   const id = new URLSearchParams(window.location.search).get("room");
   return id?.trim().toUpperCase() || null;
