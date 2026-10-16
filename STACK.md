@@ -3,9 +3,9 @@
 > **Referências:** [`REQUISITOS.md`](./REQUISITOS.md) · [`SPECS.md`](./SPECS.md)  
 > Stack oficial alinhada aos FRs do `SPECS.md` (turnos, tabuleiro, banco, Forte, negociações, falência).
 
-**Versão:** 0.4  
-**Status:** Stack oficial — **Three.js + React Three Fiber** · hot-seat jogável  
-**Decisão:** 2026-03-15 (evoluiu da Opção B Phaser → 3D real) · sync implementação 2026-10-16
+**Versão:** 0.5  
+**Status:** Stack oficial — **Three.js + React Three Fiber** · hot-seat + **Supabase** (lobby/partida online)  
+**Decisão:** 2026-03-15 (evoluiu da Opção B Phaser → 3D real) · sync implementação 2026-10-16 · Supabase 2026-10-16
 
 ---
 
@@ -20,7 +20,7 @@ Tabuleiro e cena em **Three.js** via **React Three Fiber**, com shell React/Vite
 | Shell (HUD, menus) | **React 19** + Vite + Tailwind |
 | Motor de regras | **TypeScript puro** (`packages/engine`) |
 | Landmarks | Procedurais em `apps/game/src/landmarks/` |
-| Multiplayer | Fase 2 (Colyseus ou PartyKit) |
+| Multiplayer | **Supabase** (Postgres + Realtime + auth anônima); hot-seat local sem rede |
 | Mobile nativo | Fora do MVP (PWA possível depois) |
 
 **Histórico:** Opção B começou com Phaser (faux-3D isométrico). Substituído por Three.js para câmera orbitável, luzes, sombras e modelos por casa.
@@ -89,9 +89,13 @@ cidadela/
 
 ---
 
-## 4. Multiplayer (fase 2)
+## 4. Multiplayer (Supabase)
 
-Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `engine` → sync estado → cena anima.
+- **Lobby online:** tabelas `rooms` / `room_members`; link + QR; Realtime.
+- **Partida:** `games.state` (JSONB `GameSnapshot`) + `game_actions` (intents).
+- **Autoridade:** anfitrião aplica `@cidadela/shared` no cliente e grava o snapshot; convidados enviam intents e hidratam via Realtime.
+- **Hot-seat local (FR-05h):** não usa Supabase.
+- **Setup:** copie [`.env.example`](./.env.example) → `.env` na raiz (Vite `envDir`); rode [`supabase/migrations/001_rooms_games.sql`](./supabase/migrations/001_rooms_games.sql) no SQL Editor; ative **Anonymous Sign-Ins**.
 
 ---
 
@@ -106,7 +110,8 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Vitest FRs críticos (`pnpm test` / `@cidadela/shared`)
 - [x] Hot-seat local completo (turnos, dívida, leilão, negociação, vitória)
 - [ ] Estado de partida unificado no `engine` (hoje orquestrado no `App.tsx`)
-- [ ] Colyseus/PartyKit fase 2
+- [x] Supabase: salas + sync de partida (host-authoritative)
+- [ ] Edge Function como autoridade de regras (anti-cheat, opcional)
 
 ### Checklist do tabuleiro / UI
 
@@ -129,8 +134,9 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Negociação entre jogadores
 - [x] Aluguel pedido (FR-22a) + overlay de vitória
 - [ ] Pousadas/resorts visíveis nas casas 3D
-- [x] Lobby anfitrião (qtd + link/QR) e entrada de convidados (nome/peão)
-- [ ] Sync de sala multi-aparelho (fase 2)
+- [x] Lobby anfitrião (qtd + link/QR) e entrada de convidados (nome/peão) via Supabase
+- [x] Lobby local "Jogar neste aparelho" (hot-seat, FR-05h)
+- [x] Sync de sala e partida multi-aparelho (Supabase Realtime)
 - [x] Loading inicial com avião (pré-carga de assets)
 - [ ] Áudio/FX (`SPECS.md` §17b): SFX dinheiro/imposto; Carnaval+Canário; viatura → Forte; guincho ao vender construção
 
@@ -138,7 +144,7 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 
 ## 6. Decisões fechadas
 
-1. MVP **hot-seat** (rede na fase 2)
+1. MVP **hot-seat** + **online Supabase** (host aplica regras)
 2. HUD **React overlay**
 3. Tabuleiro **Three.js** com landmarks procedurais
 4. Phaser **descontinuado** neste projeto

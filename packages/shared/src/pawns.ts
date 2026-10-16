@@ -56,6 +56,7 @@ export type PlayerState = {
 export type LobbySeat = {
   name: string;
   pawnId: PawnId;
+  playerId?: string;
 };
 
 export type LobbySetup = {
@@ -108,14 +109,13 @@ export function validateLobbySetup(
   return { ok: true };
 }
 
-/** Cria a mesa a partir do Lobby (FR-05d). */
 export function createPlayersFromLobby(setup: LobbySetup): PlayerState[] {
   const check = validateLobbySetup(setup);
   if (!check.ok) {
     throw new Error(check.error);
   }
   return setup.seats.map((seat, i) => ({
-    id: `player-${i + 1}`,
+    id: seat.playerId?.trim() || `player-${i + 1}`,
     pawnId: seat.pawnId,
     name: seat.name.trim(),
     isBanker: i === setup.bankerIndex,

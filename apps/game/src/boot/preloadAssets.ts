@@ -8,10 +8,8 @@ export type PreloadStage = "fonts" | "download" | "build" | "ready";
 
 export type PreloadProgress = {
   stage: PreloadStage;
-  /** 0–1 global (todas as etapas ponderadas). */
   ratio: number;
   hint: string;
-  /** Ex.: "1,2 / 2,9 MB" durante o download. */
   detail?: string;
 };
 
@@ -57,10 +55,6 @@ async function loadFonts(): Promise<void> {
 
 type DownloadState = { loaded: number; total: number; done: boolean };
 
-/**
- * Baixa cada GLTF com progresso por bytes e deposita o ArrayBuffer no
- * `THREE.Cache`, de onde o `FileLoader` do `useGLTF` lê sem refazer a requisição.
- */
 async function downloadModels(
   onBytes: (states: DownloadState[], activeLabel: string | null) => void,
 ): Promise<void> {
@@ -105,10 +99,9 @@ async function downloadModels(
 
         let buffer: ArrayBuffer;
         if (res.body && s.total > 0) {
-          // Com gzip o content-length é o tamanho comprimido; o corpo pode passar dele.
           const reader = res.body.getReader();
           const chunks: Uint8Array[] = [];
-          for (;;) {
+          for (; ;) {
             const { done, value } = await reader.read();
             if (done) break;
             chunks.push(value);
@@ -129,7 +122,6 @@ async function downloadModels(
         }
         Cache.add(key, buffer);
       } catch {
-        // Sem cache: o useGLTF tenta de novo sozinho ao montar a cena.
       } finally {
         s.done = true;
         emit();
@@ -138,7 +130,6 @@ async function downloadModels(
   );
 }
 
-/** Parse dos GLTFs pelo mesmo pipeline do drei, acompanhando o LoadingManager. */
 function buildModels(onRatio: (r: number) => void): Promise<void> {
   const mgr = DefaultLoadingManager;
   const prev = {
@@ -171,7 +162,6 @@ function buildModels(onRatio: (r: number) => void): Promise<void> {
 
     preloadLandmarkModels();
 
-    // Tudo já estava no cache do drei: o manager nem chega a disparar.
     window.setTimeout(() => {
       if (!started) finish();
     }, 50);
@@ -179,10 +169,27 @@ function buildModels(onRatio: (r: number) => void): Promise<void> {
   });
 }
 
-export async function preloadGameAssets(
-  onProgress?: (p: PreloadProgress) => void,
-): Promise<void> {
-  const emit = (p: PreloadProgress) => onProgress?.(p);
+type ProgressListener = (p: PreloadProgress) => void;
+
+const listeners = new Set<ProgressListener>();
+let inflight: Promise<void> | null = null;
+let lastProgress: PreloadProgress | null = null;
+
+export function preloadGameAssets(onProgress?: ProgressListener): Promise<void> {
+  if (onProgress) {
+    listeners.add(onProgress);
+    if (lastProgress) onProgress(lastProgress);
+  }
+  inflight ??= runPreload((p) => {
+    lastProgress = p;
+    for (const l of listeners) l(p);
+  });
+  return inflight.finally(() => {
+    if (onProgress) listeners.delete(onProgress);
+  });
+}
+
+async function runPreload(emit: ProgressListener): Promise<void> {
 
   emit({ stage: "fonts", ratio: 0, hint: "Conferindo as passagens…" });
   await loadFonts();

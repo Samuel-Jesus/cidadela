@@ -1,20 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import {
   PAWNS,
   STARTING_CASH,
   formatCash,
   getPawnDef,
+  validateLobbySetup,
+  type LobbySeat,
   type LobbySetup,
   type PawnId,
 } from "@cidadela/shared";
 import {
   clearRoomParam,
   createRoom,
-  getClientId,
+  isSupabaseConfigured,
   joinRoom,
   loadRoom,
   readRoomParam,
+  resolveClientId,
   roomJoinUrl,
   startRoom,
   subscribeRoom,
@@ -22,23 +25,44 @@ import {
   type RoomState,
 } from "../session/room";
 
-type Props = {
-  onStart: (setup: LobbySetup) => void;
+export type LobbyStartMeta = {
+  mode: "local" | "online";
+  roomId?: string;
+  localPlayerId?: string;
+  isHost?: boolean;
 };
 
-type Phase = "home" | "host" | "guest";
+type Props = {
+  onStart: (setup: LobbySetup, meta?: LobbyStartMeta) => void;
+};
+
+type Phase = "home" | "local" | "host" | "guest";
+
+function defaultSeat(index: number, taken: Set<PawnId>): LobbySeat {
+  const pawn = PAWNS.find((p) => !taken.has(p.id)) ?? PAWNS[index]!;
+  return { name: `Jogador ${index + 1}`, pawnId: pawn.id };
+}
+
+function resizeSeats(seats: LobbySeat[], count: number): LobbySeat[] {
+  if (count <= seats.length) return seats.slice(0, count);
+  const next = [...seats];
+  while (next.length < count) {
+    next.push(defaultSeat(next.length, new Set(next.map((s) => s.pawnId))));
+  }
+  return next;
+}
 
 export function LobbyScreen({ onStart }: Props) {
-  const clientId = useMemo(() => getClientId(), []);
+  const online = isSupabaseConfigured();
   const initialRoom = useMemo(() => readRoomParam(), []);
+  const [clientId, setClientId] = useState<string>("");
+  const [busy, setBusy] = useState(false);
 
   const [phase, setPhase] = useState<Phase>(() =>
     initialRoom ? "guest" : "home",
   );
   const [maxPlayers, setMaxPlayers] = useState(4);
-  const [room, setRoom] = useState<RoomState | null>(() =>
-    initialRoom ? loadRoom(initialRoom) : null,
-  );
+  const [room, setRoom] = useState<RoomState | null>(null);
   const [roomIdInput, setRoomIdInput] = useState(initialRoom ?? "");
   const [hostName, setHostName] = useState("Anfitrião");
   const [hostPawn, setHostPawn] = useState<PawnId>("acaraje");
@@ -47,20 +71,70 @@ export function LobbyScreen({ onStart }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localSeats, setLocalSeats] = useState<LobbySeat[]>(() =>
+    resizeSeats([], 4),
+  );
+  const [localBanker, setLocalBanker] = useState(0);
+  const startedRef = useRef(false);
 
   const joinUrl = room ? roomJoinUrl(room.roomId) : "";
 
   useEffect(() => {
-    if (!room?.roomId) return;
+    let cancelled = false;
+    void resolveClientId()
+      .then((id) => {
+        if (!cancelled) setClientId(id);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setError(
+            e instanceof Error ? e.message : "Falha ao autenticar no Supabase.",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!initialRoom) return;
+    let cancelled = false;
+    void loadRoom(initialRoom).then((existing) => {
+      if (cancelled) return;
+      if (existing) {
+        setRoom(existing);
+        setPhase(existing.hostId === clientId && clientId ? "host" : "guest");
+      } else {
+        setError("Sala não encontrada. Confira o código ou o QR.");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialRoom, clientId]);
+
+  useEffect(() => {
+    if (!room?.roomId || !clientId) return;
     return subscribeRoom(room.roomId, (next) => {
       if (!next) return;
       setRoom(next);
-      if (next.status === "started" && next.startedSetup) {
+      if (
+        next.status === "started" &&
+        next.startedSetup &&
+        !startedRef.current
+      ) {
+        startedRef.current = true;
         clearRoomParam();
-        onStart(next.startedSetup);
+        onStart(next.startedSetup, {
+          mode: online ? "online" : "local",
+          roomId: next.roomId,
+          localPlayerId: clientId,
+          isHost: next.hostId === clientId,
+        });
       }
     });
-  }, [room?.roomId, onStart]);
+  }, [room?.roomId, onStart, clientId, online, startedRef]);
 
   useEffect(() => {
     if (!joinUrl) {
@@ -97,19 +171,62 @@ export function LobbyScreen({ onStart }: Props) {
     if (free) setGuestPawn(free.id);
   }, [phase, room, usedPawns, guestPawn, iAmInRoom]);
 
-  const createAsHost = () => {
+  const setLocalCount = (count: number) => {
+    setLocalSeats((seats) => resizeSeats(seats, count));
+    setLocalBanker((b) => (b < count ? b : 0));
+  };
+
+  const updateLocalSeat = (index: number, patch: Partial<LobbySeat>) => {
+    setLocalSeats((seats) =>
+      seats.map((s, i) => (i === index ? { ...s, ...patch } : s)),
+    );
+  };
+
+  const startLocal = () => {
+    const setup: LobbySetup = {
+      seats: localSeats.map((s) => ({ ...s, name: s.name.trim() })),
+      bankerIndex: localBanker,
+    };
+    const check = validateLobbySetup(setup);
+    if (!check.ok) {
+      setError(check.error);
+      return;
+    }
     setError(null);
+    onStart(setup, { mode: "local" });
+  };
+
+  const createAsHost = () => {
+    if (!clientId) {
+      setError("Aguardando autenticação…");
+      return;
+    }
+    if (!online) {
+      setError(
+        "Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env da raiz para salas online.",
+      );
+      return;
+    }
+    setError(null);
+    setBusy(true);
     const name = hostName.trim() || "Anfitrião";
-    const state = createRoom(maxPlayers, {
+    void createRoom(maxPlayers, {
       clientId,
       name,
       pawnId: hostPawn,
-    });
-    setRoom(state);
-    setPhase("host");
-    const url = new URL(window.location.href);
-    url.searchParams.set("room", state.roomId);
-    window.history.replaceState({}, "", url.toString());
+    })
+      .then((state) => {
+        startedRef.current = false;
+        setRoom(state);
+        setPhase("host");
+        const url = new URL(window.location.href);
+        url.searchParams.set("room", state.roomId);
+        window.history.replaceState({}, "", url.toString());
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "Falha ao criar sala.");
+      })
+      .finally(() => setBusy(false));
   };
 
   const enterAsGuest = () => {
@@ -119,59 +236,91 @@ export function LobbyScreen({ onStart }: Props) {
       setError("Informe o código da sala.");
       return;
     }
-    const existing = loadRoom(id);
-    if (!existing) {
-      setError("Sala não encontrada. Confira o código ou o QR.");
+    if (!online) {
+      setError(
+        "Configure o Supabase no .env da raiz para entrar em salas online.",
+      );
       return;
     }
-    setRoom(existing);
-    setPhase("guest");
-    const url = new URL(window.location.href);
-    url.searchParams.set("room", id);
-    window.history.replaceState({}, "", url.toString());
+    setBusy(true);
+    void loadRoom(id)
+      .then((existing) => {
+        if (!existing) {
+          setError("Sala não encontrada. Confira o código ou o QR.");
+          return;
+        }
+        startedRef.current = false;
+        setRoom(existing);
+        setPhase("guest");
+        const url = new URL(window.location.href);
+        url.searchParams.set("room", id);
+        window.history.replaceState({}, "", url.toString());
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "Falha ao buscar sala.");
+      })
+      .finally(() => setBusy(false));
   };
 
   const confirmGuestJoin = () => {
-    if (!room) return;
+    if (!room || !clientId) return;
     setError(null);
-    const result = joinRoom(room.roomId, {
+    setBusy(true);
+    void joinRoom(room.roomId, {
       clientId,
       name: guestName,
       pawnId: guestPawn,
-    });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setRoom(result.state);
+    })
+      .then((result) => {
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setRoom(result.state);
+      })
+      .finally(() => setBusy(false));
   };
 
   const saveHostProfile = () => {
-    if (!room) return;
-    const result = updateMemberProfile(room.roomId, clientId, {
+    if (!room || !clientId) return;
+    setBusy(true);
+    void updateMemberProfile(room.roomId, clientId, {
       name: hostName,
       pawnId: hostPawn,
-    });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setError(null);
-    setRoom(result.state);
+    })
+      .then((result) => {
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setError(null);
+        setRoom(result.state);
+      })
+      .finally(() => setBusy(false));
   };
 
   const beginMatch = () => {
-    if (!room) return;
-    const result = startRoom(room.roomId, clientId);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setRoom(result.state);
-    if (result.state.startedSetup) {
-      clearRoomParam();
-      onStart(result.state.startedSetup);
-    }
+    if (!room || !clientId) return;
+    setBusy(true);
+    void startRoom(room.roomId, clientId)
+      .then((result) => {
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setRoom(result.state);
+        if (result.state.startedSetup && !startedRef.current) {
+          startedRef.current = true;
+          clearRoomParam();
+          onStart(result.state.startedSetup, {
+            mode: online ? "online" : "local",
+            roomId: result.state.roomId,
+            localPlayerId: clientId,
+            isHost: true,
+          });
+        }
+      })
+      .finally(() => setBusy(false));
   };
 
   const copyLink = async () => {
@@ -198,7 +347,7 @@ export function LobbyScreen({ onStart }: Props) {
     );
 
   return (
-    <div className="lobby relative flex min-h-dvh w-dvw flex-col overflow-y-auto">
+    <div className="lobby relative flex min-h-dvh w-full flex-col overflow-x-hidden overflow-y-auto">
       <div className="lobby__bg" aria-hidden />
 
       <div className="relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-8 sm:py-12">
@@ -208,7 +357,7 @@ export function LobbyScreen({ onStart }: Props) {
             Cidadela
           </h1>
           <p className="mt-3 max-w-md text-sm font-semibold text-[#ffd7a8] sm:text-base">
-            O anfitrião monta a sala; os outros entram pelo link ou QR Code.
+            Hot-seat neste aparelho ou sala online com link e QR Code.
           </p>
         </header>
 
@@ -223,7 +372,9 @@ export function LobbyScreen({ onStart }: Props) {
             <h2 className="deed-sheet__title deed-sheet__title--dark text-xl">
               {phase === "home"
                 ? "Criar ou entrar"
-                : phase === "host"
+                : phase === "local"
+                  ? "Mesa neste aparelho"
+                  : phase === "host"
                   ? "Sala do anfitrião"
                   : "Entrar na sala"}
             </h2>
@@ -235,8 +386,34 @@ export function LobbyScreen({ onStart }: Props) {
           <div className="deed-sheet__body min-h-0 flex-1 space-y-4 overflow-y-auto">
             {phase === "home" ? (
               <>
+                <div className="rounded-xl border-2 border-[#5c3d2e] bg-[#ecfdf5] p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
+                  <h3 className="deed-sheet__section-title">
+                    Jogar neste aparelho
+                  </h3>
+                  <p className="deed-sheet__note mb-3">
+                    Todos jogam na mesma tela, passando a vez.
+                  </p>
+                  <button
+                    type="button"
+                    className="deed-btn deed-btn--mint w-full"
+                    onClick={() => {
+                      setError(null);
+                      setPhase("local");
+                    }}
+                  >
+                    Montar a mesa
+                  </button>
+                </div>
+
                 <div className="rounded-xl border-2 border-[#5c3d2e] bg-white/80 p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
-                  <h3 className="deed-sheet__section-title">Sou anfitrião</h3>
+                  <h3 className="deed-sheet__section-title">
+                    Sala online · link / QR
+                  </h3>
+                  <p className="deed-sheet__note mb-2">
+                    {online
+                      ? "Convidados entram pelo link ou QR em qualquer aparelho. O anfitrião sincroniza a partida."
+                      : "Falta configurar o Supabase (.env na raiz) para liberar salas entre aparelhos."}
+                  </p>
                   <label className="mb-2 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
                     Quantidade de jogadores
                     <select
@@ -278,10 +455,11 @@ export function LobbyScreen({ onStart }: Props) {
                   </label>
                   <button
                     type="button"
-                    className="deed-btn deed-btn--mint w-full"
+                    className="deed-btn deed-btn--soft w-full"
+                    disabled={busy || !online}
                     onClick={createAsHost}
                   >
-                    Criar sala e gerar QR
+                    {busy ? "Criando…" : "Criar sala e gerar QR"}
                   </button>
                 </div>
 
@@ -307,6 +485,85 @@ export function LobbyScreen({ onStart }: Props) {
                     Continuar para entrar
                   </button>
                 </div>
+              </>
+            ) : null}
+
+            {phase === "local" ? (
+              <>
+                <label className="flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
+                  Quantidade de jogadores
+                  <select
+                    className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-2 font-bold text-[#5c3d2e]"
+                    value={localSeats.length}
+                    onChange={(e) => setLocalCount(Number(e.target.value))}
+                  >
+                    {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+                      <option key={n} value={n}>
+                        {n} jogadores
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <ul className="m-0 list-none space-y-2 p-0">
+                  {localSeats.map((seat, i) => {
+                    const def = getPawnDef(seat.pawnId);
+                    const takenByOthers = new Set(
+                      localSeats
+                        .filter((_, j) => j !== i)
+                        .map((s) => s.pawnId),
+                    );
+                    return (
+                      <li
+                        key={i}
+                        className="rounded-xl border-2 border-[#5c3d2e] bg-white/80 p-2 shadow-[2px_2px_0_rgba(92,61,46,0.2)]"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-block h-4 w-4 flex-none rounded-full border-2 border-[#5c3d2e]"
+                            style={{ backgroundColor: def.color }}
+                          />
+                          <input
+                            aria-label={`Nome do jogador ${i + 1}`}
+                            className="min-w-0 flex-1 rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 text-sm font-bold text-[#5c3d2e]"
+                            value={seat.name}
+                            maxLength={24}
+                            onChange={(e) =>
+                              updateLocalSeat(i, { name: e.target.value })
+                            }
+                          />
+                          <select
+                            aria-label={`Peão do jogador ${i + 1}`}
+                            className="w-28 flex-none rounded-lg border-2 border-[#5c3d2e] bg-white px-1.5 py-1.5 text-sm font-bold text-[#5c3d2e]"
+                            value={seat.pawnId}
+                            onChange={(e) =>
+                              updateLocalSeat(i, {
+                                pawnId: e.target.value as PawnId,
+                              })
+                            }
+                          >
+                            {PAWNS.filter(
+                              (p) => !takenByOthers.has(p.id),
+                            ).map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <label className="mt-1.5 flex cursor-pointer items-center gap-1.5 text-xs font-bold text-[#6b5344]">
+                          <input
+                            type="radio"
+                            name="local-banker"
+                            checked={localBanker === i}
+                            onChange={() => setLocalBanker(i)}
+                          />
+                          Banqueiro
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
               </>
             ) : null}
 
@@ -393,8 +650,8 @@ export function LobbyScreen({ onStart }: Props) {
                 <MemberList room={room} />
 
                 <p className="deed-sheet__note">
-                  MVP: o QR/link sincroniza entre abas do mesmo navegador.
-                  Multiplayer em aparelhos diferentes entra na fase 2 (servidor).
+                  A partida sincroniza via Supabase Realtime. O anfitrião
+                  aplica as regras; os convidados jogam no próprio aparelho.
                 </p>
               </>
             ) : null}
@@ -457,7 +714,24 @@ export function LobbyScreen({ onStart }: Props) {
           </div>
 
           <footer className="deed-sheet__footer">
-            {phase === "host" && iAmHost ? (
+            {phase === "local" ? (
+              <div className="deed-sheet__actions">
+                <button
+                  type="button"
+                  className="deed-btn deed-btn--soft flex-1"
+                  onClick={leaveToHome}
+                >
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  className="deed-btn deed-btn--mint flex-1"
+                  onClick={startLocal}
+                >
+                  Começar partida
+                </button>
+              </div>
+            ) : phase === "host" && iAmHost ? (
               <div className="deed-sheet__actions">
                 <button
                   type="button"
@@ -469,13 +743,14 @@ export function LobbyScreen({ onStart }: Props) {
                 <button
                   type="button"
                   className="deed-btn deed-btn--mint flex-1"
-                  disabled={(room?.members.length ?? 0) < 2}
+                  disabled={busy || (room?.members.length ?? 0) < 2}
                   onClick={beginMatch}
                 >
-                  Começar
-                  {room
-                    ? ` (${room.members.length}/${room.maxPlayers})`
-                    : ""}
+                  {busy
+                    ? "Iniciando…"
+                    : room
+                      ? `Começar (${room.members.length}/${room.maxPlayers})`
+                      : "Começar"}
                 </button>
               </div>
             ) : phase !== "home" ? (

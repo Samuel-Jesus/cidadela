@@ -45,29 +45,29 @@ import { BoardCanvas } from "./scene/BoardCanvas";
 import { BoardHud } from "./ui/BoardHud";
 import { DrawnCardModal } from "./ui/DrawnCardModal";
 import { LoadingScreen } from "./ui/LoadingScreen";
-import { LobbyScreen } from "./ui/LobbyScreen";
+import {
+  LobbyScreen,
+  type LobbyStartMeta,
+} from "./ui/LobbyScreen";
 import { TradeOverlay } from "./ui/TradeOverlay";
 import { VictoryOverlay } from "./ui/VictoryOverlay";
 import { WalletPanel } from "./ui/WalletPanel";
-
-type AppScreen = "loading" | "lobby" | "game";
-type TurnPhase = "roll" | "busy" | "action" | "debt" | "auction" | "ended";
-
-type AuctionSession = {
-  lot: AuctionLot;
-  queue: AuctionLot[];
-  currentBid: number;
-  highBidderId: string | null;
-  tiedBidderIds: string[] | null;
-  excludedIds: string[];
-  passesSinceBid: number;
-  resumePlayerId: string;
-};
-
-type PendingLanding = {
-  playerId: string;
-  utilityDiceTotal?: number;
-};
+import {
+  type AuctionSession,
+  type GameIntent,
+  type GameSnapshot,
+  type PendingLanding,
+  type TurnPhase,
+} from "./session/gameSnapshot";
+import {
+  enqueueGameAction,
+  loadGame,
+  markActionApplied,
+  pushGameState,
+  subscribeGame,
+  subscribePendingActions,
+} from "./session/gameSync";
+import type { OnlineSession } from "./session/onlineSession";
 
 function applyMove(
   player: PlayerState,
@@ -124,6 +124,8 @@ function isUnownedBuyable(
 const LOADING_MIN_MS = 2200;
 const LOADING_LAND_MS = 700;
 
+type AppScreen = "loading" | "lobby" | "game";
+
 export function App() {
   const [screen, setScreen] = useState<AppScreen>("loading");
   const [loadProgress, setLoadProgress] = useState<PreloadProgress>({
@@ -154,6 +156,10 @@ export function App() {
   const [auction, setAuction] = useState<AuctionSession | null>(null);
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [showTrade, setShowTrade] = useState(false);
+  const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(
+    null,
+  );
+  const [gameVersion, setGameVersion] = useState(0);
   const pendingAuctionsRef = useRef<AuctionLot[]>([]);
   const auctionAdvanceAfterModalRef = useRef<AuctionSession | null>(null);
   const resumePhaseAfterModalRef = useRef<TurnPhase | null>(null);
@@ -170,6 +176,15 @@ export function App() {
   const pendingLandingRef = useRef<PendingLanding | null>(null);
   const pendingNotesRef = useRef<string[]>([]);
   const resolvingRef = useRef(false);
+  const gameVersionRef = useRef(0);
+  gameVersionRef.current = gameVersion;
+  const onlineRef = useRef(onlineSession);
+  onlineRef.current = onlineSession;
+  const applyingRemoteRef = useRef(false);
+  const applyRemoteIntentRef = useRef<
+    (actorId: string, intent: GameIntent) => void
+  >(() => undefined);
+  const processedActionsRef = useRef(new Set<number>());
 
   const activePlayer =
     players.find((p) => p.id === activePlayerId) ?? null;
@@ -205,6 +220,116 @@ export function App() {
       cancelled = true;
     };
   }, [screen]);
+
+  const hydrateSnapshot = useCallback((snap: GameSnapshot) => {
+    applyingRemoteRef.current = true;
+    playersRef.current = snap.players;
+    setPlayers(snap.players);
+    setPlayerCount(snap.players.length);
+    setActivePlayerId(snap.activePlayerId);
+    {
+      const ap = snap.players.find((p) => p.id === snap.activePlayerId);
+      if (ap) setSelectedIndex(ap.position);
+    }
+    setTurnPhase(snap.turnPhase);
+    setDecks(snap.decks);
+    decksRef.current = snap.decks;
+    setDiceRoll(snap.diceRoll);
+    setDiceRollId(snap.diceRollId);
+    setConsecutiveDoubles(snap.consecutiveDoubles);
+    doublesRef.current = snap.consecutiveDoubles;
+    setPendingDebt(snap.pendingDebt);
+    setPendingRent(snap.pendingRent);
+    setAuction(snap.auction);
+    pendingAuctionsRef.current = snap.pendingAuctions;
+    setWinnerId(snap.winnerId);
+    setDrawnCard(snap.drawnCard);
+    setCardNotes(snap.cardNotes);
+    setFollowUpCards(snap.followUpCards);
+    setShowEventModal(snap.showEventModal);
+    setShowTrade(snap.showTrade);
+    setJailError(snap.jailError);
+    pendingLandingRef.current = snap.pendingLanding;
+    extraRollRef.current = snap.extraRoll;
+    forceEndTurnRef.current = snap.forceEndTurn;
+    resumePhaseAfterModalRef.current = snap.resumePhaseAfterModal;
+    auctionAdvanceAfterModalRef.current = snap.auctionAdvanceAfterModal;
+    queueMicrotask(() => {
+      applyingRemoteRef.current = false;
+    });
+  }, []);
+
+  const buildSnapshot = useCallback((): GameSnapshot => {
+    return {
+      v: 1,
+      players: playersRef.current,
+      activePlayerId: activeRef.current,
+      turnPhase,
+      decks: decksRef.current,
+      diceRoll,
+      diceRollId,
+      consecutiveDoubles: doublesRef.current,
+      pendingDebt,
+      pendingRent,
+      auction,
+      pendingAuctions: pendingAuctionsRef.current,
+      winnerId,
+      drawnCard,
+      cardNotes,
+      followUpCards,
+      showEventModal,
+      showTrade,
+      jailError,
+      pendingLanding: pendingLandingRef.current,
+      extraRoll: extraRollRef.current,
+      forceEndTurn: forceEndTurnRef.current,
+      resumePhaseAfterModal: resumePhaseAfterModalRef.current,
+      auctionAdvanceAfterModal: auctionAdvanceAfterModalRef.current,
+    };
+  }, [
+    turnPhase,
+    diceRoll,
+    diceRollId,
+    pendingDebt,
+    pendingRent,
+    auction,
+    winnerId,
+    drawnCard,
+    cardNotes,
+    followUpCards,
+    showEventModal,
+    showTrade,
+    jailError,
+  ]);
+
+  const publishSnapshot = useCallback(async () => {
+    const session = onlineRef.current;
+    if (!session?.isHost || applyingRemoteRef.current) return;
+    const snap = buildSnapshot();
+    const result = await pushGameState(
+      session.roomId,
+      gameVersionRef.current,
+      snap,
+    );
+    if (result.ok) {
+      gameVersionRef.current = result.version;
+      setGameVersion(result.version);
+    }
+  }, [buildSnapshot]);
+
+  const sendIntent = useCallback(
+    (intent: GameIntent, localApply: () => void) => {
+      const session = onlineRef.current;
+      if (session && !session.isHost) {
+        void enqueueGameAction(session.roomId, intent).catch((e: unknown) => {
+          console.error(e);
+        });
+        return;
+      }
+      localApply();
+    },
+    [],
+  );
 
   const dismissEventUi = useCallback(() => {
     setShowEventModal(false);
@@ -458,19 +583,62 @@ export function App() {
   }, [dismissEventUi]);
 
   const startFromLobby = useCallback(
-    (setup: LobbySetup) => {
+    (setup: LobbySetup, meta?: LobbyStartMeta) => {
+      resetSessionFlags();
+      processedActionsRef.current.clear();
+
+      if (meta?.mode === "online" && meta.roomId && meta.localPlayerId) {
+        const session: OnlineSession = {
+          roomId: meta.roomId,
+          isHost: Boolean(meta.isHost),
+          localPlayerId: meta.localPlayerId,
+        };
+        setOnlineSession(session);
+        void loadGame(meta.roomId)
+          .then((row) => {
+            if (row?.state) {
+              hydrateSnapshot(row.state);
+              gameVersionRef.current = row.version;
+              setGameVersion(row.version);
+            } else {
+              const next = createPlayersFromLobby(setup);
+              setPlayerCount(next.length);
+              setPlayers(next);
+              playersRef.current = next;
+              setActivePlayerId(next[0]?.id ?? null);
+              setGameVersion(0);
+              gameVersionRef.current = 0;
+            }
+            setScreen("game");
+          })
+          .catch(() => {
+            const next = createPlayersFromLobby(setup);
+            setPlayerCount(next.length);
+            setPlayers(next);
+            playersRef.current = next;
+            setActivePlayerId(next[0]?.id ?? null);
+            setScreen("game");
+          });
+        return;
+      }
+
+      setOnlineSession(null);
+      setGameVersion(0);
+      gameVersionRef.current = 0;
       const next = createPlayersFromLobby(setup);
       setPlayerCount(next.length);
       setPlayers(next);
       playersRef.current = next;
       setActivePlayerId(next[0]?.id ?? null);
-      resetSessionFlags();
       setScreen("game");
     },
-    [resetSessionFlags],
+    [resetSessionFlags, hydrateSnapshot],
   );
 
   const returnToLobby = useCallback(() => {
+    setOnlineSession(null);
+    setGameVersion(0);
+    gameVersionRef.current = 0;
     setScreen("lobby");
     setPlayers([]);
     playersRef.current = [];
@@ -478,13 +646,67 @@ export function App() {
     resetSessionFlags();
   }, [resetSessionFlags]);
 
-  /** Reinício rápido com a mesma quantidade (nomes/peões padrão via Lobby). */
   const handlePlayerCountChange = useCallback(
     (_count: number) => {
       returnToLobby();
     },
     [returnToLobby],
   );
+
+  useEffect(() => {
+    if (screen !== "game" || !onlineSession || onlineSession.isHost) return;
+    return subscribeGame(onlineSession.roomId, (row) => {
+      if (row.version <= gameVersionRef.current) return;
+      gameVersionRef.current = row.version;
+      setGameVersion(row.version);
+      hydrateSnapshot(row.state);
+    });
+  }, [screen, onlineSession, hydrateSnapshot]);
+
+  useEffect(() => {
+    if (screen !== "game" || !onlineSession?.isHost) return;
+    if (applyingRemoteRef.current) return;
+    const t = window.setTimeout(() => {
+      void publishSnapshot();
+    }, 180);
+    return () => window.clearTimeout(t);
+  }, [
+    screen,
+    onlineSession,
+    publishSnapshot,
+    players,
+    activePlayerId,
+    turnPhase,
+    decks,
+    diceRoll,
+    diceRollId,
+    consecutiveDoubles,
+    pendingDebt,
+    pendingRent,
+    auction,
+    winnerId,
+    drawnCard,
+    cardNotes,
+    followUpCards,
+    showEventModal,
+    showTrade,
+    jailError,
+  ]);
+
+  useEffect(() => {
+    if (screen !== "game" || !onlineSession?.isHost) return;
+    return subscribePendingActions(onlineSession.roomId, (action) => {
+      if (processedActionsRef.current.has(action.id)) return;
+      if (action.actor_id === onlineSession.localPlayerId) {
+        processedActionsRef.current.add(action.id);
+        void markActionApplied(action.id);
+        return;
+      }
+      processedActionsRef.current.add(action.id);
+      applyRemoteIntentRef.current(action.actor_id, action.payload);
+      void markActionApplied(action.id);
+    });
+  }, [screen, onlineSession]);
 
   const queueLanding = useCallback(
     (playerId: string, utilityDiceTotal?: number) => {
@@ -506,7 +728,7 @@ export function App() {
     setPlayers((prev) => {
       const next = prev.map((p) =>
         p.id === activePlayerId ? { ...p, position: selectedIndex } : p,
-    );
+      );
       playersRef.current = next;
       return next;
     });
@@ -533,7 +755,7 @@ export function App() {
     [activePlayerId, turnPhase, queueLanding],
   );
 
-  const onBuySelected = useCallback(() => {
+  const onBuySelectedLocal = useCallback(() => {
     if (!activePlayerId || selectedIndex === null || turnPhase !== "action") {
       return;
     }
@@ -551,7 +773,15 @@ export function App() {
     }
   }, [activePlayerId, selectedIndex, turnPhase, startNextTurn]);
 
-  const onPassTurn = useCallback(() => {
+  const onBuySelected = useCallback(() => {
+    if (selectedIndex === null) return;
+    sendIntent(
+      { type: "buySelected", spaceIndex: selectedIndex },
+      onBuySelectedLocal,
+    );
+  }, [sendIntent, onBuySelectedLocal, selectedIndex]);
+
+  const onPassTurnLocal = useCallback(() => {
     if (!activePlayerId || turnPhase !== "action") return;
     if (
       selectedIndex !== null &&
@@ -576,6 +806,10 @@ export function App() {
     startNextTurn,
     beginAuctions,
   ]);
+
+  const onPassTurn = useCallback(() => {
+    sendIntent({ type: "passTurn" }, onPassTurnLocal);
+  }, [sendIntent, onPassTurnLocal]);
 
   const onDrawCard = useCallback(() => {
     if (!activePlayerId || selectedIndex === null || showEventModal) return;
@@ -809,7 +1043,7 @@ export function App() {
     presentEvent(settled.notes, []);
   }, [pendingRent, presentEvent, endGameIfWon, enqueueAuctions]);
 
-  const onRollDice = useCallback(() => {
+  const onRollDiceLocal = useCallback(() => {
     if (!activeRef.current || diceRolling || turnPhase !== "roll") return;
     if (pendingRent) {
       const space = getSpace(pendingRent.spaceIndex);
@@ -824,13 +1058,17 @@ export function App() {
     setDiceRollId((id) => id + 1);
   }, [diceRolling, turnPhase, pendingRent]);
 
+  const onRollDice = useCallback(() => {
+    sendIntent({ type: "rollDice" }, onRollDiceLocal);
+  }, [sendIntent, onRollDiceLocal]);
+
   const onRollComplete = useCallback(
     (roll: DiceRoll) => {
-    setDiceRolling(false);
-    setDiceRoll(roll);
+      setDiceRolling(false);
+      setDiceRoll(roll);
 
-    const playerId = activeRef.current;
-    if (!playerId) return;
+      const playerId = activeRef.current;
+      if (!playerId) return;
 
       const current = playersRef.current.find((p) => p.id === playerId);
 
@@ -842,8 +1080,8 @@ export function App() {
             const next = prev.map((p) =>
               p.id === playerId
                 ? applyMove(releaseFromJail(p), roll.total, {
-                    grantGoBonus: true,
-                  })
+                  grantGoBonus: true,
+                })
                 : p,
             );
             playersRef.current = next;
@@ -896,26 +1134,26 @@ export function App() {
         return;
       }
 
-    if (roll.isDouble) {
-      doublesRef.current += 1;
-    } else {
-      doublesRef.current = 0;
-    }
-    setConsecutiveDoubles(doublesRef.current);
+      if (roll.isDouble) {
+        doublesRef.current += 1;
+      } else {
+        doublesRef.current = 0;
+      }
+      setConsecutiveDoubles(doublesRef.current);
 
-    if (roll.isDouble && doublesRef.current >= 3) {
-      doublesRef.current = 0;
-      setConsecutiveDoubles(0);
+      if (roll.isDouble && doublesRef.current >= 3) {
+        doublesRef.current = 0;
+        setConsecutiveDoubles(0);
         extraRollRef.current = false;
         forceEndTurnRef.current = true;
         setPlayers((prev) => {
           const next = prev.map((p) =>
             p.id === playerId
               ? applyMove(p, 0, {
-                  grantGoBonus: false,
-                  forcePosition: 10,
-                  inJail: true,
-                })
+                grantGoBonus: false,
+                forcePosition: 10,
+                inJail: true,
+              })
               : p,
           );
           playersRef.current = next;
@@ -928,14 +1166,14 @@ export function App() {
           [],
         );
         if (!shown) startNextTurn(playerId);
-      return;
-    }
+        return;
+      }
 
       extraRollRef.current = roll.isDouble;
       queueLanding(playerId, roll.total);
       setPlayers((prev) => {
         const next = prev.map((p) =>
-        p.id === playerId
+          p.id === playerId
             ? applyMove(p, roll.total, { grantGoBonus: true })
             : p,
         );
@@ -1196,6 +1434,112 @@ export function App() {
     (auction ? 1 + auction.queue.length : 0) +
     pendingAuctionsRef.current.length;
 
+  const localControlsTurn =
+    !onlineSession || onlineSession.localPlayerId === activePlayerId;
+
+  const walletPlayer =
+    onlineSession != null
+      ? (players.find((p) => p.id === onlineSession.localPlayerId) ??
+        activePlayer)
+      : activePlayer;
+
+  applyRemoteIntentRef.current = (actorId, intent) => {
+    switch (intent.type) {
+      case "rollDice":
+        onRollDiceLocal();
+        break;
+      case "buySelected": {
+        const buyerId = activeRef.current;
+        if (!buyerId) break;
+        setSelectedIndex(intent.spaceIndex);
+        const bought = buyProperty(
+          playersRef.current,
+          buyerId,
+          intent.spaceIndex,
+        );
+        if (bought) {
+          playersRef.current = bought;
+          setPlayers(bought);
+          if (extraRollRef.current) {
+            extraRollRef.current = false;
+            setTurnPhase("roll");
+          } else {
+            startNextTurn(buyerId);
+          }
+        }
+        break;
+      }
+      case "passTurn":
+        onPassTurnLocal();
+        break;
+      case "claimRent":
+        onClaimRent();
+        break;
+      case "payDebt":
+        onPayDebt();
+        break;
+      case "liquidateForDebt":
+        onLiquidateForDebt();
+        break;
+      case "declareBankruptcy":
+        onDeclareBankruptcy();
+        break;
+      case "payJailFine":
+        onPayJailFine();
+        break;
+      case "useJailProtection":
+        onUseJailProtection();
+        break;
+      case "dismissEvent":
+        onDismissEvent();
+        break;
+      case "auctionBid":
+        onAuctionBid(actorId, intent.amount);
+        break;
+      case "auctionPass":
+        onAuctionPass(actorId);
+        break;
+      case "auctionSell":
+        onAuctionSell();
+        break;
+      case "auctionNoBids":
+        onAuctionNoBids();
+        break;
+      case "auctionResolveTie":
+        onResolveTieDice();
+        break;
+      case "openTrade":
+        setShowTrade(true);
+        break;
+      case "closeTrade":
+        setShowTrade(false);
+        break;
+      case "applyTrade":
+        playersRef.current = intent.players;
+        setPlayers(intent.players);
+        setShowTrade(false);
+        if (intent.notes.length) presentEvent(intent.notes, []);
+        break;
+      case "setPlayers":
+        playersRef.current = intent.players;
+        setPlayers(intent.players);
+        break;
+      case "requestPieceAuction":
+        if (activeRef.current) {
+          beginAuctions(
+            [{ kind: intent.kind, spaceIndex: intent.spaceIndex }],
+            activeRef.current,
+          );
+        }
+        break;
+      case "drawCard":
+        onDrawCard();
+        break;
+      default:
+        break;
+    }
+  };
+
   if (screen === "loading") {
     return (
       <LoadingScreen
@@ -1220,24 +1564,33 @@ export function App() {
         onSelectPlayer={() => { }}
         diceRolling={diceRolling}
         diceRollId={diceRollId}
-        canRoll={turnPhase === "roll" && !showEventModal && !winnerId}
+        canRoll={
+          turnPhase === "roll" &&
+          !showEventModal &&
+          !winnerId &&
+          localControlsTurn
+        }
         onRollRequest={onRollDice}
         onRollComplete={onRollComplete}
         onPawnArrive={onPawnArrive}
       />
       <WalletPanel
-        player={activePlayer}
+        player={walletPlayer}
         players={players}
         onPlayersChange={(next) => {
           if (winnerId) return;
-          playersRef.current = next;
-          setPlayers(next);
+          sendIntent({ type: "setPlayers", players: next }, () => {
+            playersRef.current = next;
+            setPlayers(next);
+          });
         }}
         onRequestPieceAuction={(kind, spaceIndex) => {
           if (!activePlayerId || winnerId) return;
-          beginAuctions(
-            [{ kind, spaceIndex }],
-            activePlayerId,
+          sendIntent(
+            { type: "requestPieceAuction", kind, spaceIndex },
+            () => {
+              beginAuctions([{ kind, spaceIndex }], activePlayerId);
+            },
           );
         }}
       />
@@ -1263,44 +1616,62 @@ export function App() {
         onAdvanceActive={onAdvanceActive}
         onRollDice={onRollDice}
         onBuySelected={onBuySelected}
-        onDrawCard={onDrawCard}
+        onDrawCard={() => sendIntent({ type: "drawCard" }, onDrawCard)}
         onPassTurn={onPassTurn}
-        onPayJailFine={onPayJailFine}
-        onUseJailProtection={onUseJailProtection}
-        onPayDebt={onPayDebt}
-        onLiquidateForDebt={onLiquidateForDebt}
-        onDeclareBankruptcy={onDeclareBankruptcy}
-        onOpenTrade={() => setShowTrade(true)}
-        onClaimRent={onClaimRent}
+        onPayJailFine={() =>
+          sendIntent({ type: "payJailFine" }, onPayJailFine)
+        }
+        onUseJailProtection={() =>
+          sendIntent({ type: "useJailProtection" }, onUseJailProtection)
+        }
+        onPayDebt={() => sendIntent({ type: "payDebt" }, onPayDebt)}
+        onLiquidateForDebt={() =>
+          sendIntent({ type: "liquidateForDebt" }, onLiquidateForDebt)
+        }
+        onDeclareBankruptcy={() =>
+          sendIntent({ type: "declareBankruptcy" }, onDeclareBankruptcy)
+        }
+        onOpenTrade={() =>
+          sendIntent({ type: "openTrade" }, () => setShowTrade(true))
+        }
+        onClaimRent={() => sendIntent({ type: "claimRent" }, onClaimRent)}
       />
       {showEventModal ? (
         <DrawnCardModal
           card={drawnCard}
           notes={cardNotes}
           followUpCards={followUpCards}
-          onDismiss={onDismissEvent}
+          onDismiss={() =>
+            sendIntent({ type: "dismissEvent" }, onDismissEvent)
+          }
         />
       ) : null}
       {showTrade && activePlayerId && !winnerId && !showEventModal ? (
         <TradeOverlay
-          initiatorId={activePlayerId}
+          initiatorId={
+            onlineSession?.localPlayerId ?? activePlayerId
+          }
           players={players}
-          onClose={() => setShowTrade(false)}
+          onClose={() =>
+            sendIntent({ type: "closeTrade" }, () => setShowTrade(false))
+          }
           onApplied={(next, notes) => {
-            playersRef.current = next;
-            setPlayers(next);
-            setShowTrade(false);
-            const resume =
-              turnPhase === "debt"
-                ? "debt"
-                : turnPhase === "action"
-                  ? "action"
-                  : turnPhase === "roll"
-                    ? "roll"
-                    : "roll";
-            if (presentEvent(notes, [])) {
-              resumePhaseAfterModalRef.current = resume;
-            }
+            sendIntent({ type: "applyTrade", players: next, notes }, () => {
+              playersRef.current = next;
+              setPlayers(next);
+              setShowTrade(false);
+              const resume =
+                turnPhase === "debt"
+                  ? "debt"
+                  : turnPhase === "action"
+                    ? "action"
+                    : turnPhase === "roll"
+                      ? "roll"
+                      : "roll";
+              if (presentEvent(notes, [])) {
+                resumePhaseAfterModalRef.current = resume;
+              }
+            });
           }}
         />
       ) : null}
@@ -1316,11 +1687,36 @@ export function App() {
           excludedIds={auction.excludedIds}
           passesNeeded={auctionPassesNeeded}
           passesSinceBid={auction.passesSinceBid}
-          onBid={onAuctionBid}
-          onPass={onAuctionPass}
-          onSell={onAuctionSell}
-          onNoBids={onAuctionNoBids}
-          onResolveTieDice={onResolveTieDice}
+          onBid={(playerId, amount) => {
+            if (
+              onlineSession &&
+              playerId !== onlineSession.localPlayerId &&
+              !onlineSession.isHost
+            ) {
+              return;
+            }
+            const bidAs =
+              onlineSession && !onlineSession.isHost
+                ? onlineSession.localPlayerId
+                : playerId;
+            sendIntent({ type: "auctionBid", amount }, () =>
+              onAuctionBid(bidAs, amount),
+            );
+          }}
+          onPass={(playerId) => {
+            const passAs =
+              onlineSession && !onlineSession.isHost
+                ? onlineSession.localPlayerId
+                : playerId;
+            sendIntent({ type: "auctionPass" }, () => onAuctionPass(passAs));
+          }}
+          onSell={() => sendIntent({ type: "auctionSell" }, onAuctionSell)}
+          onNoBids={() =>
+            sendIntent({ type: "auctionNoBids" }, onAuctionNoBids)
+          }
+          onResolveTieDice={() =>
+            sendIntent({ type: "auctionResolveTie" }, onResolveTieDice)
+          }
         />
       ) : null}
       {winner && !showEventModal ? (

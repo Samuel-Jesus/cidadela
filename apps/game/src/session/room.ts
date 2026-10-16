@@ -1,45 +1,25 @@
-import type { LobbySetup, PawnId } from "@cidadela/shared";
+import type { PawnId } from "@cidadela/shared";
+import { isSupabaseConfigured } from "../lib/supabase";
+import {
+  localClientId,
+  localCreateRoom,
+  localJoinRoom,
+  localLoadRoom,
+  localStartRoom,
+  localSubscribeRoom,
+  localUpdateMemberProfile,
+} from "./roomLocal";
+import {
+  remoteCreateRoom,
+  remoteJoinRoom,
+  remoteLoadRoom,
+  remoteStartRoom,
+  remoteSubscribeRoom,
+  remoteUpdateMemberProfile,
+} from "./roomRemote";
+import type { RoomListener, RoomMember, RoomState } from "./roomTypes";
 
-export type RoomMember = {
-  clientId: string;
-  name: string;
-  pawnId: PawnId;
-  isHost: boolean;
-};
-
-export type RoomState = {
-  roomId: string;
-  maxPlayers: number;
-  hostId: string;
-  members: RoomMember[];
-  status: "waiting" | "started";
-  startedSetup?: LobbySetup;
-};
-
-type RoomListener = (state: RoomState | null) => void;
-
-const CLIENT_KEY = "cidadela-client-id";
-
-function storageKey(roomId: string) {
-  return `cidadela-room-${roomId}`;
-}
-
-function channelName(roomId: string) {
-  return `cidadela-room-ch-${roomId}`;
-}
-
-export function getClientId(): string {
-  try {
-    let id = localStorage.getItem(CLIENT_KEY);
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem(CLIENT_KEY, id);
-    }
-    return id;
-  } catch {
-    return `temp-${Math.random().toString(36).slice(2)}`;
-  }
-}
+export type { RoomMember, RoomState } from "./roomTypes";
 
 export function createRoomId(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -70,177 +50,68 @@ export function clearRoomParam() {
   window.history.replaceState({}, "", url.pathname + url.search + url.hash);
 }
 
-function readStored(roomId: string): RoomState | null {
-  try {
-    const raw = localStorage.getItem(storageKey(roomId));
-    if (!raw) return null;
-    return JSON.parse(raw) as RoomState;
-  } catch {
-    return null;
+/** Sync: id local (fallback). Preferir `resolveClientId` no Lobby online. */
+export function getClientId(): string {
+  return localClientId();
+}
+
+export async function resolveClientId(): Promise<string> {
+  if (isSupabaseConfigured()) {
+    const { ensureAnonSession } = await import("../lib/supabase");
+    return ensureAnonSession();
   }
+  return localClientId();
 }
 
-function writeStored(state: RoomState) {
-  localStorage.setItem(storageKey(state.roomId), JSON.stringify(state));
-  try {
-    const ch = new BroadcastChannel(channelName(state.roomId));
-    ch.postMessage({ type: "room", state });
-    ch.close();
-  } catch {
-    // BroadcastChannel indisponível
-  }
+export async function loadRoom(roomId: string): Promise<RoomState | null> {
+  if (isSupabaseConfigured()) return remoteLoadRoom(roomId);
+  return localLoadRoom(roomId);
 }
 
-export function loadRoom(roomId: string): RoomState | null {
-  return readStored(roomId.toUpperCase());
-}
-
-export function createRoom(maxPlayers: number, host: Omit<RoomMember, "isHost">): RoomState {
-  const n = Math.min(8, Math.max(2, maxPlayers));
+export async function createRoom(
+  maxPlayers: number,
+  host: Omit<RoomMember, "isHost">,
+): Promise<RoomState> {
   const roomId = createRoomId();
-  const state: RoomState = {
-    roomId,
-    maxPlayers: n,
-    hostId: host.clientId,
-    members: [{ ...host, isHost: true }],
-    status: "waiting",
-  };
-  writeStored(state);
-  return state;
+  if (isSupabaseConfigured()) {
+    return remoteCreateRoom(roomId, maxPlayers, host);
+  }
+  return localCreateRoom(roomId, maxPlayers, host);
 }
 
-export function joinRoom(
+export async function joinRoom(
   roomId: string,
   member: Omit<RoomMember, "isHost">,
-): { ok: true; state: RoomState } | { ok: false; error: string } {
-  const id = roomId.toUpperCase();
-  const state = readStored(id);
-  if (!state) {
-    return { ok: false, error: "Sala não encontrada. Peça um novo link ao anfitrião." };
-  }
-  if (state.status !== "waiting") {
-    return { ok: false, error: "Esta partida já começou." };
-  }
-  if (state.members.some((m) => m.clientId === member.clientId)) {
-    return { ok: true, state };
-  }
-  if (state.members.length >= state.maxPlayers) {
-    return { ok: false, error: "Sala cheia." };
-  }
-  if (state.members.some((m) => m.pawnId === member.pawnId)) {
-    return { ok: false, error: "Este peão já foi escolhido." };
-  }
-  const name = member.name.trim();
-  if (!name) {
-    return { ok: false, error: "Informe seu nome." };
-  }
-  const next: RoomState = {
-    ...state,
-    members: [
-      ...state.members,
-      { ...member, name, isHost: member.clientId === state.hostId },
-    ],
-  };
-  writeStored(next);
-  return { ok: true, state: next };
+): Promise<{ ok: true; state: RoomState } | { ok: false; error: string }> {
+  if (isSupabaseConfigured()) return remoteJoinRoom(roomId, member);
+  return localJoinRoom(roomId, member);
 }
 
-export function updateMemberProfile(
+export async function updateMemberProfile(
   roomId: string,
   clientId: string,
   patch: { name?: string; pawnId?: PawnId },
-): { ok: true; state: RoomState } | { ok: false; error: string } {
-  const state = readStored(roomId.toUpperCase());
-  if (!state || state.status !== "waiting") {
-    return { ok: false, error: "Sala indisponível." };
+): Promise<{ ok: true; state: RoomState } | { ok: false; error: string }> {
+  if (isSupabaseConfigured()) {
+    return remoteUpdateMemberProfile(roomId, clientId, patch);
   }
-  const idx = state.members.findIndex((m) => m.clientId === clientId);
-  if (idx < 0) return { ok: false, error: "Você não está nesta sala." };
-
-  const nextMembers = state.members.map((m) => ({ ...m }));
-  const me = { ...nextMembers[idx]! };
-  if (patch.name != null) {
-    const name = patch.name.trim();
-    if (!name) return { ok: false, error: "Informe seu nome." };
-    me.name = name;
-  }
-  if (patch.pawnId != null) {
-    if (
-      nextMembers.some(
-        (m, i) => i !== idx && m.pawnId === patch.pawnId,
-      )
-    ) {
-      return { ok: false, error: "Este peão já foi escolhido." };
-    }
-    me.pawnId = patch.pawnId;
-  }
-  nextMembers[idx] = me;
-  const next = { ...state, members: nextMembers };
-  writeStored(next);
-  return { ok: true, state: next };
+  return localUpdateMemberProfile(roomId, clientId, patch);
 }
 
-export function startRoom(
+export async function startRoom(
   roomId: string,
   hostId: string,
-): { ok: true; state: RoomState } | { ok: false; error: string } {
-  const state = readStored(roomId.toUpperCase());
-  if (!state) return { ok: false, error: "Sala não encontrada." };
-  if (state.hostId !== hostId) {
-    return { ok: false, error: "Só o anfitrião pode começar." };
-  }
-  if (state.members.length < 2) {
-    return { ok: false, error: "É preciso pelo menos 2 jogadores." };
-  }
-  const hostIndex = state.members.findIndex((m) => m.isHost);
-  const setup: LobbySetup = {
-    seats: state.members.map((m) => ({
-      name: m.name,
-      pawnId: m.pawnId,
-    })),
-    bankerIndex: hostIndex >= 0 ? hostIndex : 0,
-  };
-  const next: RoomState = {
-    ...state,
-    status: "started",
-    startedSetup: setup,
-  };
-  writeStored(next);
-  return { ok: true, state: next };
+): Promise<{ ok: true; state: RoomState } | { ok: false; error: string }> {
+  if (isSupabaseConfigured()) return remoteStartRoom(roomId, hostId);
+  return localStartRoom(roomId, hostId);
 }
 
 export function subscribeRoom(
   roomId: string,
   listener: RoomListener,
 ): () => void {
-  const id = roomId.toUpperCase();
-  listener(readStored(id));
-
-  const onStorage = (e: StorageEvent) => {
-    if (e.key !== storageKey(id)) return;
-    listener(readStored(id));
-  };
-  window.addEventListener("storage", onStorage);
-
-  let ch: BroadcastChannel | null = null;
-  try {
-    ch = new BroadcastChannel(channelName(id));
-    ch.onmessage = (ev: MessageEvent) => {
-      if (ev.data?.type === "room" && ev.data.state) {
-        listener(ev.data.state as RoomState);
-      }
-    };
-  } catch {
-    ch = null;
-  }
-
-  const poll = window.setInterval(() => {
-    listener(readStored(id));
-  }, 800);
-
-  return () => {
-    window.removeEventListener("storage", onStorage);
-    window.clearInterval(poll);
-    ch?.close();
-  };
+  if (isSupabaseConfigured()) return remoteSubscribeRoom(roomId, listener);
+  return localSubscribeRoom(roomId, listener);
 }
+
+export { isSupabaseConfigured };

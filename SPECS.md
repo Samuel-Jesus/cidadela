@@ -155,7 +155,7 @@ Permitir que 2 a 8 jogadores dispute uma partida de **Cidadela**, jogo de tabule
 ### 5b. Premissas
 
 - Balanceamento ainda **sem playtest** formal (`REQUISITOS.md` §14 — Aviso).
-- Produto digital: hot-seat local no MVP; multiplayer na fase 2 (`STACK.md`).
+- Produto digital: hot-seat local + multiplayer Supabase (`STACK.md`).
 - Leilão digital pode simplificar a “contagem oral” preservando lance mínimo, limite de caixa e empate.
 
 ### 5c. Regras de negócio (resumo)
@@ -255,7 +255,8 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | FR-05d | Anfitrião é o **banqueiro** (FR-04) e também jogador (nome/peão próprios na sala) | `isBanker` = anfitrião | Média | Lobby |
 | FR-05e | Anfitrião inicia quando há ≥2 jogadores na sala (idealmente a mesa cheia) | `Começar` cria jogadores FR-02/FR-03 a partir dos membros conectados | Alta | Lobby |
 | FR-05f | Nova partida / vitória volta ao Lobby (nova sessão) | Estado da sala anterior descartado | Média | Lobby |
-| FR-05g | Sync da sala: até multiplayer servidor (fase 2), canal local (mesma origem / abas) é aceitável no MVP | Convidados em outro dispositivo exigem backend na fase 2; UI de link/QR já está pronta | Média | Lobby / Fase 2 |
+| FR-05g | Sync da sala e da partida via **Supabase** (Realtime + Postgres) | Auth anônima; anfitrião aplica regras e grava `games.state`; convidados enviam `game_actions` e hidratam | Alta | Lobby / Online |
+| FR-05h | **Jogar neste aparelho** (hot-seat): uma pessoa monta a mesa toda (2–8 assentos com nome, peão único e banqueiro) e começa direto | Offline; valida com `validateLobbySetup` | Alta | Lobby |
 | FR-06 | (Digital) Tela de **Loading** antes do Lobby, com **avião** | Splash/loading visível até assets críticos prontos (ou timeout seguro) | Alta | Boot / Loading |
 | FR-06a | Loading: avião em movimento (temática Bahia / aeroporto) | Animação contínua; marca “Cidadela” legível | Alta | Loading |
 | FR-06b | Loading cobre pré-carga de modelos 3D (landmarks GLTF) e shell | Lobby só aparece após loading concluir (mínimo visual opcional ~1,5s) | Média | Loading |
@@ -496,7 +497,7 @@ Feedback sensorial **não altera regras** (saldo, posição, dono). Mute global 
 1. Playtest de balanceamento das tabelas §8 (aviso em `REQUISITOS.md` §14).
 2. ~~Incremento mínimo de leilão digital~~ — **fechado:** $5 em bens ≤$100, senão $10 (`minBidIncrement` / peças usam custo de grupo).
 3. ~~UX digital da cobrança de aluguel (FR-22a)~~ — **fechado no MVP:** modo `claim` (dono cobra no HUD; próximo roll perde o direito). Toggle “auto” opcional ainda não existe na UI.
-4. Multiplayer online (fase 2) — fora do MVP hot-seat.
+4. ~~Multiplayer online~~ — Supabase Realtime (host-authoritative); Edge Function anti-cheat opcional.
 5. ~~Papel de banqueiro explícito (FR-04) e tela de preparação~~ — **Lobby especificado (FR-05…)**; implementar no app.
 6. Pacote de áudio: faixas originais vs licença (Carnaval / Canário) — ver NFR-82.
 7. Duração e cancelamento da animação da viatura (skip no hot-seat?).
@@ -526,13 +527,13 @@ Feedback sensorial **não altera regras** (saldo, posição, dono). Mute global 
 | 5 | Engine: resolver casa (aluguel, imposto, Forte, cartas) | 4 | Feito |
 | 6 | Hot-seat completo + hipotecas / construção / leilão / negociação / falência / fim de jogo | 5 | Feito |
 | 7 | Vitest FRs críticos (`packages/shared`) | 6 | Feito (base) |
-| 8 | Lobby anfitrião + link/QR + join (FR-05…05g) | 6 | Feito (sync multi-device = fase 2) |
+| 8 | Lobby anfitrião + link/QR + join (FR-05…05g) | 6 | Feito (Supabase) |
 | 8b | Loading com avião (FR-06…06b) antes do Lobby | 6 | Feito |
 | 9 | Playtest de balanceamento | 6 | Pendente |
 | 10 | Áudio: SFX dinheiro / imposto + pools Carnaval & Canário (§17b) | 6 | Pendente |
 | 11 | Animação viatura → Forte pelo miolo do tabuleiro (FR-44a / NFR-AV-20…23) | 6 | Pendente |
 | 12 | Animação guincho ao vender pousada/resort (FR-64a / NFR-AV-40…42) | 6 | Pendente |
-| 13 | Multiplayer (Colyseus/PartyKit) | 9 | Pendente (fase 2) |
+| 13 | Multiplayer online (Supabase Realtime) | 9 | Feito (host-authoritative); Edge Function anti-cheat opcional |
 
 ## 22. Migração
 
@@ -586,15 +587,17 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 - [ ] Toggle UI cobrança automática vs pedida (hoje só `claim`)
 - [ ] Playtest formal de balanceamento (§8)
 - [x] **Lobby** anfitrião (só qtd) + link/QR; convidado escolhe nome/peão (FR-05…05g)
+- [x] **Lobby local** "Jogar neste aparelho" — mesa montada num só aparelho (FR-05h)
 - [x] **Loading** com avião (FR-06…06b) na entrada do app
-- [ ] Sync de sala entre aparelhos (servidor / PartyKit — FR-05g fase 2)
+- [x] Sync de sala e partida entre aparelhos (Supabase — FR-05g)
 - [ ] Cobertura Vitest ampliada (cartas, Forte, falência ponta a ponta)
 - [ ] **Áudio:** SFX de recebimento, pagamento/transferência e impostos (NFR-AV-01…04)
 - [ ] **Carnaval:** músicas aleatórias (pools Carnaval + Canário) + efeitos leves (FR-43a / NFR-AV-10…11)
 - [ ] **Prisão:** animação do carro da polícia buscando o peão, cruzando o miolo e deixando no Forte (FR-44a / NFR-AV-20…23)
 - [ ] **Venda de construção:** guincho busca pousada/resort na casa e leva embora (FR-64a / NFR-AV-40…42)
 - [ ] Controles de volume / mute (NFR-AV-30)
-- [ ] Multiplayer online (Colyseus/PartyKit)
+- [x] Multiplayer online (Supabase Realtime; host aplica regras)
+- [ ] Edge Function como autoridade de regras (anti-cheat)
 - [ ] Pousadas/resorts visíveis no tabuleiro 3D
 
 ## 27. Ideias de solução

@@ -1,6 +1,11 @@
 node_modules
 dist
 *.local
+.env
+.env.prod
+.env.*
+!.env.example
 .DS_Store
 *.log
 .vite
+apps/game/.env.local
