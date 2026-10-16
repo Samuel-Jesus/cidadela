@@ -32,8 +32,8 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
 
     const landmarkScale = layout.index === 15 ? 1 : Math.min(0.85, Math.min(layout.width, layout.depth) * 0.42);
 
-    const landmarkFrontOffset =
-      layout.index === 15 ? slotDepth * 0.28 : Math.min(layout.width, layout.depth) * 0.1;
+    // +Z local = frente (borda interna) — igual para todos os landmarks
+    const landmarkFrontOffset = slotDepth * (layout.index === 15 ? 0.28 : 0.22);
 
     return { slotWidth, slotDepth, landmarkScale, landmarkFrontOffset };
   }, [layout]);
@@ -76,7 +76,7 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
         />
       </mesh>
 
-      {stripe ? <Stripe layout={layout} color={stripe} /> : null}
+      {stripe ? <Stripe layout={layout} color={stripe} slotDepth={slotDepth} /> : null}
 
       <group position={[0, TILE_THICKNESS * 0.55, 0]} rotation={[0, layout.yaw, 0]} scale={landmarkScale}>
         <group position={[0, 0, landmarkFrontOffset]}>
@@ -105,28 +105,31 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
   );
 }
 
-function Stripe({ layout, color }: { layout: SpaceLayout; color: string }) {
-  const isWide = layout.width >= layout.depth;
+function Stripe({
+  layout,
+  color,
+  slotDepth,
+}: {
+  layout: SpaceLayout;
+  color: string;
+  slotDepth: number;
+}) {
   const band = 0.22;
   const meshRef = useRef<Mesh>(null);
-
-  let position: [number, number, number];
-  let args: [number, number, number];
-
-  if (isWide) {
-    const toward = layout.z > 0 ? -1 : 1;
-    args = [layout.width * 0.92, 0.04, layout.depth * band];
-    position = [0, TILE_THICKNESS * 0.52, toward * (layout.depth * (0.5 - band / 2) * 0.92)];
-  } else {
-    const toward = layout.x > 0 ? -1 : 1;
-    args = [layout.width * band, 0.04, layout.depth * 0.92];
-    position = [toward * (layout.width * (0.5 - band / 2) * 0.92), TILE_THICKNESS * 0.52, 0];
-  }
+  const side = isSideTile(layout.yaw);
+  const stripeWidth = (side ? layout.depth : layout.width) * 0.92;
+  const stripeDepth = slotDepth * band;
 
   return (
-    <mesh ref={meshRef} position={position} castShadow>
-      <boxGeometry args={args} />
-      <meshStandardMaterial color={color} roughness={0.55} />
-    </mesh>
+    <group rotation={[0, layout.yaw, 0]}>
+      <mesh
+        ref={meshRef}
+        position={[0, TILE_THICKNESS * 0.52, -(slotDepth * (0.5 - band / 2) * 0.92)]}
+        castShadow
+      >
+        <boxGeometry args={[stripeWidth, 0.04, stripeDepth]} />
+        <meshStandardMaterial color={color} roughness={0.55} />
+      </mesh>
+    </group>
   );
 }
