@@ -19,6 +19,10 @@ type Props = {
   player: PlayerState | null;
   players: PlayerState[];
   onPlayersChange: (players: PlayerState[]) => void;
+  onRequestPieceAuction?: (
+    kind: "pousada" | "resort",
+    spaceIndex: number,
+  ) => void;
 };
 
 function bandInk(hex: string): "light" | "dark" {
@@ -40,7 +44,12 @@ function fanAngle(i: number) {
   return `${steps[i % steps.length]}deg`;
 }
 
-export function WalletPanel({ player, players, onPlayersChange }: Props) {
+export function WalletPanel({
+  player,
+  players,
+  onPlayersChange,
+  onRequestPieceAuction,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [detailDeed, setDetailDeed] = useState<PropertyHolding | null>(null);
   const [detailCard, setDetailCard] = useState<CardDef | null>(null);
@@ -214,6 +223,7 @@ export function WalletPanel({ player, players, onPlayersChange }: Props) {
         player={player}
         players={players}
         onPlayersChange={onPlayersChange}
+        onRequestPieceAuction={onRequestPieceAuction}
         detailDeed={detailDeed}
         detailCard={detailCard}
         onDetailDeedChange={setDetailDeed}

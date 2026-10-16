@@ -47,7 +47,11 @@ export {
 } from "./cards";
 export type { CardResolveResult, CardResolveOptions } from "./cardEffects";
 export { resolveCardEffect, drawAndResolveCard } from "./cardEffects";
-export type { SpaceResolveResult, SpaceResolveOptions } from "./spaceResolve";
+export type {
+  SpaceResolveResult,
+  SpaceResolveOptions,
+  PendingRentClaim,
+} from "./spaceResolve";
 export { resolveSpaceLanding } from "./spaceResolve";
 export {
   JAIL_FINE,
@@ -66,12 +70,27 @@ export {
   payPendingDebt,
   declareBankruptcy,
 } from "./bankruptcy";
-export type { AuctionLot, BidValidation } from "./auction";
+export type {
+  AuctionLot,
+  BidValidation,
+  PropertyAuctionLot,
+  PieceAuctionLot,
+} from "./auction";
 export {
+  SCARCE_POUSADAS,
+  SCARCE_RESORTS,
+  propertyAuctionLot,
+  shouldAuctionBuildingPiece,
   minBidIncrement,
+  minBidIncrementForLot,
   minimumNextBid,
+  minimumNextBidForLot,
   validateBid,
   awardAuctionLot,
+  awardPropertyAuction,
+  awardPieceAuction,
+  resolveTieByDice,
+  auctionLotLabel,
 } from "./auction";
 export type { PropertyRentRow } from "./rent";
 export {

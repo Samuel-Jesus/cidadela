@@ -12,7 +12,10 @@ import {
 import type { AuctionLot } from "./auction";
 import { settleDebt, type DebtInfo } from "./bankruptcy";
 import { sendToJail } from "./jail";
-import { resolveSpaceLanding } from "./spaceResolve";
+import {
+  resolveSpaceLanding,
+  type PendingRentClaim,
+} from "./spaceResolve";
 
 export type CardResolveOptions = {
   rng?: () => number;
@@ -28,6 +31,7 @@ export type CardResolveResult = {
   utilityDice?: { die1: number; die2: number; total: number };
   pendingDebt?: DebtInfo | null;
   auctionQueue?: AuctionLot[];
+  pendingRent?: PendingRentClaim | null;
 };
 
 const MAX_CARD_DEPTH = 3;
@@ -98,6 +102,7 @@ function landAfterMove(
     followUpCards: result.followUpCards,
     pendingDebt: result.pendingDebt,
     auctionQueue: result.auctionQueue,
+    pendingRent: result.pendingRent,
   };
 }
 
@@ -128,6 +133,7 @@ function drawCardAndResolve(
     utilityDice: resolved.utilityDice,
     pendingDebt: resolved.pendingDebt,
     auctionQueue: resolved.auctionQueue,
+    pendingRent: resolved.pendingRent,
   };
 }
 
@@ -401,5 +407,6 @@ export function resolveCardEffect(
       ...auctionQueue,
       ...(landed.auctionQueue ?? []),
     ],
+    pendingRent: landed.pendingRent ?? null,
   };
 }

@@ -5,9 +5,12 @@ import {
   bankStockFromPlayers,
   buildPousada,
   buildResort,
+  canBuildPousada,
+  canBuildResort,
   mortgageProperty,
   redeemProperty,
   sellBuilding,
+  shouldAuctionBuildingPiece,
   type CardDef,
   type PlayerState,
   type PropertyHolding,
@@ -18,6 +21,10 @@ type Props = {
   player: PlayerState | null;
   players: PlayerState[];
   onPlayersChange: (players: PlayerState[]) => void;
+  onRequestPieceAuction?: (
+    kind: "pousada" | "resort",
+    spaceIndex: number,
+  ) => void;
   detailDeed: PropertyHolding | null;
   detailCard: CardDef | null;
   onDetailDeedChange: (holding: PropertyHolding | null) => void;
@@ -28,6 +35,7 @@ export function WalletOverlays({
   player,
   players,
   onPlayersChange,
+  onRequestPieceAuction,
   detailDeed,
   detailCard,
   onDetailDeedChange,
@@ -60,6 +68,7 @@ export function WalletOverlays({
   if (!player) return null;
 
   const bankStock = bankStockFromPlayers(players);
+  const aliveCount = players.filter((p) => !p.bankrupt).length;
 
   const runDeedAction = (
     fn: (
@@ -78,6 +87,31 @@ export function WalletOverlays({
     onPlayersChange(result.players);
   };
 
+  const tryBuild = (kind: "pousada" | "resort") => {
+    if (!detailDeed) return;
+    const scarce = shouldAuctionBuildingPiece(bankStock, kind, aliveCount);
+    if (scarce && onRequestPieceAuction) {
+      const placeOk =
+        kind === "pousada"
+          ? canBuildPousada(player, detailDeed.spaceIndex, {
+              ignoreCash: true,
+              ignoreStock: true,
+            })
+          : canBuildResort(player, detailDeed.spaceIndex, {
+              ignoreCash: true,
+              ignoreStock: true,
+            });
+      if (!placeOk.ok) {
+        setDeedError(placeOk.error);
+        return;
+      }
+      onDetailDeedChange(null);
+      onRequestPieceAuction(kind, detailDeed.spaceIndex);
+      return;
+    }
+    runDeedAction(kind === "pousada" ? buildPousada : buildResort);
+  };
+
   return (
     <>
       {detailCard ? (
@@ -92,6 +126,16 @@ export function WalletOverlays({
           player={player}
           holding={detailDeed}
           bankStock={bankStock}
+          scarcePousada={shouldAuctionBuildingPiece(
+            bankStock,
+            "pousada",
+            aliveCount,
+          )}
+          scarceResort={shouldAuctionBuildingPiece(
+            bankStock,
+            "resort",
+            aliveCount,
+          )}
           actionError={deedError}
           onClose={() => {
             onDetailDeedChange(null);
@@ -100,8 +144,8 @@ export function WalletOverlays({
           onMortgage={() => runDeedAction(mortgageProperty)}
           onRedeem={() => runDeedAction(redeemProperty)}
           onSellBuilding={() => runDeedAction(sellBuilding)}
-          onBuildPousada={() => runDeedAction(buildPousada)}
-          onBuildResort={() => runDeedAction(buildResort)}
+          onBuildPousada={() => tryBuild("pousada")}
+          onBuildResort={() => tryBuild("resort")}
         />
       ) : null}
     </>

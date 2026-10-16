@@ -17,6 +17,7 @@ import {
   type BoardSpace,
   type DebtInfo,
   type DecksState,
+  type PendingRentClaim,
   type PlayerState,
 } from "@cidadela/shared";
 
@@ -35,6 +36,7 @@ type Props = {
   turnHint: string | null;
   jailError: string | null;
   pendingDebt: DebtInfo | null;
+  pendingRent: PendingRentClaim | null;
   debtRaisable: number;
   auctionQueueCount: number;
   onSelectPlayer: (playerId: string) => void;
@@ -51,6 +53,7 @@ type Props = {
   onLiquidateForDebt: () => void;
   onDeclareBankruptcy: () => void;
   onOpenTrade: () => void;
+  onClaimRent: () => void;
 };
 
 export function BoardHud({
@@ -66,6 +69,7 @@ export function BoardHud({
   turnHint,
   jailError,
   pendingDebt,
+  pendingRent,
   debtRaisable,
   auctionQueueCount,
   onPlayerCountChange,
@@ -81,6 +85,7 @@ export function BoardHud({
   onLiquidateForDebt,
   onDeclareBankruptcy,
   onOpenTrade,
+  onClaimRent,
 }: Props) {
   const space = selectedIndex === null ? null : getSpace(selectedIndex);
   const active = players.find((p) => p.id === activePlayerId) ?? null;
@@ -279,6 +284,31 @@ export function BoardHud({
             );
           })}
         </ul>
+
+        {pendingRent ? (
+          <div className="space-y-2 rounded-xl border-2 border-[#5c3d2e] bg-[#ecfdf5] p-2.5">
+            <p className="font-[family-name:var(--font-game)] text-sm font-bold text-[#166534]">
+              Aluguel pendente ·{" "}
+              {formatCash(pendingRent.amount)} ·{" "}
+              {getSpace(pendingRent.spaceIndex).name}
+            </p>
+            <p className="text-[11px] font-bold text-[#6b5344]">
+              Dono:{" "}
+              {getPawnDef(
+                players.find((p) => p.id === pendingRent.ownerId)?.pawnId ??
+                  "acaraje",
+              ).label}
+              . Cobrar antes do próximo lance de dados.
+            </p>
+            <button
+              type="button"
+              onClick={onClaimRent}
+              className="hud-btn hud-btn--mint w-full px-2.5 py-2 text-sm"
+            >
+              Cobrar aluguel
+            </button>
+          </div>
+        ) : null}
 
         {turnPhase === "debt" && pendingDebt && active ? (
           <div className="space-y-2 rounded-xl border-2 border-[#5c3d2e] bg-[#fff1f2] p-2.5">

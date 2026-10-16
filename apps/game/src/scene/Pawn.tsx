@@ -6,9 +6,8 @@ import { BOARD_Y, TILE_THICKNESS, type SpaceLayout } from "./layout";
 import { pawnSlotOffset } from "./pawnSlots";
 
 const BOARD_SIZE = 40;
-const STEP_DURATION = 0.45;
+const STEP_DURATION = 0.32;
 const HOP_HEIGHT = 0.28;
-const TELEPORT_MAX_STEPS = 12;
 const SLOT_SLIDE_DURATION = 0.35;
 
 type Props = {
@@ -37,10 +36,10 @@ function spacePoint(
   };
 }
 
+/** Sempre casa a casa no sentido horário (inclui voltas longas / cartas). */
 function buildPath(from: number, to: number): number[] {
   const steps = (to - from + BOARD_SIZE) % BOARD_SIZE;
   if (steps === 0) return [];
-  if (steps > TELEPORT_MAX_STEPS) return [to];
   const path: number[] = [];
   for (let i = 1; i <= steps; i++) {
     path.push((from + i) % BOARD_SIZE);

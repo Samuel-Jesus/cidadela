@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "pnpm --filter @cidadela/game dev",
     "build": "pnpm --filter @cidadela/game build",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @cidadela/shared test"
   },
   "engines": {
     "node": ">=20"

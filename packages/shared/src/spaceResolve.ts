@@ -18,11 +18,21 @@ import {
   utilityRentAmount,
 } from "./rent";
 
+/** FR-22a: dono deve cobrar antes do próximo lance de dados. */
+export type PendingRentClaim = {
+  visitorId: string;
+  ownerId: string;
+  spaceIndex: number;
+  amount: number;
+};
+
 export type SpaceResolveOptions = {
   transportMultiplier?: number;
   utilityDiceTotal?: number;
   utilityTimes?: number;
   skipCardDraw?: boolean;
+  /** `claim` = dono precisa pedir (padrão); `auto` = cobra na hora. */
+  rentMode?: "claim" | "auto";
   rng?: () => number;
   drawAndResolve?: (
     deckId: DeckId,
@@ -35,6 +45,7 @@ export type SpaceResolveOptions = {
     followUpCards: CardDef[];
     pendingDebt?: DebtInfo | null;
     auctionQueue?: AuctionLot[];
+    pendingRent?: PendingRentClaim | null;
   };
 };
 
@@ -45,6 +56,7 @@ export type SpaceResolveResult = {
   followUpCards: CardDef[];
   pendingDebt: DebtInfo | null;
   auctionQueue: AuctionLot[];
+  pendingRent: PendingRentClaim | null;
 };
 
 export function resolveSpaceLanding(
@@ -59,7 +71,9 @@ export function resolveSpaceLanding(
   let nextPlayers = [...players];
   let nextDecks = decks;
   let pendingDebt: DebtInfo | null = null;
+  let pendingRent: PendingRentClaim | null = null;
   const auctionQueue: AuctionLot[] = [];
+  const rentMode = opts.rentMode ?? "claim";
 
   const space = getSpace(spaceIndex);
   if (!nextPlayers.some((p) => p.id === playerId)) {
@@ -70,6 +84,7 @@ export function resolveSpaceLanding(
       followUpCards,
       pendingDebt,
       auctionQueue,
+      pendingRent,
     };
   }
 
@@ -148,20 +163,32 @@ export function resolveSpaceLanding(
       }
 
       if (amount != null && amount > 0) {
-        const settled = settleDebt(
-          nextPlayers,
-          nextDecks,
-          playerId,
-          amount,
-          { type: "player", playerId: owner.id },
-          `Aluguel (${space.name})`,
-        );
-        nextPlayers = settled.players;
-        nextDecks = settled.decks;
-        notes.push(...settled.notes);
-        if (settled.status === "shortfall") pendingDebt = settled.debt;
-        if (settled.status === "bankrupt") {
-          auctionQueue.push(...settled.auctionQueue);
+        if (rentMode === "claim") {
+          pendingRent = {
+            visitorId: playerId,
+            ownerId: owner.id,
+            spaceIndex,
+            amount,
+          };
+          notes.push(
+            `Aluguel de ${space.name}: $${amount}. O dono deve cobrar antes do próximo lance de dados.`,
+          );
+        } else {
+          const settled = settleDebt(
+            nextPlayers,
+            nextDecks,
+            playerId,
+            amount,
+            { type: "player", playerId: owner.id },
+            `Aluguel (${space.name})`,
+          );
+          nextPlayers = settled.players;
+          nextDecks = settled.decks;
+          notes.push(...settled.notes);
+          if (settled.status === "shortfall") pendingDebt = settled.debt;
+          if (settled.status === "bankrupt") {
+            auctionQueue.push(...settled.auctionQueue);
+          }
         }
       }
       break;
@@ -179,6 +206,7 @@ export function resolveSpaceLanding(
       notes.push(...nested.notes);
       followUpCards.push(...nested.followUpCards);
       if (nested.pendingDebt) pendingDebt = nested.pendingDebt;
+      if (nested.pendingRent) pendingRent = nested.pendingRent;
       if (nested.auctionQueue?.length) {
         auctionQueue.push(...nested.auctionQueue);
       }
@@ -196,5 +224,6 @@ export function resolveSpaceLanding(
     followUpCards,
     pendingDebt,
     auctionQueue,
+    pendingRent,
   };
 }

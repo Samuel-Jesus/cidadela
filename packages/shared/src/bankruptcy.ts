@@ -1,5 +1,5 @@
 import { getSpace } from "./board";
-import type { AuctionLot } from "./auction";
+import { propertyAuctionLot, type AuctionLot } from "./auction";
 import {
   returnCardToBottom,
   type DecksState,
@@ -250,10 +250,9 @@ export function declareBankruptcy(
     for (const cardId of protections) {
       nextDecks = returnCardToBottom(nextDecks, cardId);
     }
-    auctionQueue = holdings.map((h) => ({
-      spaceIndex: h.spaceIndex,
-      mortgaged: h.mortgaged,
-    }));
+    auctionQueue = holdings.map((h) =>
+      propertyAuctionLot(h.spaceIndex, h.mortgaged),
+    );
     notes.push(
       `Falência para o banco: $${cash} e construções ao banco. ${auctionQueue.length} propriedade(s) vão a leilão.`,
     );

@@ -163,11 +163,36 @@ export function redeemProperty(
   };
 }
 
+export type BuildCheckOpts = {
+  stock?: BankStock;
+  /** Leilão de peça: o lance cobre o pagamento. */
+  ignoreCash?: boolean;
+  /** Leilão de peça: estoque será consumido ao colocar. */
+  ignoreStock?: boolean;
+};
+
+function normalizeBuildOpts(
+  stockOrOpts?: BankStock | BuildCheckOpts,
+): BuildCheckOpts {
+  if (!stockOrOpts) return {};
+  if (
+    "ignoreCash" in stockOrOpts ||
+    "ignoreStock" in stockOrOpts ||
+    "stock" in stockOrOpts
+  ) {
+    return stockOrOpts as BuildCheckOpts;
+  }
+  return { stock: stockOrOpts as BankStock };
+}
+
 export function canBuildPousada(
   player: PlayerState,
   spaceIndex: number,
-  stock?: BankStock,
+  stockOrOpts?: BankStock | BuildCheckOpts,
 ): ActionResult {
+  const opts = normalizeBuildOpts(stockOrOpts);
+  const stock = opts.stock;
+
   const space = getSpace(spaceIndex);
   if (space.kind !== "propriedade" || !space.colorGroup) {
     return { ok: false, error: "Só se constrói em terrenos de cor." };
@@ -191,7 +216,7 @@ export function canBuildPousada(
     return { ok: false, error: "Construção deve ser uniforme no grupo." };
   }
 
-  if (stock && stock.pousadas < 1) {
+  if (!opts.ignoreStock && stock && stock.pousadas < 1) {
     return {
       ok: false,
       error: "Banco sem pousadas — espere alguém vender construções.",
@@ -199,7 +224,7 @@ export function canBuildPousada(
   }
 
   const cost = BUILD_COST_BY_GROUP[space.colorGroup];
-  if (player.cash < cost) {
+  if (!opts.ignoreCash && player.cash < cost) {
     return { ok: false, error: `Saldo insuficiente (precisa $${cost}).` };
   }
   return { ok: true, players: [] };
@@ -231,8 +256,11 @@ export function buildPousada(
 export function canBuildResort(
   player: PlayerState,
   spaceIndex: number,
-  stock?: BankStock,
+  stockOrOpts?: BankStock | BuildCheckOpts,
 ): ActionResult {
+  const opts = normalizeBuildOpts(stockOrOpts);
+  const stock = opts.stock;
+
   const space = getSpace(spaceIndex);
   if (space.kind !== "propriedade" || !space.colorGroup) {
     return { ok: false, error: "Só se constrói em terrenos de cor." };
@@ -266,7 +294,7 @@ export function canBuildResort(
     };
   }
 
-  if (stock && stock.resorts < 1) {
+  if (!opts.ignoreStock && stock && stock.resorts < 1) {
     return {
       ok: false,
       error: "Banco sem resorts — espere alguém vender um resort.",
@@ -274,7 +302,7 @@ export function canBuildResort(
   }
 
   const cost = BUILD_COST_BY_GROUP[space.colorGroup];
-  if (player.cash < cost) {
+  if (!opts.ignoreCash && player.cash < cost) {
     return { ok: false, error: `Saldo insuficiente (precisa $${cost}).` };
   }
   return { ok: true, players: [] };

@@ -27,6 +27,8 @@ type Props = {
   player: PlayerState;
   holding: PropertyHolding;
   bankStock: BankStock;
+  scarcePousada?: boolean;
+  scarceResort?: boolean;
   onClose: () => void;
   onMortgage: () => void;
   onRedeem: () => void;
@@ -50,6 +52,8 @@ export function DeedDetailOverlay({
   player,
   holding,
   bankStock,
+  scarcePousada = false,
+  scarceResort = false,
   onClose,
   onMortgage,
   onRedeem,
@@ -79,8 +83,16 @@ export function DeedDetailOverlay({
   const mortgageOk = canMortgage(player, holding.spaceIndex);
   const redeemOk = holding.mortgaged && player.cash >= rCost;
   const sellOk = canSellBuilding(player, holding.spaceIndex, bankStock);
-  const pousadaOk = canBuildPousada(player, holding.spaceIndex, bankStock);
-  const resortOk = canBuildResort(player, holding.spaceIndex, bankStock);
+  const pousadaOk = canBuildPousada(player, holding.spaceIndex, {
+    stock: bankStock,
+    ignoreCash: scarcePousada,
+    ignoreStock: scarcePousada,
+  });
+  const resortOk = canBuildResort(player, holding.spaceIndex, {
+    stock: bankStock,
+    ignoreCash: scarceResort,
+    ignoreStock: scarceResort,
+  });
 
   const currentLabel = holding.mortgaged
     ? "Hipotecada (sem aluguel)"
@@ -290,16 +302,20 @@ export function DeedDetailOverlay({
                 onClick={onBuildPousada}
                 tone="ok"
               >
-                Pousada
-                {buildCost != null ? ` · ${formatCash(buildCost)}` : ""}
+                {scarcePousada ? "Leiloar pousada" : "Pousada"}
+                {!scarcePousada && buildCost != null
+                  ? ` · ${formatCash(buildCost)}`
+                  : ""}
               </ActionButton>
               <ActionButton
                 disabled={!resortOk.ok}
                 onClick={onBuildResort}
                 tone="ok"
               >
-                Resort
-                {buildCost != null ? ` · ${formatCash(buildCost)}` : ""}
+                {scarceResort ? "Leiloar resort" : "Resort"}
+                {!scarceResort && buildCost != null
+                  ? ` · ${formatCash(buildCost)}`
+                  : ""}
               </ActionButton>
             </div>
           ) : null}

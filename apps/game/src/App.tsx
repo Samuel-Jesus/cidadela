@@ -20,15 +20,19 @@ import {
   maxRaisableCash,
   payJailFine,
   payPendingDebt,
+  propertyAuctionLot,
   releaseFromJail,
   resolveSpaceLanding,
+  resolveTieByDice,
   sendToJail,
+  settleDebt,
   useProtectionToLeaveJail,
   validateBid,
   type AuctionLot,
   type CardDef,
   type DebtInfo,
   type DecksState,
+  type PendingRentClaim,
   type PlayerState,
 } from "@cidadela/shared";
 import { preloadLandmarkModels } from "./landmarks/GltfLandmark";
@@ -49,6 +53,7 @@ type AuctionSession = {
   queue: AuctionLot[];
   currentBid: number;
   highBidderId: string | null;
+  tiedBidderIds: string[] | null;
   excludedIds: string[];
   passesSinceBid: number;
   resumePlayerId: string;
@@ -132,6 +137,9 @@ export function App() {
   const [consecutiveDoubles, setConsecutiveDoubles] = useState(0);
   const [jailError, setJailError] = useState<string | null>(null);
   const [pendingDebt, setPendingDebt] = useState<DebtInfo | null>(null);
+  const [pendingRent, setPendingRent] = useState<PendingRentClaim | null>(
+    null,
+  );
   const [auction, setAuction] = useState<AuctionSession | null>(null);
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [showTrade, setShowTrade] = useState(false);
@@ -188,6 +196,7 @@ export function App() {
     pendingAuctionsRef.current = [];
     auctionAdvanceAfterModalRef.current = null;
     setPendingDebt(null);
+    setPendingRent(null);
     setTurnPhase("ended");
     setSelectedIndex(w.position);
     return true;
@@ -239,6 +248,7 @@ export function App() {
         queue,
         currentBid: 0,
         highBidderId: null,
+        tiedBidderIds: null,
         excludedIds: [],
         passesSinceBid: 0,
         resumePlayerId,
@@ -265,6 +275,7 @@ export function App() {
         queue,
         currentBid: 0,
         highBidderId: null,
+        tiedBidderIds: null,
         excludedIds: [],
         passesSinceBid: 0,
         resumePlayerId: session.resumePlayerId,
@@ -401,6 +412,7 @@ export function App() {
       setConsecutiveDoubles(0);
       pendingLandingRef.current = null;
       setPendingDebt(null);
+      setPendingRent(null);
       setAuction(null);
       pendingAuctionsRef.current = [];
       auctionAdvanceAfterModalRef.current = null;
@@ -484,7 +496,7 @@ export function App() {
       isUnownedBuyable(playersRef.current, selectedIndex)
     ) {
       beginAuctions(
-        [{ spaceIndex: selectedIndex, mortgaged: false }],
+        [propertyAuctionLot(selectedIndex, false)],
         activePlayerId,
       );
       return;
@@ -697,12 +709,58 @@ export function App() {
     presentEvent(broke.notes, []);
   }, [pendingDebt, turnPhase, presentEvent, enqueueAuctions, endGameIfWon]);
 
+  const onClaimRent = useCallback(() => {
+    if (!pendingRent) return;
+    const claim = pendingRent;
+    setPendingRent(null);
+    const settled = settleDebt(
+      playersRef.current,
+      decksRef.current,
+      claim.visitorId,
+      claim.amount,
+      { type: "player", playerId: claim.ownerId },
+      `Aluguel (${getSpace(claim.spaceIndex).name})`,
+    );
+    playersRef.current = settled.players;
+    setPlayers(settled.players);
+    decksRef.current = settled.decks;
+    setDecks(settled.decks);
+    if (settled.status === "shortfall") {
+      setPendingDebt(settled.debt);
+      presentEvent(settled.notes, []);
+      return;
+    }
+    if (settled.status === "bankrupt") {
+      if (endGameIfWon(settled.players)) {
+        presentEvent(
+          [...settled.notes, "Fim de jogo — resta um jogador de pé."],
+          [],
+        );
+        return;
+      }
+      if (settled.auctionQueue.length) {
+        enqueueAuctions(settled.auctionQueue);
+      }
+      presentEvent(settled.notes, []);
+      return;
+    }
+    presentEvent(settled.notes, []);
+  }, [pendingRent, presentEvent, endGameIfWon, enqueueAuctions]);
+
   const onRollDice = useCallback(() => {
     if (!activeRef.current || diceRolling || turnPhase !== "roll") return;
+    if (pendingRent) {
+      const space = getSpace(pendingRent.spaceIndex);
+      pendingNotesRef.current = [
+        ...pendingNotesRef.current,
+        `Aluguel de ${space.name} ($${pendingRent.amount}) perdido — o dono não cobrou a tempo.`,
+      ];
+      setPendingRent(null);
+    }
     setTurnPhase("busy");
     setDiceRolling(true);
     setDiceRollId((id) => id + 1);
-  }, [diceRolling, turnPhase]);
+  }, [diceRolling, turnPhase, pendingRent]);
 
   const onRollComplete = useCallback(
     (roll: DiceRoll) => {
@@ -856,6 +914,7 @@ export function App() {
                 followUpCards: r.followUpCards,
                 pendingDebt: r.pendingDebt,
                 auctionQueue: r.auctionQueue,
+                pendingRent: r.pendingRent,
               };
             },
           },
@@ -872,6 +931,9 @@ export function App() {
 
         if (resolved.pendingDebt) {
           setPendingDebt(resolved.pendingDebt);
+        }
+        if (resolved.pendingRent) {
+          setPendingRent(resolved.pendingRent);
         }
         if (resolved.auctionQueue.length) {
           enqueueAuctions(resolved.auctionQueue);
@@ -909,22 +971,45 @@ export function App() {
         player,
         amount,
         auction.currentBid,
-        auction.lot.spaceIndex,
+        auction.lot,
         auction.excludedIds,
+        auction.highBidderId,
       );
       if (!check.ok) {
         presentEvent([check.error], []);
+        return;
+      }
+      if (check.tie && auction.highBidderId) {
+        setAuction({
+          ...auction,
+          tiedBidderIds: [auction.highBidderId, playerId],
+          passesSinceBid: 0,
+        });
         return;
       }
       setAuction({
         ...auction,
         currentBid: amount,
         highBidderId: playerId,
+        tiedBidderIds: null,
         passesSinceBid: 0,
       });
     },
     [auction, presentEvent],
   );
+
+  const onResolveTieDice = useCallback(() => {
+    if (!auction?.tiedBidderIds || auction.tiedBidderIds.length < 2) return;
+    const [a, b] = auction.tiedBidderIds;
+    const result = resolveTieByDice(a!, b!);
+    setAuction({
+      ...auction,
+      highBidderId: result.winnerId,
+      tiedBidderIds: null,
+      passesSinceBid: 0,
+    });
+    presentEvent(result.notes, []);
+  }, [auction, presentEvent]);
 
   const finishAuctionLot = useCallback(
     (session: AuctionSession, notes: string[]) => {
@@ -954,6 +1039,7 @@ export function App() {
             excludedIds: [...auction.excludedIds, auction.highBidderId!],
             currentBid: 0,
             highBidderId: null,
+            tiedBidderIds: null,
             passesSinceBid: 0,
           });
           presentEvent(
@@ -968,9 +1054,11 @@ export function App() {
         return;
       }
       if (auction.currentBid <= 0 && nextPasses >= auctionPassesNeeded) {
-        finishAuctionLot(auction, [
-          "Sem lances — propriedade continua com o banco.",
-        ]);
+        const keepMsg =
+          auction.lot.kind === "property"
+            ? "Sem lances — propriedade continua com o banco."
+            : "Sem lances — peça continua no banco.";
+        finishAuctionLot(auction, [keepMsg]);
         return;
       }
       setAuction({ ...auction, passesSinceBid: nextPasses });
@@ -980,6 +1068,7 @@ export function App() {
 
   const onAuctionSell = useCallback(() => {
     if (!auction || !auction.highBidderId || auction.currentBid <= 0) return;
+    if (auction.tiedBidderIds?.length) return;
     const awarded = awardAuctionLot(
       playersRef.current,
       auction.highBidderId,
@@ -992,6 +1081,7 @@ export function App() {
         excludedIds: [...auction.excludedIds, auction.highBidderId],
         currentBid: 0,
         highBidderId: null,
+        tiedBidderIds: null,
         passesSinceBid: 0,
       });
       presentEvent(
@@ -1007,9 +1097,11 @@ export function App() {
 
   const onAuctionNoBids = useCallback(() => {
     if (!auction) return;
-    finishAuctionLot(auction, [
-      "Sem lances — propriedade continua com o banco.",
-    ]);
+    const keepMsg =
+      auction.lot.kind === "property"
+        ? "Sem lances — propriedade continua com o banco."
+        : "Sem lances — peça continua no banco.";
+    finishAuctionLot(auction, [keepMsg]);
   }, [auction, finishAuctionLot]);
 
   const turnLabel = (() => {
@@ -1065,6 +1157,13 @@ export function App() {
           playersRef.current = next;
           setPlayers(next);
         }}
+        onRequestPieceAuction={(kind, spaceIndex) => {
+          if (!activePlayerId || winnerId) return;
+          beginAuctions(
+            [{ kind, spaceIndex }],
+            activePlayerId,
+          );
+        }}
       />
       <BoardHud
         selectedIndex={selectedIndex}
@@ -1079,6 +1178,7 @@ export function App() {
         turnHint={turnLabel}
         jailError={jailError}
         pendingDebt={pendingDebt}
+        pendingRent={pendingRent}
         debtRaisable={debtRaisable}
         auctionQueueCount={auctionQueueCount}
         onSelectPlayer={() => { }}
@@ -1095,6 +1195,7 @@ export function App() {
         onLiquidateForDebt={onLiquidateForDebt}
         onDeclareBankruptcy={onDeclareBankruptcy}
         onOpenTrade={() => setShowTrade(true)}
+        onClaimRent={onClaimRent}
       />
       {showEventModal ? (
         <DrawnCardModal
@@ -1129,12 +1230,13 @@ export function App() {
       ) : null}
       {auction && turnPhase === "auction" && !showEventModal && !winnerId ? (
         <AuctionOverlay
-          key={auction.lot.spaceIndex}
+          key={`${auction.lot.kind}-${auction.lot.spaceIndex}`}
           lot={auction.lot}
           queueRemaining={1 + auction.queue.length}
           players={players}
           currentBid={auction.currentBid}
           highBidderId={auction.highBidderId}
+          tiedBidderIds={auction.tiedBidderIds}
           excludedIds={auction.excludedIds}
           passesNeeded={auctionPassesNeeded}
           passesSinceBid={auction.passesSinceBid}
@@ -1142,6 +1244,7 @@ export function App() {
           onPass={onAuctionPass}
           onSell={onAuctionSell}
           onNoBids={onAuctionNoBids}
+          onResolveTieDice={onResolveTieDice}
         />
       ) : null}
       {winner && !showEventModal ? (
