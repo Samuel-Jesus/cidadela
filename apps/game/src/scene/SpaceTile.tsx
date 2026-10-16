@@ -55,6 +55,7 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
     const cornerSize = Math.min(layout.width, layout.depth);
 
     const isGltf =
+      layout.index === 0 ||
       layout.index === 4 ||
       layout.index === 5 ||
       layout.index === 10 ||

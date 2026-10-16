@@ -1,0 +1,97 @@
+// Requer Three.js. Uso: const modelo = criarAeroportoSalvador(THREE); cena.add(modelo);
+// No loop de animação: modelo.userData.tick(deltaSegundos);
+// Pausar/retomar: modelo.userData.alternarOperacao();
+// Reiniciar o voo do avião: modelo.userData.reiniciarVoo();
+
+function criarAeroportoSalvador(THREE){
+  const g=new THREE.Group(); g.name='AeroportoSalvador'; const PI=Math.PI;
+  let sd=21; const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+  const M=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.8},o||{}));
+  const m={grass:M(0x7fa83c),dirt:M(0x8a7a62),sea:M(0x1a8fb5,{roughness:.3}),apron:M(0xa6a69f),asf:M(0x3d3f44),white:M(0xf4f5f7,{roughness:.55}),vault:M(0xdfe3e8,{roughness:.5}),
+    glass:M(0x2aa38b,{roughness:.2,transparent:true,opacity:.8}),gl:M(0x1f6f78,{roughness:.2}),yellow:M(0xf2c230),grey:M(0xaeb0b3),dark:M(0x1c1d21),blue:M(0x2b7fd0),
+    sand:M(0xece4d0),bush:M(0x3a6a2a),cab:M(0x1e2a36,{roughness:.2}),lamp:M(0xfff3b0,{emissive:0xffe9a0,emissiveIntensity:.7}),beac:M(0xff4a2a,{emissive:0xff2a10,emissiveIntensity:1})};
+  const bx=(w,h,d,mt,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const cyl=(rt,rb,h,mt,x,y,z,p,seg)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||14),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+
+  /* terreno: grama, mar ao fundo, pátio, pista, táxi, dunas e mata */
+  bx(26,.6,20,m.grass,0,-.3,0).material=[m.dirt,m.dirt,m.grass,m.dirt,m.dirt,m.dirt];
+  bx(26,.6,2.5,m.sea,0,-.4,-11.25);
+  bx(17,.04,7.2,m.apron,-2,.02,-1.4);
+  bx(26,.05,2,m.asf,0,.03,5.2); [-8,4.2].forEach(x=>bx(1.4,.045,2.4,m.asf,x,.03,3.2));
+  for(let x=-12;x<=12;x+=1) bx(.5,.01,.06,m.white,x,.06,5.2); [4.25,6.15].forEach(z=>bx(26,.01,.05,m.white,0,.06,z));
+  bx(26,.01,.05,m.yellow,0,.05,2.6);
+  [-5,-1.5,2,5].forEach(x=>bx(.05,.01,3.6,m.yellow,x,.05,.8));
+  [[9,-6,2.4],[11.5,-3.5,2],[-11,-7,1.8]].forEach(p=>{ const s=new THREE.Mesh(new THREE.SphereGeometry(p[2],18,10),m.sand); s.scale.y=.45; s.position.set(p[0],0,p[1]); g.add(s); });
+  for(let i=0;i<30;i++){ const r=.35+rnd()*.4, b=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),M(new THREE.Color().setHSL(.27+rnd()*.05,.45,.2+rnd()*.08))); b.position.set(-12.5+rnd()*25,r*.7,-10+rnd()*2.2); g.add(b); }
+
+  /* terminal: corpo branco, abóbada, fachada de vidro, letreiro e copa curva */
+  bx(14,2.2,3.2,m.white,-2,1.1,-7.2);
+  const vb=new THREE.Mesh(new THREE.CylinderGeometry(1.75,1.75,14,28,1,false,0,PI),m.vault); vb.rotation.z=PI/2; vb.position.set(-2,2.2,-7.2); g.add(vb);
+  bx(13.8,.9,.05,m.gl,-2,1.1,-5.58); for(let x=-8.6;x<=4.7;x+=.8) bx(.05,.9,.07,m.white,x,1.1,-5.57);
+  const lt=document.createElement('canvas'); lt.width=512; lt.height=128; const lc=lt.getContext('2d');
+  lc.fillStyle='#fff'; lc.fillRect(0,0,512,128); lc.fillStyle='#1f2f9a'; lc.font='bold 52px Arial,sans-serif'; lc.textAlign='left'; lc.textBaseline='middle'; lc.fillText('SALVADOR BAHIA',20,38); lc.fillText('AIRPORT',20,96);
+  const letr=new THREE.Mesh(new THREE.PlaneGeometry(4.4,1.1),new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(lt),roughness:.6})); letr.position.set(.6,1.4,-8.81); letr.rotation.y=PI; g.add(letr);
+  const copa=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,4.5,26,1,true,-PI/2,PI),m.vault); copa.rotation.x=-PI/2; copa.material.side=THREE.DoubleSide; copa.position.set(-7.3,0,-9.9); g.add(copa);
+  const ram=new THREE.Mesh(new THREE.CylinderGeometry(4.2,4.2,.5,26,1,true,0,PI/2),m.white); ram.material.side=THREE.DoubleSide; ram.position.set(-11,.25,-8.2); g.add(ram);
+  const via=new THREE.Mesh(new THREE.RingGeometry(2.2,4,24,1,0,PI/2),m.asf); via.rotation.x=-PI/2; via.position.set(-11,.035,-8.2); g.add(via);
+  bx(6,.04,3.5,m.asf,9,.02,-8.5); [8.2,10.1].forEach(x=>bx(1.4,.06,3.2,m.blue,x,.95,-8.5));
+  for(let i=0;i<14;i++) bx(.3,.12,.18,M([0xeeeeee,0x23262b,0xb23a3a,0x3a5fa8,0xc6c9cd][i%5]),6.8+(i%7)*.55,.1,-9.4+(i<7?0:1.4));
+
+  /* pontes de embarque */
+  [-5,-1.5,2,5].forEach(x=>{
+    bx(.55,.55,1.9,m.glass,x,1.1,-4.6); bx(.6,.04,1.9,m.white,x,1.4,-4.6); bx(.6,.04,1.9,m.white,x,.8,-4.6);
+    bx(.7,.6,.6,m.grey,x,1.1,-3.45); cyl(.05,.05,.7,m.grey,x,.4,-3.2,g,8);
+  });
+
+  /* torre de controle, mastros de luz, veículos */
+  cyl(.5,.6,6,m.grey,-10.2,3,-3.5,g,16); cyl(.95,.8,.8,m.cab,-10.2,6.4,-3.5,g,16); cyl(1.05,1.05,.12,m.white,-10.2,6.86,-3.5,g,16);
+  const farol=new THREE.Mesh(new THREE.SphereGeometry(.09,8,6),m.beac); farol.position.set(-10.2,7.15,-3.5); g.add(farol); cyl(.02,.02,.3,m.grey,-10.2,7.05,-3.5,g,6);
+  const mastro=(x,z)=>{
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(s=>cyl(.018,.018,5,m.grey,x+s[0]*.13,2.5,z+s[1]*.13,g,6));
+    for(let y=.5;y<5;y+=1) { bx(.3,.02,.02,m.grey,x,y,z+.13); bx(.3,.02,.02,m.grey,x,y,z-.13); bx(.02,.02,.3,m.grey,x+.13,y,z); bx(.02,.02,.3,m.grey,x-.13,y,z); }
+    bx(.8,.1,.25,m.grey,x,5.1,z); for(let i=0;i<6;i++) bx(.1,.08,.1,m.lamp,x-.33+i*.13,5.2,z);
+  };
+  [-7.2,-3.3,.6,4.4].forEach(x=>mastro(x,-3.8));
+  const onibus=new THREE.Group(); bx(.9,.38,.34,M(0x2f9a4a),0,.3,0,onibus); bx(.92,.1,.35,m.white,0,.33,0,onibus); bx(.7,.12,.36,m.cab,0,.4,0,onibus); onibus.position.set(-6,0,.9); g.add(onibus);
+  bx(.5,.25,.3,M(0x2f9a4a),2,.2,-3.1); cyl(.1,.1,.45,m.grey,2,.35,-3.1,g,10).rotation.z=PI/2;
+  [[ -3,-3.6],[-2.6,-3.6],[-2.2,-3.6]].forEach(p=>bx(.3,.18,.24,m.grey,p[0],.15,p[1]));
+
+  /* aviões */
+  const aviao=(tail,ac)=>{
+    const a=new THREE.Group();
+    const fus=cyl(.27,.27,3.4,m.white,0,.62,0,a,18); fus.rotation.z=PI/2;
+    const nariz=new THREE.Mesh(new THREE.SphereGeometry(.27,14,10),m.white); nariz.scale.x=1.4; nariz.position.set(1.7,.62,0); a.add(nariz);
+    const cone=cyl(.1,.27,.9,m.white,-2.05,.64,0,a,14); cone.rotation.z=PI/2;
+    const fin=bx(.55,.8,.05,M(tail),-1.75,1.12,0,a); fin.rotation.z=.4;
+    bx(.4,.04,1,m.white,-1.8,.7,0,a);
+    [1,-1].forEach(s=>{ const w=bx(.8,.05,1.5,m.white,-.1,.5,s*.85,a); w.rotation.y=-s*.5; const e=cyl(.1,.1,.45,M(ac),.35,.33,s*.75,a,12); e.rotation.z=PI/2; });
+    for(let x=-1;x<=1.2;x+=.14) [.275,-.275].forEach(z=>bx(.05,.05,.01,m.dark,x,.7,z,a));
+    bx(.04,.3,.04,m.dark,.8,.25,0,a); [-.15,.15].forEach(z=>bx(.04,.3,.04,m.dark,-.2,.25,z,a));
+    [[.8,0],[-.2,-.15],[-.2,.15]].forEach(p=>{ const r=cyl(.07,.07,.06,m.dark,p[0],.08,p[1],a,10); r.rotation.x=PI/2; });
+    return a;
+  };
+  [[-5,0xf26b1d,0xf26b1d],[-1.5,0x143a7b,0x143a7b],[2,0x8a1f55,0x8a1f55]].forEach(p=>{ const a=aviao(p[1],p[2]); a.position.set(p[0],0,-1); a.rotation.y=PI/2; g.add(a); });
+  const movel=aviao(0x2faa4a,0x2faa4a); g.add(movel);
+
+  /* voo: ciclo de 56 s (pushback, táxi, decolagem, retorno, pouso, táxi até o portão) */
+  const K=[[0,5,0,-1,PI/2,0,1],[3,5,0,1.4,PI/2,0,1],[5.5,3.8,0,2.6,PI,0,1],[13,-8,0,2.6,PI,0,1],[15.5,-8,0,3.6,1.5*PI,0,1],[17,-8,0,5.2,1.5*PI,0,1],[19,-7.4,0,5.2,2*PI,0,1],
+    [26,4,0,5.2,2*PI,0,2],[27,6.5,.35,5.2,2*PI,.22,1],[31,16,6,5.2,2*PI,.2,0],[33,-16,5,5.2,2*PI,-.05,0],[38,-9.5,.12,5.2,2*PI,-.06,0],[44,.5,0,5.2,2*PI,0,3],
+    [47,3.5,0,5.2,2*PI,0,1],[49,4.2,0,4,2.5*PI,0,1],[50.5,4.2,0,2.6,2.5*PI,0,1],[53,5,0,1.4,2.5*PI,0,1],[56,5,0,-1,2.5*PI,0,1]];
+  const ez=[s=>s,s=>s*s*(3-2*s),s=>s*s,s=>1-(1-s)*(1-s)];
+  let t=0, vai=true;
+  const pose=()=>{
+    let i=0; while(i<K.length-2&&t>=K[i+1][0]) i++;
+    const a=K[i], b=K[i+1], s=ez[a[6]](Math.min(1,Math.max(0,(t-a[0])/(b[0]-a[0]))));
+    const L=k=>a[k]+(b[k]-a[k])*s;
+    movel.position.set(L(1),L(2),L(3)); movel.rotation.y=L(4); movel.rotation.z=L(5); movel.visible=!(t>31&&t<33);
+  };
+  pose();
+  g.userData.alternarOperacao=()=>(vai=!vai);
+  g.userData.reiniciarVoo=()=>{ t=0; pose(); };
+  g.userData.tick=dt=>{
+    if(!vai) return; t=(t+dt)%56; pose();
+    onibus.position.x+=dt*.9; if(onibus.position.x>5) onibus.position.x=-9;
+    m.beac.emissiveIntensity=Math.sin(t*5)>0?1.2:.1;
+  };
+  return g;
+}

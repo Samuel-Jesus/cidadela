@@ -1,6 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import { FitToSlot } from "./FitToSlot";
 import { GltfLandmark } from "./GltfLandmark";
+import { AeroportoSalvadorLandmark } from "./AeroportoSalvadorLandmark";
 import { CoelbaLandmark } from "./CoelbaLandmark";
 import { FerryBoatLandmark } from "./FerryBoatLandmark";
 import { MetroDeSalvadorLandmark } from "./MetroDeSalvadorLandmark";
@@ -19,6 +20,7 @@ type Props = {
 
 export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props) {
   const isGltf =
+    index === 0 ||
     index === 4 ||
     index === 5 ||
     index === 10 ||
@@ -33,6 +35,9 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   const fitWidth = (slotWidth ?? 1.2) * (isGltf ? 0.98 : 0.95);
   const fitDepth = (slotDepth ?? 1.2) * (isGltf ? 0.98 : 0.55);
 
+  if (index === 0) {
+    return <AeroportoSalvadorLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
   if (index === 4) {
     return <PedagioLinhaVerdeLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
@@ -77,8 +82,6 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
 
 function LandmarkMesh({ index }: { index: number }): ReactNode {
   switch (index) {
-    case 0:
-      return <Airport />;
     case 1:
       return <IlhaDeMare />;
     case 2:
@@ -134,21 +137,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
     default:
       return <Box args={[0.4, 0.4, 0.4]} position={[0, 0.2, 0]} color="#aaaaaa" />;
   }
-}
-
-function Airport() {
-  return (
-    <Group>
-      <Box args={[1.2, 0.35, 0.55]} position={[0, 0.2, 0]} color="#dfe6e9" />
-      <Box args={[0.35, 0.55, 0.35]} position={[-0.35, 0.45, 0]} color="#b2bec3" />
-      <Box args={[0.9, 0.08, 0.25]} position={[0.15, 0.08, 0.45]} color="#636e72" />
-      <Group position={[0.55, 0.35, -0.35]} rotation={[0, 0.4, 0]}>
-        <Box args={[0.7, 0.12, 0.22]} position={[0, 0, 0]} color="#74b9ff" />
-        <Box args={[0.9, 0.04, 0.08]} position={[0, 0.02, 0]} color="#0984e3" />
-        <Box args={[0.08, 0.04, 0.55]} position={[0.1, 0, 0]} color="#0984e3" />
-      </Group>
-    </Group>
-  );
 }
 
 function IlhaDeMare() {
