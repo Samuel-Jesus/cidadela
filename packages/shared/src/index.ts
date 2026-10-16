@@ -45,5 +45,20 @@ export {
   returnCardToBottom,
   deckCounts,
 } from "./cards";
-export type { CardResolveResult } from "./cardEffects";
+export type { CardResolveResult, CardResolveOptions } from "./cardEffects";
 export { resolveCardEffect } from "./cardEffects";
+export type { SpaceResolveResult, SpaceResolveOptions } from "./spaceResolve";
+export { resolveSpaceLanding } from "./spaceResolve";
+export type { PropertyRentRow } from "./rent";
+export {
+  TRANSPORT_RENT_BY_COUNT,
+  PROPERTY_RENT,
+  countTransports,
+  countUtilities,
+  propertyRentAmount,
+  transportRentAmount,
+  utilityRentAmount,
+  transferCash,
+  payBank,
+  chargeRentIfOwned,
+} from "./rent";

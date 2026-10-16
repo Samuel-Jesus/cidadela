@@ -56,6 +56,8 @@ export function App() {
   );
   const [decks, setDecks] = useState<DecksState>(() => createDecks());
   const [drawnCard, setDrawnCard] = useState<CardDef | null>(null);
+  const [cardNotes, setCardNotes] = useState<string[]>([]);
+  const [followUpCards, setFollowUpCards] = useState<CardDef[]>([]);
 
   const [diceRoll, setDiceRoll] = useState<DiceRoll | null>(null);
   const [diceRolling, setDiceRolling] = useState(false);
@@ -76,6 +78,8 @@ export function App() {
     setActivePlayerId(next[0]?.id ?? null);
     setDecks(createDecks());
     setDrawnCard(null);
+    setCardNotes([]);
+    setFollowUpCards([]);
     setDiceRoll(null);
     setDiceRolling(false);
     doublesRef.current = 0;
@@ -133,6 +137,8 @@ export function App() {
         const moved = resolved.players.find((p) => p.id === activePlayerId);
         if (moved) setSelectedIndex(moved.position);
         setDrawnCard(card);
+        setCardNotes(resolved.notes);
+        setFollowUpCards(resolved.followUpCards);
         return resolved.players;
       });
       return finalDecks ?? afterDraw;
@@ -229,7 +235,13 @@ export function App() {
       {drawnCard ? (
         <DrawnCardModal
           card={drawnCard}
-          onDismiss={() => setDrawnCard(null)}
+          notes={cardNotes}
+          followUpCards={followUpCards}
+          onDismiss={() => {
+            setDrawnCard(null);
+            setCardNotes([]);
+            setFollowUpCards([]);
+          }}
         />
       ) : null}
       <p className="pointer-events-none absolute bottom-4 left-4 z-10 text-xs text-[#c9ada7]/80">

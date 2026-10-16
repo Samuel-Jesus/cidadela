@@ -120,6 +120,7 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Dados 3D com física (cantos/pips Codrops + cannon-es; dupla / 3ª → Forte)
 - [x] Carteira (saldo $1.500, escrituras, cartas; compra básica; +$200 Chegada)
 - [x] Baralhos Fitinha (16) + Bença (16); comprar carta; Proteção na carteira
+- [x] Cartas: transporte×2 / companhia 10×dados; resolve casa após movimento
 - [ ] Path/waypoints para movimento casa a casa
 
 ---
