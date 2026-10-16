@@ -170,9 +170,13 @@ function polishMaterials(object: Object3D) {
   });
 }
 
+export const LANDMARK_MODELS = [
+  { url: "/models/elevador-lacerda.gltf", label: "Elevador Lacerda" },
+  { url: "/models/forte-sao-marcelo.gltf", label: "Forte São Marcelo" },
+  { url: "/models/farol-da-barra.gltf", label: "Farol da Barra" },
+  { url: "/models/hidrometro.gltf", label: "Hidrômetro" },
+] as const;
+
 export function preloadLandmarkModels() {
-  useGLTF.preload("/models/elevador-lacerda.gltf");
-  useGLTF.preload("/models/forte-sao-marcelo.gltf");
-  useGLTF.preload("/models/farol-da-barra.gltf");
-  useGLTF.preload("/models/hidrometro.gltf");
+  for (const m of LANDMARK_MODELS) useGLTF.preload(m.url);
 }

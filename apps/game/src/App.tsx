@@ -36,7 +36,10 @@ import {
   type PendingRentClaim,
   type PlayerState,
 } from "@cidadela/shared";
-import { preloadGameAssets } from "./boot/preloadAssets";
+import {
+  preloadGameAssets,
+  type PreloadProgress,
+} from "./boot/preloadAssets";
 import { AuctionOverlay } from "./ui/AuctionOverlay";
 import { BoardCanvas } from "./scene/BoardCanvas";
 import { BoardHud } from "./ui/BoardHud";
@@ -118,11 +121,16 @@ function isUnownedBuyable(
   return !findPropertyOwner(players, spaceIndex);
 }
 
-const LOADING_MIN_MS = 1800;
+const LOADING_MIN_MS = 2200;
+const LOADING_LAND_MS = 700;
 
 export function App() {
   const [screen, setScreen] = useState<AppScreen>("loading");
-  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadProgress, setLoadProgress] = useState<PreloadProgress>({
+    stage: "fonts",
+    ratio: 0,
+    hint: "Embarcando para a Bahia…",
+  });
   const [selectedIndex, setSelectedIndex] = useState<number | null>(0);
   const [playerCount, setPlayerCount] = useState(4);
   const [players, setPlayers] = useState<PlayerState[]>([]);
@@ -175,17 +183,23 @@ export function App() {
     const started = performance.now();
 
     void preloadGameAssets((p) => {
-      if (!cancelled) setLoadProgress(p.ratio);
-    }).finally(() => {
-      const elapsed = performance.now() - started;
-      const wait = Math.max(0, LOADING_MIN_MS - elapsed);
-      window.setTimeout(() => {
-        if (!cancelled) {
-          setLoadProgress(1);
-          setScreen("lobby");
-        }
-      }, wait);
-    });
+      if (!cancelled) setLoadProgress(p);
+    })
+      .catch(() => undefined)
+      .finally(() => {
+        if (cancelled) return;
+        setLoadProgress((p) => ({
+          ...p,
+          stage: "ready",
+          ratio: 1,
+          detail: undefined,
+        }));
+        const elapsed = performance.now() - started;
+        const wait = Math.max(LOADING_LAND_MS, LOADING_MIN_MS - elapsed);
+        window.setTimeout(() => {
+          if (!cancelled) setScreen("lobby");
+        }, wait);
+      });
 
     return () => {
       cancelled = true;
@@ -1183,7 +1197,13 @@ export function App() {
     pendingAuctionsRef.current.length;
 
   if (screen === "loading") {
-    return <LoadingScreen progress={loadProgress} />;
+    return (
+      <LoadingScreen
+        progress={loadProgress.ratio}
+        hint={loadProgress.hint}
+        detail={loadProgress.detail}
+      />
+    );
   }
 
   if (screen === "lobby") {
