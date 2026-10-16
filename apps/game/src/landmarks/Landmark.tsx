@@ -1,9 +1,16 @@
+import { Suspense } from "react";
+import { GltfLandmark } from "./GltfLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
-type Props = { index: number };
+type Props = {
+  index: number;
+  accent?: boolean;
+  slotWidth?: number;
+  slotDepth?: number;
+};
 
 /** Landmark low-poly único por casa (escala local ~1 unidade). */
-export function Landmark({ index }: Props) {
+export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props) {
   switch (index) {
     case 0:
       return <Airport />;
@@ -40,7 +47,9 @@ export function Landmark({ index }: Props) {
     case 14:
       return <MorroSaoPaulo />;
     case 15:
-      return <ElevadorLacerda />;
+      return (
+        <ElevadorLacerda accent={accent} slotWidth={slotWidth} slotDepth={slotDepth} />
+      );
     case 16:
       return <Lencois />;
     case 18:
@@ -267,18 +276,40 @@ function MorroSaoPaulo() {
   );
 }
 
-function ElevadorLacerda() {
+function ElevadorLacerdaFallback() {
   return (
     <Group>
-      {/* Torres gêmeas do Elevador Lacerda */}
       <Box args={[0.35, 1.15, 0.35]} position={[-0.22, 0.6, 0]} color="#bdc3c7" />
       <Box args={[0.35, 1.15, 0.35]} position={[0.22, 0.6, 0]} color="#aeb6bf" />
       <Box args={[0.15, 0.9, 0.12]} position={[-0.22, 0.55, 0.2]} color="#5dade2" />
       <Box args={[0.15, 0.9, 0.12]} position={[0.22, 0.55, 0.2]} color="#5dade2" />
       <Box args={[0.9, 0.12, 0.45]} position={[0, 1.25, 0]} color="#85929e" />
-      <Box args={[1.0, 0.15, 0.6]} position={[0, 0.08, 0.35]} color="#7d3c98" />
-      <Box args={[1.0, 0.2, 0.5]} position={[0, 0.1, -0.4]} color="#f5cba7" />
     </Group>
+  );
+}
+
+function ElevadorLacerda({
+  accent,
+  slotWidth,
+  slotDepth,
+}: {
+  accent?: boolean;
+  slotWidth?: number;
+  slotDepth?: number;
+}) {
+  const width = slotWidth ?? 1.2;
+  const depth = slotDepth ?? 1.2;
+  return (
+    <Suspense fallback={<ElevadorLacerdaFallback />}>
+      <GltfLandmark
+        url="/models/elevador-lacerda.gltf"
+        fitWidth={width * 0.95}
+        fitDepth={depth * 0.55}
+        rotationY={Math.PI}
+        polish
+        accent={accent}
+      />
+    </Suspense>
   );
 }
 

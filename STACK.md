@@ -115,6 +115,7 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Seleção + HUD React
 - [x] Visual 3D real (Three.js, orbit, luzes, sombras)
 - [x] Landmark por casa (low-poly)
+- [x] Elevador Lacerda via GLTF (`/models/elevador-lacerda.gltf`)
 - [x] Peões na casa (8 tokens baianos, slots, animação)
 - [x] Dados 3D com física (cantos/pips Codrops + cannon-es; dupla / 3ª → Forte)
 - [ ] Path/waypoints para movimento casa a casa

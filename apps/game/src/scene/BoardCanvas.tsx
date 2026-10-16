@@ -46,19 +46,21 @@ export function BoardCanvas({
       <color attach="background" args={["#120c08"]} />
       <fog attach="fog" args={["#120c08", 35, 70]} />
 
-      <ambientLight intensity={0.45} />
+      <ambientLight intensity={0.5} />
       <directionalLight
         castShadow
         position={[12, 22, 10]}
-        intensity={1.35}
+        intensity={1.45}
         shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.0002}
         shadow-camera-far={60}
         shadow-camera-left={-20}
         shadow-camera-right={20}
         shadow-camera-top={20}
         shadow-camera-bottom={-20}
       />
-      <hemisphereLight args={["#ffe8c8", "#2a1810", 0.35]} />
+      <hemisphereLight args={["#ffe8c8", "#2a1810", 0.42]} />
+      <directionalLight position={[-8, 10, -6]} intensity={0.35} color="#b8d4ff" />
 
       <BoardTable />
       {layouts.map((layout) => (

@@ -1,8 +1,11 @@
 import { useCallback, useRef, useState } from "react";
 import { nextPosition, type DiceRoll } from "@cidadela/engine";
 import { createPlayers, type PlayerState } from "@cidadela/shared";
+import { preloadLandmarkModels } from "./landmarks/GltfLandmark";
 import { BoardCanvas } from "./scene/BoardCanvas";
 import { BoardHud } from "./ui/BoardHud";
+
+preloadLandmarkModels();
 
 export function App() {
   const initial = createPlayers(4);

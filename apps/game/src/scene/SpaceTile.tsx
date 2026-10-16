@@ -14,6 +14,10 @@ type Props = {
   onSelect: (index: number) => void;
 };
 
+function isSideTile(yaw: number) {
+  return Math.abs(Math.abs(yaw) - Math.PI / 2) < 0.2;
+}
+
 export function SpaceTile({ layout, selected, onSelect }: Props) {
   const space = getSpace(layout.index);
   const groupRef = useRef<Group>(null);
@@ -21,10 +25,18 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
   const color = tileColor(space);
   const stripe = stripeColor(space);
 
-  const landmarkScale = useMemo(() => {
-    const m = Math.min(layout.width, layout.depth);
-    return Math.min(0.85, m * 0.42);
-  }, [layout.width, layout.depth]);
+  const { slotWidth, slotDepth, landmarkScale, landmarkFrontOffset } = useMemo(() => {
+    const side = isSideTile(layout.yaw);
+    const slotWidth = side ? layout.depth : layout.width;
+    const slotDepth = side ? layout.width : layout.depth;
+
+    const landmarkScale = layout.index === 15 ? 1 : Math.min(0.85, Math.min(layout.width, layout.depth) * 0.42);
+
+    const landmarkFrontOffset =
+      layout.index === 15 ? slotDepth * 0.28 : Math.min(layout.width, layout.depth) * 0.1;
+
+    return { slotWidth, slotDepth, landmarkScale, landmarkFrontOffset };
+  }, [layout]);
 
   useFrame((_, dt) => {
     const g = groupRef.current;
@@ -67,12 +79,25 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
       {stripe ? <Stripe layout={layout} color={stripe} /> : null}
 
       <group position={[0, TILE_THICKNESS * 0.55, 0]} rotation={[0, layout.yaw, 0]} scale={landmarkScale}>
-        <Landmark index={layout.index} />
+        <group position={[0, 0, landmarkFrontOffset]}>
+          <Landmark
+            index={layout.index}
+            accent={selected || hovered}
+            slotWidth={slotWidth}
+            slotDepth={slotDepth}
+          />
+        </group>
       </group>
 
       {selected ? (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -TILE_THICKNESS * 0.48, 0]}>
-          <ringGeometry args={[Math.min(layout.width, layout.depth) * 0.35, Math.min(layout.width, layout.depth) * 0.48, 32]} />
+          <ringGeometry
+            args={[
+              Math.min(layout.width, layout.depth) * 0.35,
+              Math.min(layout.width, layout.depth) * 0.48,
+              32,
+            ]}
+          />
           <meshBasicMaterial color="#ffd166" transparent opacity={0.85} />
         </mesh>
       ) : null}
@@ -89,7 +114,6 @@ function Stripe({ layout, color }: { layout: SpaceLayout; color: string }) {
   let args: [number, number, number];
 
   if (isWide) {
-    // faixa na borda voltada ao centro (z → 0)
     const toward = layout.z > 0 ? -1 : 1;
     args = [layout.width * 0.92, 0.04, layout.depth * band];
     position = [0, TILE_THICKNESS * 0.52, toward * (layout.depth * (0.5 - band / 2) * 0.92)];
