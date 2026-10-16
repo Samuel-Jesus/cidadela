@@ -114,7 +114,7 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Seleção + HUD React
 - [x] Visual 3D real (Three.js, orbit, luzes, sombras)
 - [x] Landmark por casa (low-poly)
-- [ ] Peões na casa
+- [x] Peões na casa (8 tokens baianos, slots, animação)
 - [ ] Path/waypoints para movimento
 
 ---

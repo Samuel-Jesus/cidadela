@@ -1,17 +1,27 @@
 import { Canvas } from "@react-three/fiber";
 import { ContactShadows, Html, OrbitControls } from "@react-three/drei";
 import { useMemo } from "react";
-import { BOARD } from "@cidadela/shared";
+import { BOARD, type PlayerState } from "@cidadela/shared";
 import { BoardTable } from "./BoardTable";
 import { computeSpaceLayouts } from "./layout";
+import { PawnsLayer } from "./PawnsLayer";
 import { SpaceTile } from "./SpaceTile";
 
 type Props = {
   selectedIndex: number | null;
   onSelect: (index: number) => void;
+  players: PlayerState[];
+  activePlayerId: string | null;
+  onSelectPlayer: (playerId: string) => void;
 };
 
-export function BoardCanvas({ selectedIndex, onSelect }: Props) {
+export function BoardCanvas({
+  selectedIndex,
+  onSelect,
+  players,
+  activePlayerId,
+  onSelectPlayer,
+}: Props) {
   const layouts = useMemo(() => computeSpaceLayouts(), []);
 
   return (
@@ -47,6 +57,14 @@ export function BoardCanvas({ selectedIndex, onSelect }: Props) {
           onSelect={onSelect}
         />
       ))}
+
+      <PawnsLayer
+        players={players}
+        layouts={layouts}
+        activePlayerId={activePlayerId}
+        onSelectPlayer={onSelectPlayer}
+      />
+
       <ContactShadows position={[0, 0.03, 0]} opacity={0.45} scale={32} blur={2.5} far={12} />
 
       <OrbitControls
@@ -59,7 +77,6 @@ export function BoardCanvas({ selectedIndex, onSelect }: Props) {
         enablePan={false}
       />
 
-      {/* Label flutuante da casa selecionada */}
       {selectedIndex !== null ? (
         <Html position={[0, 8.5, 0]} center style={{ pointerEvents: "none" }}>
           <div className="rounded-full bg-[#1a120c]/75 px-3 py-1 text-xs text-[#f5f0e8] backdrop-blur">
