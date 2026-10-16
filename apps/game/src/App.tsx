@@ -249,7 +249,8 @@ export function App() {
         />
       ) : null}
       <p className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 text-center text-xs text-[#c9ada7]/75">
-        Arraste para orbitar · toque duplo na bandeja para lançar os dados
+        Arraste para orbitar · carteira no canto inferior esquerdo · toque duplo
+        na bandeja para lançar
       </p>
     </div>
   );

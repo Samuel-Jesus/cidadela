@@ -122,6 +122,7 @@ Colyseus (preferencial) ou PartyKit — cliente envia intent → server aplica `
 - [x] Baralhos Fitinha (16) + Bença (16); comprar carta; Proteção na carteira
 - [x] Cartas: transporte×2 / companhia 10×dados; resolve casa após movimento
 - [x] Escritura detalhada (aluguel/construção) + hipotecar/resgatar/vender/construir
+- [x] Carteira UI 2D fixa na tela (abrir/fechar animado, escrituras e cartas)
 - [ ] Path/waypoints para movimento casa a casa
 
 ---
