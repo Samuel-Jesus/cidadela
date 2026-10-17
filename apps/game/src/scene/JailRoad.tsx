@@ -2,14 +2,37 @@ import { Suspense, useMemo } from "react";
 import { Clone, useGLTF } from "@react-three/drei";
 import { BOARD_Y } from "./layout";
 
-const SCALE = 0.72;
-const ROAD_Y = BOARD_Y + 0.08;
+export const JAIL_ROAD_SCALE = 0.72;
+export const JAIL_ROAD_Y = BOARD_Y + 0.08;
 
-const EAST = 9;
-const NORTH = 9;
+const SCALE = JAIL_ROAD_SCALE;
+const ROAD_Y = JAIL_ROAD_Y;
 
-const VA_Z = -12;
-const FORTE_X = -12;
+export const JAIL_ROAD_EAST = 9;
+export const JAIL_ROAD_NORTH = 9;
+export const JAIL_ROAD_VA_Z = -12;
+export const JAIL_ROAD_FORTE_X = -12;
+
+const EAST = JAIL_ROAD_EAST;
+const NORTH = JAIL_ROAD_NORTH;
+const VA_Z = JAIL_ROAD_VA_Z;
+const FORTE_X = JAIL_ROAD_FORTE_X;
+
+export function jailRoadWaypoints(): [number, number][] {
+  const pts: [number, number][] = [];
+  pts.push([EAST * SCALE, VA_Z * SCALE]);
+  for (let gz = VA_Z + 1; gz <= NORTH; gz++) {
+    pts.push([EAST * SCALE, gz * SCALE]);
+  }
+  for (let gx = EAST - 1; gx >= FORTE_X; gx--) {
+    pts.push([gx * SCALE, NORTH * SCALE]);
+  }
+  return pts;
+}
+
+export function jailRoadParipeStop(): [number, number] {
+  return [3.2, NORTH * SCALE];
+}
 
 const URLS = {
   straight: "/models/roads/road-straight.glb",

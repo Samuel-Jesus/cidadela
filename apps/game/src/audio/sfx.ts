@@ -5,7 +5,8 @@ export type GameSfx =
   | "badLuck"
   | "auctionStart"
   | "yourTurn"
-  | "payRent";
+  | "payRent"
+  | "tiros";
 
 const FILES: Record<UiSfx, string> = {
   click: "click_004.ogg",
@@ -27,6 +28,7 @@ const GAME_FILES: Record<GameSfx, string> = {
   auctionStart: "start_leilao.ogg",
   yourTurn: "vez_de_jogar.ogg",
   payRent: "pagar_aluguel_perder_grana.ogg",
+  tiros: "magiaz_tiros.mp3",
 };
 
 const BASE = "/sounds/ui";
@@ -52,6 +54,7 @@ let lastHoverAt = 0;
 let hoverBound = false;
 let mixLoop: HTMLAudioElement | null = null;
 let carnavalTrack: HTMLAudioElement | null = null;
+let tirosLoop: HTMLAudioElement | null = null;
 
 function readMuted(): boolean {
   try {
@@ -135,6 +138,31 @@ export function playGameSfx(id: GameSfx, opts?: { volume?: number }): void {
   } catch {
     return;
   }
+}
+
+export function startTirosSfx(opts?: { volume?: number }): void {
+  stopTirosSfx();
+  if (muted || volume <= 0) return;
+  try {
+    const a = getAudio(GAME_FILES.tiros, GAME_BASE);
+    a.loop = true;
+    a.currentTime = 0;
+    a.volume = Math.min(1, Math.max(0, opts?.volume ?? volume * 0.85));
+    tirosLoop = a;
+    void a.play().catch(() => undefined);
+  } catch {
+    return;
+  }
+}
+
+export function stopTirosSfx(): void {
+  if (!tirosLoop) return;
+  try {
+    tirosLoop.pause();
+    tirosLoop.currentTime = 0;
+    tirosLoop.loop = false;
+  } catch { }
+  tirosLoop = null;
 }
 
 export function startDiceMixLoop(): void {
@@ -226,6 +254,7 @@ export function setSfxMuted(next: boolean): void {
   if (next) {
     stopDiceMixLoop();
     stopCarnavalMusic();
+    stopTirosSfx();
   }
   try {
     localStorage.setItem(MUTE_KEY, next ? "1" : "0");

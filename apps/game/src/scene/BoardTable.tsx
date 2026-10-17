@@ -1,5 +1,6 @@
 import { BOARD_SIZE, BOARD_Y } from "./layout";
 import { JailRoad } from "./JailRoad";
+import { ViaturaOperacao } from "./ViaturaOperacao";
 
 export function BoardTable() {
   const size = BOARD_SIZE + 1.2;
@@ -26,6 +27,7 @@ export function BoardTable() {
       </mesh>
 
       <JailRoad />
+      <ViaturaOperacao />
     </group>
   );
 }

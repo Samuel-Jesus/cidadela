@@ -1,0 +1,128 @@
+// Requer Three.js. Uso: const modelo = criarViaturas(THREE); cena.add(modelo);
+// No loop de animação: modelo.userData.tick(deltaSegundos);
+// Repetir a ação: modelo.userData.repetir();
+// Pausar/retomar: modelo.userData.alternarOperacao();
+
+function criarViaturas(THREE){
+  const g=new THREE.Group(); g.name='Viaturas'; const PI=Math.PI, V=THREE.Vector3;
+  const M=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.7},o||{}));
+  const m={asf:M(0x3d3f44),conc:M(0xb9b7ae),grass:M(0x7fa83c),dirt:M(0x8a7a62),walk:M(0xcfcdc4),white:M(0xf3f4f6),blue:M(0x1f4fb0),tan:M(0xc9ad88),dk:M(0x2b2d31),black:M(0x15161a),grey:M(0x8d9196),
+    glass:M(0x233046,{transparent:true,opacity:.4,roughness:.1}),lamp:M(0xfff3b0,{emissive:0xffe9a0,emissiveIntensity:.7}),sr:M(0xff2a1a,{emissive:0xff1100,emissiveIntensity:1}),sb:M(0x2a5cff,{emissive:0x1040ff,emissiveIntensity:1}),
+    amb:M(0xffa21a,{emissive:0xff8800,emissiveIntensity:.8}),skin:M(0x7a5238),trace:M(0xffe066,{emissive:0xffcc22,emissiveIntensity:1}),flash:M(0xfff2a0,{emissive:0xffdd55,emissiveIntensity:2}),
+    smoke:M(0xe8e8e8,{transparent:true,opacity:.5,depthWrite:false}),skid:M(0x1a1a1c)};
+  const bx=(w,h,d,mt,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const cyl=(rt,rb,h,mt,x,y,z,p,seg)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||12),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const ball=(r,mt,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(r,10,8),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const sm=x=>x*x*(3-2*x), cl=x=>Math.max(0,Math.min(1,x));
+  const texto=(s,cor,w,h)=>{const c=document.createElement('canvas');c.width=256;c.height=48;const x=c.getContext('2d');x.fillStyle=cor;x.font='bold 34px Arial,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(s,128,26);
+    return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true}))};
+
+  /* cenário: rua, calçadas, muro de impacto */
+  bx(28,.6,14,m.grass,0,-.3,0).material=[m.dirt,m.dirt,m.grass,m.dirt,m.dirt,m.dirt];
+  bx(26,.06,9,m.asf,0,.03,0); for(let x=-12;x<=12;x+=1.4) bx(.7,.01,.07,m.white,x,.07,0);
+  [-5.6,5.6].forEach(z=>bx(26,.14,1.6,m.walk,0,.07,z));
+  const MURO=10.2; bx(.5,2.4,8,m.conc,MURO,1.2,0); bx(.6,.12,8.2,m.grey,MURO,2.45,0);
+
+  /* oficial: pivôs nos quadris e ombros, arma com clarão */
+  const oficial=(cor,longa)=>{
+    const o=new THREE.Group(), pv=(x,y,p)=>{const q=new THREE.Group();q.position.set(x,y,0);p.add(q);return q};
+    const lE=pv(-.08,.55,o), lD=pv(.08,.55,o); bx(.12,.52,.12,M(0x23262b),0,-.26,0,lE); bx(.12,.52,.12,M(0x23262b),0,-.26,0,lD);
+    bx(.32,.42,.2,M(cor),0,.78,0,o); bx(.34,.3,.22,m.black,0,.8,0,o);
+    const aE=pv(-.2,.95,o), aD=pv(.2,.95,o); [aE,aD].forEach(a=>{ bx(.09,.4,.09,M(cor),0,-.2,0,a); ball(.05,m.skin,0,-.42,0,a); });
+    ball(.095,m.skin,0,1.1,0,o); const cap=ball(.115,m.black,0,1.14,0,o); cap.scale.y=.75;
+    const arma=new THREE.Group(); arma.position.set(0,.93,.3); o.add(arma);
+    bx(.05,.07,longa?.6:.28,m.dk,0,0,longa?.12:.04,arma); bx(.04,.14,.05,m.dk,0,-.08,0,arma); if(longa) bx(.05,.09,.18,m.dk,0,-.01,-.26,arma);
+    const fl=new THREE.Mesh(new THREE.ConeGeometry(.06,.22,6),m.flash); fl.rotation.x=PI/2; fl.position.set(0,0,longa?.5:.26); fl.visible=false; arma.add(fl);
+    const bico=new THREE.Object3D(); bico.position.set(0,.93,longa?.95:.6); o.add(bico);
+    o.scale.setScalar(.95);
+    return {o,lE,lD,aE,aD,arma,fl,bico,prox:0,ap:arma.position.z};
+  };
+
+  /* viatura: azul (caminhonete com capota) ou bege (cabine dupla com santantônio) */
+  const viatura=(estilo)=>{
+    const az=estilo==='azul', car=new THREE.Group(); g.add(car);
+    const corpo=az?m.blue:m.tan, baixo=az?m.white:m.dk, fard=az?0x1b2a4a:0x3b4130;
+    bx(3.1,.2,1.1,m.black,0,.42,0,car); bx(3.1,.38,1.28,baixo,0,.7,0,car); bx(1,.2,1.26,corpo,1.15,.99,0,car);
+    bx(1.5,.07,1.22,corpo,.1,1.52,0,car); [[-.62,-.58],[-.62,.58],[.85,-.58],[.85,.58],[.1,-.6],[.1,.6]].forEach(p=>bx(.07,.45,.07,corpo,p[0],1.25,p[1],car));
+    [.6,-.6].forEach(z=>bx(1.5,.4,.02,m.glass,.1,1.25,z,car)); bx(.02,.45,1.14,m.glass,.9,1.25,0,car).rotation.z=.4; bx(.02,.4,1.14,m.glass,-.64,1.25,0,car);
+    bx(1.2,.05,1.2,m.black,-1.1,.9,0,car);
+    if(az){ bx(1.25,.5,1.22,m.blue,-1.1,1.2,0,car); bx(.02,.34,.9,m.dk,-1.73,1.22,0,car); bx(1.25,.12,1.23,m.white,-1.1,.99,0,car); const n=texto('1.0138','#ffffff',.8,.2); n.position.set(-1.74,1.22,0); n.rotation.y=-PI/2; car.add(n);
+      bx(.06,.45,1.1,m.black,1.72,.8,0,car); [-.4,0,.4].forEach(z=>bx(.05,.4,.05,m.black,1.74,.8,z,car)); }
+    else { [.58,-.58].forEach(z=>bx(1.2,.3,.05,m.tan,-1.1,1.05,z,car)); bx(.05,.3,1.2,m.tan,-1.7,1.05,0,car);
+      [.5,-.5].forEach(z=>bx(.05,.45,.05,m.dk,-.65,1.25,z,car)); bx(.05,.05,1.05,m.dk,-.65,1.5,0,car); }
+    bx(.15,.22,1.3,m.black,1.7,.58,0,car); bx(.15,.22,1.3,m.black,-1.75,.58,0,car); [-.45,.45].forEach(z=>bx(.04,.1,.25,m.lamp,1.64,.95,z,car));
+    [[1.05,.62],[1.05,-.62],[-1.05,.62],[-1.05,-.62]].forEach(p=>{ const w=cyl(.27,.27,.2,m.black,p[0],.27,p[1],car,16); w.rotation.x=PI/2; const r=cyl(.15,.15,.22,m.grey,p[0],.27,p[1],car,10); r.rotation.x=PI/2; });
+    bx(1,.07,.22,m.black,.3,1.6,0,car); const lr=bx(.38,.08,.2,m.sr,.1,1.67,0,car), lb=bx(.38,.08,.2,m.sb,.5,1.67,0,car);
+    if(!az){ bx(.3,.06,.18,m.amb,.3,1.67,0,car); }
+    /* portas: dianteira e traseira dos dois lados, dobradiça na frente */
+    const portas=[];
+    [1,-1].forEach(s=>[[.9,0],[0,1]].forEach(d=>{
+      const pg=new THREE.Group(); pg.position.set(d[0],0,s*.64); car.add(pg);
+      bx(.62,.38,.04,corpo,-.33,.73,0,pg); bx(.62,.12,.045,baixo,-.33,.58,0,pg); bx(.56,.4,.02,m.glass,-.33,1.22,0,pg);
+      if(d[1]===0){ const t=texto(az?'POLÍCIA':'POLÍCIA MILITAR',az?'#1b3d8a':'#2a2a2a',.6,.13); t.position.set(-.33,.73,s*.03); if(s<0)t.rotation.y=PI; pg.add(t);
+        const b=cyl(.07,.07,.02,m.sr,-.55,.85,s*.03,pg,16); b.rotation.x=PI/2; }
+      portas.push({pg,s});
+    }));
+    /* policiais: motorista, passageiro e dois atrás */
+    const lugares=[[.4,-.3,-1,0],[.4,.3,1,0],[-.25,-.3,-1,1],[-.25,.3,1,1]];
+    const ofs=lugares.map((l,i)=>{ const of=oficial(fard,i%2===0); car.add(of.o);
+      const S=new V(l[0],.3,l[1]), D=new V(l[0]-.1,0,l[2]*1.0), P=new V(l[3]?-.15:.55,0,l[2]*1.25); of.S=S; of.D=D; of.P=P; of.i=i; of.o.position.copy(S); return of; });
+    return {car,lr,lb,portas,ofs};
+  };
+  const vs=[Object.assign(viatura('azul'),{z:-2.1,x0:-.6,off:0,lado:0}),Object.assign(viatura('bege'),{z:2.1,x0:-2,off:1.5,lado:1})];
+
+  /* projéteis, faíscas de impacto, fumaça e marcas de pneu */
+  const trac=[], fais=[], fum=[], marcas=[]; let im=0;
+  for(let i=0;i<24;i++){ const t=bx(.5,.025,.025,m.trace,0,-9,0); t.visible=false; trac.push({t,v:0}); }
+  for(let i=0;i<20;i++){ const s=ball(.07,m.flash,0,-9,0); s.visible=false; fais.push({s,l:0}); }
+  for(let i=0;i<16;i++){ const s=ball(.3,m.smoke,0,-9,0); s.visible=false; fum.push({s,l:0,vx:0}); }
+  for(let i=0;i<50;i++){ const s=bx(.35,.012,.09,m.skid,0,-9,0); s.visible=false; marcas.push(s); }
+  const wp=new V(), disparar=(of)=>{ const t=trac.find(q=>!q.t.visible); if(!t) return; of.bico.getWorldPosition(wp); t.t.position.copy(wp); t.t.visible=true; t.v=34; };
+
+  /* ciclo de 18 s por viatura */
+  let t=0, vai=true; const T=18, sT=[0,0];
+  const pontoOf=(of,tc)=>{
+    const t0=3.3+.18*of.i, t1=9+.15*of.i, a=new V(), dir=(p,q)=>Math.atan2(q.x-p.x,q.z-p.z);
+    let yaw=PI/2, lev=0, aim=0, mov=0, tiro=false;
+    if(tc<t0) a.copy(of.S);
+    else if(tc<t0+1){ const u=(tc-t0), s=u/1; lev=sm(cl(s*3)); mov=1;
+      if(s<.45){ a.lerpVectors(of.S,of.D,s/.45); yaw=dir(of.S,of.D); } else { a.lerpVectors(of.D,of.P,(s-.45)/.55); yaw=dir(of.D,of.P); } }
+    else if(tc<t1){ a.copy(of.P); lev=1; aim=sm(cl((tc-t0-1)/.3)); tiro=aim>.95&&tc<t1-.1; }
+    else if(tc<t1+1.1){ const s=(tc-t1)/1.1; mov=1; lev=1-sm(cl((s-.6)/.4)); aim=1-sm(cl(s*5));
+      if(s<.55){ a.lerpVectors(of.P,of.D,s/.55); yaw=dir(of.P,of.D); } else { a.lerpVectors(of.D,of.S,(s-.55)/.45); yaw=dir(of.D,of.S); } }
+    else a.copy(of.S);
+    a.y=.3*(1-lev); return {a,yaw,lev,aim,mov,tiro};
+  };
+  const aplicar=(of,r,tt)=>{
+    of.o.position.copy(r.a); of.o.rotation.y=r.yaw; of.o.scale.set(.95,.95*(.8+.2*r.lev),.95);
+    const sw=r.mov?Math.sin(tt*16)*.7:0; of.lE.rotation.x=sw; of.lD.rotation.x=-sw;
+    const ar=-1.45*r.aim+(r.mov?Math.sin(tt*16)*.5:0)*(1-r.aim); of.aE.rotation.x=ar; of.aD.rotation.x=r.aim>0?ar:-ar;
+    of.fl.visible=r.tiro&&Math.sin(tt*70+of.i)>-.2; of.arma.position.z=of.ap-(of.fl.visible?.05:0);
+    of.prox-=1/60; if(r.tiro&&of.prox<=0){ disparar(of); of.prox=.1+Math.random()*.06; }
+  };
+  const luz=(v,tt)=>{ const f=Math.sin(tt*10)>0; v.lr.material=f?m.sr:m.dk; v.lb.material=f?m.dk:m.sb; };
+  g.userData.alternarOperacao=()=>(vai=!vai);
+  g.userData.repetir=()=>{ t=0; trac.forEach(q=>q.t.visible=false); marcas.forEach(q=>q.visible=false); };
+  g.userData.tick=dt=>{
+    if(!vai) return; t+=dt;
+    vs.forEach(v=>{
+      const tc=(t+v.off)%T, X0=v.x0; let x=X0, yaw=0, esp=0, vis=true;
+      if(tc<2.6){ const s=1-Math.pow(1-tc/2.6,2); x=-12+(X0+12)*s; }
+      else if(tc>=11&&tc<12.4){ const s=sm((tc-11)/1.4); x=X0+2.4*s; yaw=PI*s; esp=Math.sin(s*PI); }
+      else if(tc>=12.4&&tc<15){ const s=Math.pow((tc-12.4)/2.6,2); x=X0+2.4-(X0+2.4+14)*s; yaw=PI; }
+      else if(tc>=15) vis=false;
+      v.car.visible=vis; v.car.position.set(x,0,v.z); v.car.rotation.y=yaw; v.car.rotation.z=.07*esp*(v.lado?-1:1);
+      const ab=tc<2.6?0:tc<3.2?(tc-2.6)/.6:tc<10.4?1:tc<11?1-(tc-10.4)/.6:0;
+      v.portas.forEach(p=>p.pg.rotation.y=p.s*sm(ab)*1.0);
+      v.ofs.forEach(of=>aplicar(of,pontoOf(of,tc),tc));
+      if(vis&&(tc<2.6||tc>=11&&tc<12.4)) luz(v,t); else if(vis) luz(v,t);
+      if(esp>0){ sT[v.lado]-=dt; if(sT[v.lado]<=0){ sT[v.lado]=.05;
+        [-.62,.62].forEach(z=>{ v.car.localToWorld(wp.set(-1.05,.05,z)); const mk=marcas[im++%marcas.length]; mk.position.set(wp.x,.08,wp.z); mk.rotation.y=-yaw; mk.visible=true;
+          const f=fum.find(q=>!q.s.visible); if(f){ f.s.position.set(wp.x,.3,wp.z); f.s.scale.setScalar(.4); f.l=.9; f.vx=-.3+Math.random()*.6; f.s.visible=true; } }); } }
+    });
+    trac.forEach(q=>{ if(!q.t.visible) return; q.t.position.x+=q.v*dt; if(q.t.position.x>MURO-.3){ q.t.visible=false; const f=fais.find(k=>!k.s.visible); if(f){ f.s.position.set(MURO-.28,q.t.position.y,q.t.position.z); f.l=.18; f.s.visible=true; } } });
+    fais.forEach(f=>{ if(!f.s.visible) return; f.l-=dt; f.s.scale.setScalar(1+(.18-f.l)*10); if(f.l<=0) f.s.visible=false; });
+    fum.forEach(f=>{ if(!f.s.visible) return; f.l-=dt; f.s.position.x+=f.vx*dt; f.s.position.y+=.5*dt; f.s.scale.addScalar(dt*1.4); if(f.l<=0) f.s.visible=false; });
+  };
+  return g;
+}
