@@ -172,7 +172,6 @@ function polishMaterials(object: Object3D) {
 
 export const LANDMARK_MODELS = [
   { url: "/models/elevador-lacerda.gltf", label: "Elevador Lacerda" },
-  { url: "/models/forte-sao-marcelo.gltf", label: "Forte São Marcelo" },
   { url: "/models/hidrometro.gltf", label: "Hidrômetro" },
 ] as const;
 

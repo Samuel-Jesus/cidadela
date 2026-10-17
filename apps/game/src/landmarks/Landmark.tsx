@@ -11,6 +11,7 @@ import { PelourinhoLandmark } from "./PelourinhoLandmark";
 import { PlanoInclinadoLandmark } from "./PlanoInclinadoLandmark";
 import { QuartelPoliciaLandmark } from "./QuartelPoliciaLandmark";
 import { FarolDaBarraLandmark } from "./FarolDaBarraLandmark";
+import { ForteSaoMarceloLandmark } from "./ForteSaoMarceloLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -49,7 +50,13 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   }
   if (index === 10) {
     const forteFit = Math.min(slotWidth ?? 1.2, slotDepth ?? 1.2) * 0.85;
-    return <ForteSaoMarcelo accent={accent} fitWidth={forteFit} fitDepth={forteFit} />;
+    return (
+      <ForteSaoMarceloLandmark
+        accent={accent}
+        fitWidth={forteFit}
+        fitDepth={forteFit}
+      />
+    );
   }
   if (index === 12) {
     return <CoelbaLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
@@ -235,42 +242,6 @@ function Valenca() {
       <Cyl args={[0.08, 0.08, 0.35, 8]} position={[0.35, 0.65, 0]} color="#f5cba7" />
       <Cone args={[0.12, 0.18, 6]} position={[0.35, 0.9, 0]} color="#922b21" />
     </Group>
-  );
-}
-
-function ForteSaoMarceloFallback() {
-  return (
-    <Group>
-      <Cyl args={[0.55, 0.6, 0.45, 12]} position={[0, 0.25, 0]} color="#a04000" />
-      <Cyl args={[0.35, 0.35, 0.25, 10]} position={[0, 0.55, 0]} color="#6e2c00" />
-      <Box args={[1.5, 0.05, 1.5]} position={[0, 0.02, 0]} color="#1a5276" />
-      <Box args={[0.12, 0.2, 0.12]} position={[0.35, 0.72, 0.2]} color="#5d4037" />
-      <Box args={[0.12, 0.2, 0.12]} position={[-0.3, 0.72, -0.15]} color="#5d4037" />
-    </Group>
-  );
-}
-
-function ForteSaoMarcelo({
-  accent,
-  fitWidth,
-  fitDepth,
-}: {
-  accent?: boolean;
-  fitWidth: number;
-  fitDepth: number;
-}) {
-  return (
-    <Suspense fallback={<ForteSaoMarceloFallback />}>
-      <GltfLandmark
-        url="/models/forte-sao-marcelo.gltf"
-        fitWidth={fitWidth}
-        fitDepth={fitDepth}
-        fitIncludesPads
-        hideFootprintAbove={12}
-        polish
-        accent={accent}
-      />
-    </Suspense>
   );
 }
 
