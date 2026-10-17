@@ -14,6 +14,7 @@ import { FarolDaBarraLandmark } from "./FarolDaBarraLandmark";
 import { ForteSaoMarceloLandmark } from "./ForteSaoMarceloLandmark";
 import { HidrometroLandmark } from "./HidrometroLandmark";
 import { IlhaDeMareLandmark } from "./IlhaDeMareLandmark";
+import { IgrejaUniversalLandmark } from "./IgrejaUniversalLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -27,16 +28,19 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   const isGltf =
     index === 0 ||
     index === 1 ||
+    index === 2 ||
     index === 4 ||
     index === 5 ||
     index === 10 ||
     index === 12 ||
     index === 15 ||
+    index === 17 ||
     index === 20 ||
     index === 25 ||
     index === 27 ||
     index === 28 ||
     index === 30 ||
+    index === 33 ||
     index === 35 ||
     index === 39;
   const fitWidth = (slotWidth ?? 1.2) * (isGltf ? 0.98 : 0.95);
@@ -48,6 +52,15 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   if (index === 1) {
     return (
       <IlhaDeMareLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
+  }
+  if (index === 2 || index === 17 || index === 33) {
+    return (
+      <IgrejaUniversalLandmark
         accent={accent}
         fitWidth={fitWidth}
         fitDepth={fitDepth}
@@ -126,10 +139,6 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
 
 function LandmarkMesh({ index }: { index: number }): ReactNode {
   switch (index) {
-    case 2:
-    case 17:
-    case 33:
-      return <Benca />;
     case 3:
       return <Paripe />;
     case 6:
@@ -177,16 +186,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
     default:
       return <Box args={[0.4, 0.4, 0.4]} position={[0, 0.2, 0]} color="#aaaaaa" />;
   }
-}
-
-function Benca() {
-  return (
-    <Group>
-      <Box args={[0.45, 0.35, 0.3]} position={[0, 0.2, 0]} color="#c0392b" />
-      <Box args={[0.5, 0.08, 0.35]} position={[0, 0.42, 0]} color="#f1c40f" />
-      <Sphere args={[0.08]} position={[0, 0.55, 0]} color="#f39c12" />
-    </Group>
-  );
 }
 
 function Paripe() {
