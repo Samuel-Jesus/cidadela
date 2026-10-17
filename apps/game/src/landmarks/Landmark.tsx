@@ -16,6 +16,7 @@ import { HidrometroLandmark } from "./HidrometroLandmark";
 import { IlhaDeMareLandmark } from "./IlhaDeMareLandmark";
 import { IgrejaUniversalLandmark } from "./IgrejaUniversalLandmark";
 import { ParipeLandmark } from "./ParipeLandmark";
+import { FeiraSaoJoaquimLandmark } from "./FeiraSaoJoaquimLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -33,6 +34,7 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     index === 3 ||
     index === 4 ||
     index === 5 ||
+    index === 6 ||
     index === 10 ||
     index === 12 ||
     index === 15 ||
@@ -83,6 +85,15 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   }
   if (index === 5) {
     return <FerryBoatLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
+  if (index === 6) {
+    return (
+      <FeiraSaoJoaquimLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
   }
   if (index === 10) {
     const forteFit = Math.min(slotWidth ?? 1.2, slotDepth ?? 1.2) * 0.85;
@@ -150,8 +161,6 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
 
 function LandmarkMesh({ index }: { index: number }): ReactNode {
   switch (index) {
-    case 6:
-      return <Feira />;
     case 7:
     case 22:
     case 36:
@@ -195,19 +204,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
     default:
       return <Box args={[0.4, 0.4, 0.4]} position={[0, 0.2, 0]} color="#aaaaaa" />;
   }
-}
-
-function Feira() {
-  return (
-    <Group>
-      <Box args={[0.35, 0.25, 0.35]} position={[-0.3, 0.15, 0]} color="#e74c3c" />
-      <Box args={[0.4, 0.05, 0.4]} position={[-0.3, 0.3, 0]} color="#f39c12" />
-      <Box args={[0.35, 0.25, 0.35]} position={[0.25, 0.15, 0.1]} color="#27ae60" />
-      <Box args={[0.4, 0.05, 0.4]} position={[0.25, 0.3, 0.1]} color="#f1c40f" />
-      <Cyl args={[0.04, 0.04, 0.45, 6]} position={[-0.3, 0.45, 0]} color="#6d4c41" />
-      <Cyl args={[0.04, 0.04, 0.45, 6]} position={[0.25, 0.45, 0.1]} color="#6d4c41" />
-    </Group>
-  );
 }
 
 function Fitinha() {
