@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 import {
   COLOR_GROUP_LABELS,
   KIND_LABELS,
   PROPERTY_RENT,
-  PROTECTION_LABELS,
   formatCash,
   getCard,
   getPawnDef,
@@ -13,6 +13,7 @@ import {
   type PlayerState,
   type PropertyHolding,
 } from "@cidadela/shared";
+import { tDeckLabel, tProtectionLabel } from "../i18n/tCard";
 import { GROUP_COLORS } from "../scene/colors";
 import { WalletOverlays } from "./WalletOverlays";
 
@@ -51,6 +52,7 @@ export function WalletPanel({
   onPlayersChange,
   onRequestPieceAuction,
 }: Props) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [detailDeed, setDetailDeed] = useState<PropertyHolding | null>(null);
   const [detailCard, setDetailCard] = useState<CardDef | null>(null);
@@ -69,8 +71,8 @@ export function WalletPanel({
 
   if (!player) {
     return (
-      <div className="pointer-events-auto absolute bottom-4 left-4 z-20">
-        <div className="wlt-none">Escolhe um peão pra ver a carteira</div>
+      <div className="pointer-events-auto absolute bottom-4 start-4 z-20">
+        <div className="wlt-none">{t("wallet.pickPawn")}</div>
       </div>
     );
   }
@@ -94,7 +96,7 @@ export function WalletPanel({
 
   return (
     <>
-      <div className="pointer-events-auto absolute bottom-5 left-4 z-20">
+      <div className="pointer-events-auto absolute bottom-5 start-4 z-20">
         <div
           className={`wlt ${open ? "wlt--open" : ""}`}
           style={cssVars({ "--wlt-accent": def.color })}
@@ -108,14 +110,16 @@ export function WalletPanel({
                 />
                 <span className="wlt__who-name">{getPlayerLabel(player)}</span>
               </span>
-              {totalItems > 3 ? <span className="wlt__hint">role →</span> : null}
+              {totalItems > 3 ? (
+                <span className="wlt__hint">{t("wallet.scrollHint")}</span>
+              ) : null}
               <button
                 type="button"
                 className="wlt__close"
                 tabIndex={open ? 0 : -1}
                 onClick={closeWallet}
               >
-                fechar
+                {t("wallet.close")}
               </button>
             </div>
           </div>
@@ -149,9 +153,7 @@ export function WalletPanel({
               }}
             >
               {totalItems === 0 ? (
-                <li className="wlt-empty">
-                  Sem escrituras ainda… hora de comprar um terreninho!
-                </li>
+                <li className="wlt-empty">{t("hud.noDeeds")}</li>
               ) : null}
 
               {holdings.map((holding, i) => (
@@ -192,8 +194,8 @@ export function WalletPanel({
             aria-expanded={open}
             aria-label={
               open
-                ? `Fechar carteira de ${getPlayerLabel(player)}`
-                : `Abrir carteira de ${getPlayerLabel(player)}`
+                ? t("wallet.closeWallet", { name: getPlayerLabel(player) })
+                : t("wallet.openWallet", { name: getPlayerLabel(player) })
             }
             onClick={() => (open ? closeWallet() : setOpen(true))}
           >
@@ -203,13 +205,15 @@ export function WalletPanel({
             </span>
             <span className="wlt__pocket-meta">
               {player.inJail ? (
-                <span className="wlt__chip wlt__chip--jail">no Forte</span>
+                <span className="wlt__chip wlt__chip--jail">
+                  {t("wallet.inJail")}
+                </span>
               ) : null}
               <span className="wlt__chip">
-                {holdings.length} escritura{holdings.length === 1 ? "" : "s"}
+                {holdings.length} {t("wallet.deeds")}
               </span>
               <span className="wlt__chip">
-                {cards.length} carta{cards.length === 1 ? "" : "s"}
+                {cards.length} {t("wallet.cards")}
               </span>
             </span>
           </button>
@@ -323,11 +327,12 @@ function ProtectionCard({
   focusable: boolean;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   const accent = card.deck === "fitinha" ? "#fbbf24" : "#fb7185";
   const ink = bandInk(accent);
   const title =
     card.effect.type === "keep"
-      ? PROTECTION_LABELS[card.effect.kind]
+      ? tProtectionLabel(t, card.effect.kind)
       : card.text.replace(/^PROTEÇÃO[^:]+:\s*/i, "");
 
   return (
@@ -344,13 +349,13 @@ function ProtectionCard({
           <span
             className={`wlt-card__name ${ink === "dark" ? "wlt-card__name--dark" : ""}`}
           >
-            {card.deck === "fitinha" ? "Fitinha do Bonfim" : "Bença"}
+            {tDeckLabel(t, card.deck)}
           </span>
         </span>
         <span className="wlt-card__body">
-          <span className="wlt-card__kicker">Proteção</span>
+          <span className="wlt-card__kicker">{t("wallet.protection")}</span>
           <span className="wlt-card__text">{title}</span>
-          <span className="wlt-card__cta">olhar →</span>
+          <span className="wlt-card__cta">{t("wallet.look")}</span>
         </span>
       </button>
     </li>

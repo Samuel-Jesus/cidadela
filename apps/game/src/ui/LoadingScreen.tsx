@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   /** 0–1; se omitido, barra indeterminada. */
@@ -6,15 +7,6 @@ type Props = {
   hint?: string;
   detail?: string;
 };
-
-const TIPS = [
-  "Cobre o aluguel antes do próximo jogador rolar os dados — senão ele é perdido.",
-  "Imóvel que ninguém compra vai a leilão para toda a mesa.",
-  "Com pousadas e resorts escassos no banco, a construção vira leilão.",
-  "Três duplas seguidas no mesmo turno mandam você direto para o Forte.",
-  "Negociar com os outros jogadores pode completar aquele grupo de cor.",
-  "Imóvel hipotecado não cobra aluguel. Resgate com juros quando puder.",
-];
 
 const TIP_INTERVAL_MS = 3600;
 
@@ -56,31 +48,34 @@ function useSmoothedProgress(target: number | undefined): number | null {
   return target == null ? null : shown;
 }
 
-export function LoadingScreen({
-  progress,
-  hint = "Embarcando para a Bahia…",
-  detail,
-}: Props) {
+export function LoadingScreen({ progress, hint, detail }: Props) {
+  const { t } = useTranslation();
+  const tips = useMemo(
+    () => t("loading.tips", { returnObjects: true }) as string[],
+    [t],
+  );
+  const displayHint = hint ?? t("loading.hint");
   const smooth = useSmoothedProgress(progress);
   const pct = smooth != null ? Math.round(smooth * 100) : null;
   const [tipIndex, setTipIndex] = useState(() =>
-    Math.floor(Math.random() * TIPS.length),
+    tips.length > 0 ? Math.floor(Math.random() * tips.length) : 0,
   );
 
   useEffect(() => {
+    if (tips.length === 0) return;
     const id = window.setInterval(
-      () => setTipIndex((i) => (i + 1) % TIPS.length),
+      () => setTipIndex((i) => (i + 1) % tips.length),
       TIP_INTERVAL_MS,
     );
     return () => window.clearInterval(id);
-  }, []);
+  }, [tips.length]);
 
   return (
     <div
       className="loading"
       role="status"
       aria-busy={pct !== 100}
-      aria-label="Carregando Cidadela"
+      aria-label={t("loading.ariaLoading")}
     >
       <div className="loading__sky" aria-hidden>
         <div className="loading__sun" />
@@ -102,9 +97,9 @@ export function LoadingScreen({
       </div>
 
       <div className="loading__content">
-        <p className="loading__kicker">Cidadela</p>
+        <p className="loading__kicker">{t("brand.name")}</p>
         <h1 className="loading__title">
-          {pct === 100 ? "Pousando" : "Decolando"}
+          {pct === 100 ? t("loading.landing") : t("loading.takeoff")}
         </h1>
 
         <div className="loading__flight" aria-hidden>
@@ -114,7 +109,7 @@ export function LoadingScreen({
             <span />
           </div>
           <div className="loading__plane">
-            <BannerPlane />
+            <BannerPlane brandName={t("brand.name").toUpperCase()} />
           </div>
         </div>
 
@@ -138,16 +133,16 @@ export function LoadingScreen({
           <span className="loading__airport loading__airport--dest">SSA</span>
         </div>
 
-        <p className="loading__hint">{hint}</p>
+        <p className="loading__hint">{displayHint}</p>
         <p className="loading__pct">
-          {pct != null ? `${pct}%` : "Preparando o tabuleiro…"}
+          {pct != null ? `${pct}%` : t("loading.preparing")}
           {detail && pct !== 100 && (
             <span className="loading__detail"> · {detail}</span>
           )}
         </p>
 
         <p key={tipIndex} className="loading__tip">
-          <strong>Dica de bordo:</strong> {TIPS[tipIndex]}
+          <strong>{t("loading.tipLabel")}</strong> {tips[tipIndex] ?? ""}
         </p>
       </div>
     </div>
@@ -157,7 +152,7 @@ export function LoadingScreen({
 const INK = "#5c3d2e";
 
 /** Teco-teco rebocando faixa, como os aviões de propaganda das praias de Salvador. */
-function BannerPlane() {
+function BannerPlane({ brandName }: { brandName: string }) {
   return (
     <svg
       className="loading__plane-svg"
@@ -200,7 +195,7 @@ function BannerPlane() {
           fontWeight="700"
           letterSpacing="2"
         >
-          CIDADELA
+          {brandName}
         </text>
         <path d="M172 36 L172 84" strokeWidth="3" />
       </g>

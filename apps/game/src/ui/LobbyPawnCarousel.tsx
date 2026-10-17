@@ -2,6 +2,7 @@ import { Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, OrbitControls } from "@react-three/drei";
 import type { Group } from "three";
+import { useTranslation } from "react-i18next";
 import { getPawnDef, type PawnId } from "@cidadela/shared";
 import { playSfx, unlockAudio } from "../audio/sfx";
 import { getPawnKind } from "../pawns/pawnKind";
@@ -73,8 +74,10 @@ export function LobbyPawnCarousel({
   options,
   onChange,
   taken,
-  hint = "Arraste para girar · ‹ › para trocar",
+  hint,
 }: Props) {
+  const { t } = useTranslation();
+  const displayHint = hint ?? t("lobby.pawnHint");
   const available = useMemo(
     () => options.filter((id) => id === value || !taken?.has(id)),
     [options, taken, value],
@@ -91,15 +94,15 @@ export function LobbyPawnCarousel({
   };
 
   return (
-    <aside className="lobby-pawn-stage" aria-label="Escolher peão">
-      <p className="lobby-pawn-stage__kicker">Seu peão</p>
+    <aside className="lobby-pawn-stage" aria-label={t("lobby.choosePawn")}>
+      <p className="lobby-pawn-stage__kicker">{t("lobby.yourPawn")}</p>
       <h3 className="lobby-pawn-stage__title">{def.label}</h3>
-      <p className="lobby-pawn-stage__hint">{hint}</p>
+      <p className="lobby-pawn-stage__hint">{displayHint}</p>
 
       <div
         className="lobby-pawn-stage__canvas"
         role="img"
-        aria-label={`${def.label}. Arraste para girar e ver todos os lados. Use os botões para trocar de peão.`}
+        aria-label={t("lobby.pawnAria", { label: def.label })}
       >
         <Canvas
           camera={{ position: [0, 0.42, 2.55], fov: 34 }}
@@ -130,7 +133,7 @@ export function LobbyPawnCarousel({
           type="button"
           className="deed-btn deed-btn--soft"
           onClick={() => step(-1)}
-          aria-label="Peão anterior"
+          aria-label={t("lobby.pawnPrev")}
         >
           ‹
         </button>
@@ -153,7 +156,7 @@ export function LobbyPawnCarousel({
           type="button"
           className="deed-btn deed-btn--soft"
           onClick={() => step(1)}
-          aria-label="Próximo peão"
+          aria-label={t("lobby.pawnNext")}
         >
           ›
         </button>

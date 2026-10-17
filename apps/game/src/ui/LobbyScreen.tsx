@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import QRCode from "qrcode";
 import {
   PAWNS,
@@ -31,7 +32,9 @@ import {
   preloadUiSfx,
   unlockAudio,
 } from "../audio/sfx";
+import i18n from "../i18n";
 import { SfxMuteButton } from "../audio/SfxMuteButton";
+import { LanguagePicker } from "./LanguagePicker";
 import { LobbyPawnCarousel } from "./LobbyPawnCarousel";
 import { LobbyPawnPicker, LobbyPawnToken } from "./LobbyPawnToken";
 
@@ -60,7 +63,10 @@ type Phase = "home" | "local" | "host" | "guest";
 
 function defaultSeat(index: number, taken: Set<PawnId>): LobbySeat {
   const pawn = PAWNS.find((p) => !taken.has(p.id)) ?? PAWNS[index]!;
-  return { name: `Jogador ${index + 1}`, pawnId: pawn.id };
+  return {
+    name: `${i18n.t("common.player")} ${index + 1}`,
+    pawnId: pawn.id,
+  };
 }
 
 function resizeSeats(seats: LobbySeat[], count: number): LobbySeat[] {
@@ -73,6 +79,7 @@ function resizeSeats(seats: LobbySeat[], count: number): LobbySeat[] {
 }
 
 export function LobbyScreen({ onStart }: Props) {
+  const { t } = useTranslation();
   const online = isSupabaseConfigured();
   const allowLocalHotSeat = import.meta.env.DEV;
   const initialRoom = useMemo(() => readRoomParam(), []);
@@ -126,7 +133,7 @@ export function LobbyScreen({ onStart }: Props) {
       .catch((e: unknown) => {
         if (!cancelled) {
           setError(
-            e instanceof Error ? e.message : "Falha ao autenticar no Supabase.",
+            e instanceof Error ? e.message : t("lobby.authFail"),
           );
         }
       });
@@ -149,17 +156,13 @@ export function LobbyScreen({ onStart }: Props) {
             existing.hostId === clientId ? "host" : "guest",
           );
         } else {
-          setError(
-            "Sala não encontrada. Confira o código/QR ou peça um novo link ao anfitrião.",
-          );
+          setError(t("lobby.roomNotFound"));
         }
       })
       .catch((e: unknown) => {
         if (cancelled) return;
         setError(
-          e instanceof Error
-            ? e.message
-            : "Falha ao carregar a sala (auth/rede/RLS).",
+          e instanceof Error ? e.message : t("lobby.loadRoomFail"),
         );
       })
       .finally(() => {
@@ -241,7 +244,7 @@ export function LobbyScreen({ onStart }: Props) {
   const startLocal = () => {
     playFormClick();
     if (!allowLocalHotSeat) {
-      setError("Hot-seat local não está disponível nesta versão.");
+      setError(t("lobby.hotseatUnavailable"));
       return;
     }
     const setup: LobbySetup = {
@@ -260,13 +263,11 @@ export function LobbyScreen({ onStart }: Props) {
   const createAsHost = () => {
     playFormClick();
     if (!clientId) {
-      setError("Aguardando autenticação…");
+      setError(t("lobby.waitingAuth"));
       return;
     }
     if (!online) {
-      setError(
-        "Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env da raiz para salas online.",
-      );
+      setError(t("lobby.needSupabase"));
       return;
     }
     setError(null);
@@ -286,7 +287,7 @@ export function LobbyScreen({ onStart }: Props) {
         window.history.replaceState({}, "", url.toString());
       })
       .catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : "Falha ao criar sala.");
+        setError(e instanceof Error ? e.message : t("lobby.createFail"));
       })
       .finally(() => setBusy(false));
   };
@@ -296,22 +297,18 @@ export function LobbyScreen({ onStart }: Props) {
     setError(null);
     const id = roomIdInput.trim().toUpperCase();
     if (!id) {
-      setError("Informe o código da sala.");
+      setError(t("lobby.needCode"));
       return;
     }
     if (!online) {
-      setError(
-        "Configure o Supabase no .env da raiz para entrar em salas online.",
-      );
+      setError(t("lobby.needSupabaseJoin"));
       return;
     }
     setBusy(true);
     void loadRoom(id)
       .then((existing) => {
         if (!existing) {
-          setError(
-            "Sala não encontrada. Confira o código/QR ou peça um novo link.",
-          );
+          setError(t("lobby.roomNotFoundShort"));
           return;
         }
         startedRef.current = false;
@@ -323,11 +320,7 @@ export function LobbyScreen({ onStart }: Props) {
         window.history.replaceState({}, "", url.toString());
       })
       .catch((e: unknown) => {
-        setError(
-          e instanceof Error
-            ? e.message
-            : "Falha ao buscar sala (auth/rede/RLS).",
-        );
+        setError(e instanceof Error ? e.message : t("lobby.joinFail"));
       })
       .finally(() => setBusy(false));
   };
@@ -403,7 +396,7 @@ export function LobbyScreen({ onStart }: Props) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("Não foi possível copiar. Selecione o link manualmente.");
+      setError(t("lobby.copyFail"));
     }
   };
 
@@ -438,19 +431,20 @@ export function LobbyScreen({ onStart }: Props) {
       <div className="lobby__bg" aria-hidden />
 
       <div className="lobby-shell relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:py-12">
-        <header className="flex flex-col gap-3 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
+        <header className="flex flex-col gap-3 text-center sm:flex-row sm:items-start sm:justify-between sm:text-start">
           <div>
-            <p className="hud-kicker text-[#5eead4]">Tabuleiro da Bahia</p>
+            <p className="hud-kicker text-[#5eead4]">{t("brand.board")}</p>
             <h1 className="font-[family-name:var(--font-game)] text-5xl font-bold leading-none tracking-tight text-[#fff7ed] sm:text-6xl">
-              Cidadela
+              {t("brand.name")}
             </h1>
             <p className="mt-3 max-w-md text-sm font-semibold text-[#ffd7a8] sm:text-base">
-              {allowLocalHotSeat
-                ? "Dev: hot-seat local ou sala online com link e QR."
-                : "O anfitrião cria a sala; os outros entram pelo link ou QR Code."}
+              {allowLocalHotSeat ? t("lobby.taglineDev") : t("lobby.tagline")}
             </p>
           </div>
-          <SfxMuteButton className="mx-auto sm:mx-0 sm:mt-1" />
+          <div className="mx-auto flex items-center gap-2 sm:mx-0 sm:mt-1">
+            <LanguagePicker compact />
+            <SfxMuteButton />
+          </div>
         </header>
 
         <div className="mx-auto flex w-full min-w-0 flex-1 flex-col items-stretch justify-center gap-6 lg:flex-row lg:items-center">
@@ -460,19 +454,19 @@ export function LobbyScreen({ onStart }: Props) {
             style={{ backgroundColor: "#e9a46c" }}
           >
             <p className="deed-sheet__kicker deed-sheet__kicker--dark">
-              Lobby
+              {t("lobby.section")}
             </p>
             <h2 className="deed-sheet__title deed-sheet__title--dark text-xl">
               {phase === "home"
-                ? "Criar ou entrar"
+                ? t("lobby.headingCreate")
                 : phase === "local"
-                  ? "Mesa neste aparelho"
+                  ? t("lobby.headingLocal")
                   : phase === "host"
-                    ? "Sala do anfitrião"
-                    : "Entrar na sala"}
+                    ? t("lobby.headingHost")
+                    : t("lobby.headingJoin")}
             </h2>
             <p className="deed-sheet__sub deed-sheet__sub--dark">
-              Cada um começa com {formatCash(STARTING_CASH)} na Chegada
+              {t("lobby.startingCash", { cash: formatCash(STARTING_CASH) })}
             </p>
           </header>
 
@@ -491,9 +485,11 @@ export function LobbyScreen({ onStart }: Props) {
                     }}
                   >
                     <span className="lobby-cta__title">
-                      Jogar neste aparelho
+                      {t("lobby.playLocal")}
                     </span>
-                    <span className="lobby-cta__sub">Hot-seat · só em dev</span>
+                    <span className="lobby-cta__sub">
+                      {t("lobby.playLocalSub")}
+                    </span>
                   </button>
                 ) : null}
 
@@ -510,10 +506,10 @@ export function LobbyScreen({ onStart }: Props) {
                       }}
                     >
                       <span className="lobby-cta__title">
-                        Criar sala · link ou QR
+                        {t("lobby.createRoom")}
                       </span>
                       <span className="lobby-cta__sub">
-                        Você é o anfitrião e convida os outros
+                        {t("lobby.createRoomSub")}
                       </span>
                     </button>
                     <button
@@ -525,15 +521,16 @@ export function LobbyScreen({ onStart }: Props) {
                         setHomePanel("join");
                       }}
                     >
-                      <span className="lobby-cta__title">Entrar na sala</span>
+                      <span className="lobby-cta__title">
+                        {t("lobby.joinRoom")}
+                      </span>
                       <span className="lobby-cta__sub">
-                        Use o código, link ou QR do anfitrião
+                        {t("lobby.joinRoomSub")}
                       </span>
                     </button>
                     {!online ? (
                       <p className="deed-sheet__note">
-                        Falta configurar o Supabase (.env na raiz) para liberar
-                        salas entre aparelhos.
+                        {t("lobby.needSupabaseHint")}
                       </p>
                     ) : null}
                   </>
@@ -542,15 +539,13 @@ export function LobbyScreen({ onStart }: Props) {
                 {homePanel === "host" ? (
                   <div className="rounded-xl border-2 border-[#5c3d2e] bg-white/80 p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
                     <h3 className="deed-sheet__section-title">
-                      Criar sala · link ou QR
+                      {t("lobby.createRoom")}
                     </h3>
                     <p className="deed-sheet__note mb-2">
-                      Convidados entram pelo link ou QR em qualquer aparelho. O
-                      anfitrião sincroniza a partida. Escolha nome e peão na
-                      lateral.
+                      {t("lobby.hostPanelNote")}
                     </p>
                     <label className="mb-3 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                      Quantidade de jogadores
+                      {t("lobby.playerCount")}
                       <select
                         className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-2 font-bold text-[#5c3d2e]"
                         value={maxPlayers}
@@ -560,7 +555,7 @@ export function LobbyScreen({ onStart }: Props) {
                       >
                         {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                           <option key={n} value={n}>
-                            {n} jogadores
+                            {t("lobby.players_other", { count: n })}
                           </option>
                         ))}
                       </select>
@@ -574,7 +569,7 @@ export function LobbyScreen({ onStart }: Props) {
                           setHomePanel(null);
                         }}
                       >
-                        Voltar
+                        {t("common.back")}
                       </button>
                       <button
                         type="button"
@@ -582,7 +577,7 @@ export function LobbyScreen({ onStart }: Props) {
                         disabled={busy || !online}
                         onClick={createAsHost}
                       >
-                        {busy ? "Criando…" : "Criar sala e gerar QR"}
+                        {busy ? t("lobby.creating") : t("lobby.createAndQr")}
                       </button>
                     </div>
                   </div>
@@ -590,17 +585,19 @@ export function LobbyScreen({ onStart }: Props) {
 
                 {homePanel === "join" ? (
                   <div className="rounded-xl border-2 border-[#5c3d2e] bg-white/80 p-3 shadow-[3px_3px_0_rgba(92,61,46,0.2)]">
-                    <h3 className="deed-sheet__section-title">Entrar na sala</h3>
+                    <h3 className="deed-sheet__section-title">
+                      {t("lobby.joinRoom")}
+                    </h3>
                     <p className="deed-sheet__note mb-2">
-                      Digite o código e escolha nome e peão na lateral.
+                      {t("lobby.joinPanelNote")}
                     </p>
                     <label className="mb-3 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                      Código da sala
+                      {t("lobby.roomCode")}
                       <input
                         className="rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 font-bold uppercase tracking-widest text-[#5c3d2e]"
                         value={roomIdInput}
                         maxLength={8}
-                        placeholder="Ex.: A3K9PQ"
+                        placeholder={t("lobby.roomCodePlaceholder")}
                         autoFocus
                         onChange={(e) =>
                           setRoomIdInput(e.target.value.toUpperCase())
@@ -616,14 +613,14 @@ export function LobbyScreen({ onStart }: Props) {
                           setHomePanel(null);
                         }}
                       >
-                        Voltar
+                        {t("common.back")}
                       </button>
                       <button
                         type="button"
                         className="deed-btn deed-btn--amber flex-1"
                         onClick={enterAsGuest}
                       >
-                        Continuar
+                        {t("common.continue")}
                       </button>
                     </div>
                   </div>
@@ -634,7 +631,7 @@ export function LobbyScreen({ onStart }: Props) {
             {phase === "local" && allowLocalHotSeat ? (
               <>
                 <label className="flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                  Quantidade de jogadores
+                  {t("lobby.playerCount")}
                   <select
                     className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-2 font-bold text-[#5c3d2e]"
                     value={localSeats.length}
@@ -642,7 +639,7 @@ export function LobbyScreen({ onStart }: Props) {
                   >
                     {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                       <option key={n} value={n}>
-                        {n} jogadores
+                        {t("lobby.players_other", { count: n })}
                       </option>
                     ))}
                   </select>
@@ -664,7 +661,7 @@ export function LobbyScreen({ onStart }: Props) {
                           <LobbyPawnToken pawnId={seat.pawnId} size={36} />
                           <div className="min-w-0 flex-1 space-y-1.5">
                             <input
-                              aria-label={`Nome do jogador ${i + 1}`}
+                              aria-label={t("lobby.playerName", { n: i + 1 })}
                               className="w-full rounded-lg border-2 border-[#5c3d2e] px-2 py-1.5 text-sm font-bold text-[#5c3d2e]"
                               value={seat.name}
                               maxLength={24}
@@ -692,7 +689,7 @@ export function LobbyScreen({ onStart }: Props) {
                             checked={localBanker === i}
                             onChange={() => setLocalBanker(i)}
                           />
-                          Banqueiro
+                          {t("lobby.banker")}
                         </label>
                       </li>
                     );
@@ -705,13 +702,13 @@ export function LobbyScreen({ onStart }: Props) {
               <>
                 <div className="text-center">
                   <p className="m-0 text-xs font-bold uppercase tracking-wide text-[#8a6a4e]">
-                    Código da sala
+                    {t("lobby.roomCode")}
                   </p>
                   <p className="m-0 font-[family-name:var(--font-game)] text-3xl font-bold tracking-[0.2em] text-[#9a3412]">
                     {room.roomId}
                   </p>
                   <p className="deed-sheet__note mt-1">
-                    Mesa para {room.maxPlayers} · você é o banqueiro
+                    {t("lobby.roomMeta", { max: room.maxPlayers })}
                   </p>
                 </div>
 
@@ -719,7 +716,7 @@ export function LobbyScreen({ onStart }: Props) {
                   <div className="mx-auto w-fit rounded-xl border-2 border-[#5c3d2e] bg-[#fff7ed] p-3 shadow-[3px_3px_0_rgba(92,61,46,0.25)]">
                     <img
                       src={qrDataUrl}
-                      alt={`QR Code da sala ${room.roomId}`}
+                      alt={t("lobby.qrAlt", { code: room.roomId })}
                       width={220}
                       height={220}
                       className="block"
@@ -728,7 +725,7 @@ export function LobbyScreen({ onStart }: Props) {
                 ) : null}
 
                 <label className="flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-                  Link para convidados
+                  {t("lobby.guestLinkLabel")}
                   <input
                     readOnly
                     value={joinUrl}
@@ -741,25 +738,18 @@ export function LobbyScreen({ onStart }: Props) {
                   className="deed-btn deed-btn--soft w-full"
                   onClick={() => void copyLink()}
                 >
-                  {copied ? "Link copiado!" : "Copiar link"}
+                  {copied ? t("lobby.linkCopied") : t("lobby.copyLink")}
                 </button>
 
                 {isLocalhostJoinUrl(joinUrl) ? (
                   <p className="rounded-lg border-2 border-[#b45309] bg-[#fff7ed] px-3 py-2 text-xs font-bold text-[#9a3412]">
-                    Este link usa <code>localhost</code> — só funciona neste
-                    PC. No terminal do Vite, abra o endereço{" "}
-                    <strong>Network</strong> (ex.:{" "}
-                    <code>http://192.168.x.x:5173</code>), crie a sala de novo
-                    e compartilhe esse QR/link com os outros no mesmo Wi‑Fi.
+                    {t("lobby.localhostWarning")}
                   </p>
                 ) : null}
 
                 <MemberList room={room} />
 
-                <p className="deed-sheet__note">
-                  A partida sincroniza via Supabase Realtime. O anfitrião
-                  aplica as regras; os convidados jogam no próprio aparelho.
-                </p>
+                <p className="deed-sheet__note">{t("lobby.realtimeNote")}</p>
               </>
             ) : null}
 
@@ -769,7 +759,10 @@ export function LobbyScreen({ onStart }: Props) {
                   {room.roomId}
                 </p>
                 <p className="deed-sheet__note text-center">
-                  {room.members.length}/{room.maxPlayers} na sala
+                  {t("lobby.inRoomCount", {
+                    current: room.members.length,
+                    max: room.maxPlayers,
+                  })}
                 </p>
 
                 {!iAmInRoom ? (
@@ -778,11 +771,11 @@ export function LobbyScreen({ onStart }: Props) {
                     className="deed-btn deed-btn--mint w-full"
                     onClick={confirmGuestJoin}
                   >
-                    Entrar na sala
+                    {t("lobby.joinRoom")}
                   </button>
                 ) : (
                   <p className="rounded-lg border-2 border-[#5c3d2e] bg-[#ecfdf5] px-3 py-2 text-sm font-bold text-[#166534]">
-                    Você está na sala. Aguarde o anfitrião começar a partida.
+                    {t("lobby.inRoomWaiting")}
                   </p>
                 )}
 
@@ -801,14 +794,14 @@ export function LobbyScreen({ onStart }: Props) {
                   className="deed-btn deed-btn--soft flex-1"
                   onClick={leaveToHome}
                 >
-                  Voltar
+                  {t("common.back")}
                 </button>
                 <button
                   type="button"
                   className="deed-btn deed-btn--mint flex-1"
                   onClick={startLocal}
                 >
-                  Começar partida
+                  {t("lobby.startMatch")}
                 </button>
               </div>
             ) : phase === "host" && iAmHost ? (
@@ -818,7 +811,7 @@ export function LobbyScreen({ onStart }: Props) {
                   className="deed-btn deed-btn--soft flex-1"
                   onClick={leaveToHome}
                 >
-                  Cancelar sala
+                  {t("lobby.cancelRoom")}
                 </button>
                 <button
                   type="button"
@@ -827,10 +820,13 @@ export function LobbyScreen({ onStart }: Props) {
                   onClick={beginMatch}
                 >
                   {busy
-                    ? "Iniciando…"
+                    ? t("lobby.starting")
                     : room
-                      ? `Começar (${room.members.length}/${room.maxPlayers})`
-                      : "Começar"}
+                      ? t("lobby.startWithCount", {
+                          current: room.members.length,
+                          max: room.maxPlayers,
+                        })
+                      : t("lobby.start")}
                 </button>
               </div>
             ) : phase !== "home" ? (
@@ -839,7 +835,7 @@ export function LobbyScreen({ onStart }: Props) {
                 className="deed-btn deed-btn--soft w-full"
                 onClick={leaveToHome}
               >
-                Voltar
+                {t("common.back")}
               </button>
             ) : null}
           </footer>
@@ -848,11 +844,15 @@ export function LobbyScreen({ onStart }: Props) {
         {showPawnCarousel ? (
           <div className="lobby-identity">
             <label className="lobby-identity__name">
-              Seu nome
+              {t("lobby.hostName")}
               <input
                 value={phase === "guest" ? guestName : hostName}
                 maxLength={24}
-                placeholder={phase === "guest" ? "Como quer aparecer" : undefined}
+                placeholder={
+                  phase === "guest"
+                    ? t("lobby.guestNamePlaceholder")
+                    : t("lobby.hostNamePlaceholder")
+                }
                 onChange={(e) =>
                   phase === "guest"
                     ? setGuestName(e.target.value)
@@ -866,7 +866,7 @@ export function LobbyScreen({ onStart }: Props) {
                 className="deed-btn deed-btn--soft w-full text-xs"
                 onClick={saveHostProfile}
               >
-                Atualizar perfil
+                {t("lobby.updateProfile")}
               </button>
             ) : null}
             <LobbyPawnCarousel
@@ -884,6 +884,7 @@ export function LobbyScreen({ onStart }: Props) {
 }
 
 function MemberList({ room }: { room: RoomState }) {
+  const { t } = useTranslation();
   return (
     <ul className="m-0 list-none space-y-1.5 p-0">
       {Array.from({ length: room.maxPlayers }, (_, i) => {
@@ -894,7 +895,7 @@ function MemberList({ room }: { room: RoomState }) {
               key={`empty-${i}`}
               className="rounded-lg border-2 border-dashed border-[#5c3d2e]/50 px-3 py-2 text-xs font-bold text-[#8a6a4e]"
             >
-              Aguardando jogador {i + 1}…
+              {t("lobby.waitingPlayer", { n: i + 1 })}
             </li>
           );
         }
@@ -907,7 +908,7 @@ function MemberList({ room }: { room: RoomState }) {
             <LobbyPawnToken pawnId={member.pawnId} size={40} />
             <span className="min-w-0 flex-1 truncate">
               {member.name}
-              {member.isHost ? " · anfitrião / banqueiro" : ""}
+              {member.isHost ? t("lobby.hostBankerTag") : ""}
             </span>
             <span className="text-[#8a6a4e]">{def.label}</span>
           </li>

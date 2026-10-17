@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   COLOR_GROUP_LABELS,
   KIND_LABELS,
@@ -58,6 +59,7 @@ export function AuctionOverlay({
   onResolveTieDice,
   lockedBidderId = null,
 }: Props) {
+  const { t } = useTranslation();
   const space = getSpace(lot.spaceIndex);
   const accent =
     lot.kind === "pousada"
@@ -174,7 +176,9 @@ export function AuctionOverlay({
 
         <div className="deed-sheet__body min-h-0 flex-1 overflow-y-auto">
           <div className="deed-sheet__section">
-            <h4 className="deed-sheet__section-title">Lance atual</h4>
+            <h4 className="deed-sheet__section-title">
+              {t("auction.currentBid")}
+            </h4>
             {currentBid > 0 && highBidder ? (
               <p className="m-0 text-lg font-bold text-[#1f6b45]">
                 {formatCash(currentBid)} ·{" "}
@@ -196,7 +200,7 @@ export function AuctionOverlay({
 
           {inTie && tiedBidderIds ? (
             <div className="deed-sheet__section rounded-xl border-2 border-[#5c3d2e] bg-[#fef08a]/80 p-2.5">
-              <h4 className="deed-sheet__section-title">Empate</h4>
+              <h4 className="deed-sheet__section-title">{t("auction.tie")}</h4>
               <p className="deed-sheet__note mb-2">
                 {tiedBidderIds
                   .map((id) => {
@@ -218,7 +222,9 @@ export function AuctionOverlay({
           ) : null}
 
           <div className="deed-sheet__section">
-            <h4 className="deed-sheet__section-title">Dar lance</h4>
+            <h4 className="deed-sheet__section-title">
+              {t("auction.placeBid")}
+            </h4>
             <label className="mb-2 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
               Jogador
               {lockedBidderId ? (
@@ -327,7 +333,7 @@ export function AuctionOverlay({
                 disabled={!bidderId || selectable.length === 0}
                 onClick={() => onPass(bidderId)}
               >
-                Passar
+                {t("auction.pass")}
               </button>
             </div>
           </div>
@@ -384,7 +390,7 @@ export function AuctionOverlay({
               className="deed-btn deed-btn--soft w-full"
               onClick={onNoBids}
             >
-              Sem lances — fica com o banco
+              {t("auction.noBids")}
             </button>
           ) : (
             <p className="m-0 text-center text-xs font-bold text-[#6b5344]">

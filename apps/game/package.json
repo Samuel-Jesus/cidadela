@@ -17,9 +17,11 @@
     "@react-three/fiber": "^9.8.2",
     "@supabase/supabase-js": "^2.118.0",
     "cannon-es": "^0.20.0",
+    "i18next": "^26.4.7",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-i18next": "^17.0.20",
     "three": "^0.186.1"
   },
   "devDependencies": {

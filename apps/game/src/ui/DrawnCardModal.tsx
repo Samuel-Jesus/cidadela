@@ -1,4 +1,6 @@
-import { DECK_LABELS, type CardDef } from "@cidadela/shared";
+import { useTranslation } from "react-i18next";
+import { type CardDef } from "@cidadela/shared";
+import { tCardText, tDeckLabel } from "../i18n/tCard";
 
 type Props = {
   card?: CardDef | null;
@@ -12,9 +14,11 @@ export function DrawnCardModal({
   card = null,
   notes = [],
   followUpCards = [],
-  title = "Resolução da casa",
+  title,
   onDismiss,
 }: Props) {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t("card.resolution");
   const accent = card
     ? card.deck === "fitinha"
       ? "#fbbf24"
@@ -35,12 +39,12 @@ export function DrawnCardModal({
             <p
               className={`deed-sheet__kicker ${card.deck === "fitinha" ? "deed-sheet__kicker--dark" : ""}`}
             >
-              {DECK_LABELS[card.deck]} · nº {card.number}
+              {tDeckLabel(t, card.deck)} · nº {card.number}
             </p>
             <h3
               className={`deed-sheet__title text-lg ${card.deck === "fitinha" ? "deed-sheet__title--dark" : ""}`}
             >
-              {card.text}
+              {tCardText(t, card)}
             </h3>
           </header>
         ) : (
@@ -49,19 +53,17 @@ export function DrawnCardModal({
             style={{ backgroundColor: "#fbbf24" }}
           >
             <p className="deed-sheet__kicker deed-sheet__kicker--dark">
-              Cidadela
+              {t("brand.name")}
             </p>
             <h3 className="deed-sheet__title deed-sheet__title--dark text-lg">
-              {title}
+              {resolvedTitle}
             </h3>
           </header>
         )}
 
         <div className="deed-sheet__body">
           {card?.keepable ? (
-            <p className="deed-sheet__status">
-              Carta guardável — fica na sua carteira.
-            </p>
+            <p className="deed-sheet__status">{t("card.keepable")}</p>
           ) : null}
 
           {notes.length > 0 ? (
@@ -79,14 +81,14 @@ export function DrawnCardModal({
 
           {followUpCards.length > 0 ? (
             <div className="mt-3 space-y-2">
-              <p className="deed-sheet__section-title">Em seguida</p>
+              <p className="deed-sheet__section-title">{t("card.next")}</p>
               {followUpCards.map((c) => (
                 <div key={c.id} className="deed-sheet__section">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-[#8a6a4e]">
-                    {DECK_LABELS[c.deck]} · nº {c.number}
+                    {tDeckLabel(t, c.deck)} · nº {c.number}
                   </p>
                   <p className="mt-1 text-sm font-bold text-[#5c3d2e]">
-                    {c.text}
+                    {tCardText(t, c)}
                   </p>
                 </div>
               ))}
@@ -100,7 +102,7 @@ export function DrawnCardModal({
             onClick={onDismiss}
             className="deed-btn deed-btn--amber w-full"
           >
-            Entendi
+            {t("card.dismiss")}
           </button>
         </footer>
       </div>

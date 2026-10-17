@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-  PROTECTION_LABELS,
   applyTrade,
   formatCash,
   getCard,
@@ -16,6 +16,7 @@ import {
   type TradeOffer,
   type TradeSide,
 } from "@cidadela/shared";
+import { tProtectionLabel } from "../i18n/tCard";
 
 type Props = {
   initiatorId: string;
@@ -43,6 +44,7 @@ function SideEditor({
   side: TradeSide;
   onChange: (next: TradeSide) => void;
 }) {
+  const { t } = useTranslation();
   const def = getPawnDef(player.pawnId);
   const tradable = player.properties.filter(
     (h) => !h.hasResort && h.pousadas === 0,
@@ -62,7 +64,7 @@ function SideEditor({
       </h4>
 
       <label className="mb-2 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-        Dinheiro (máx. {formatCash(player.cash)})
+        {t("trade.cashMax", { max: formatCash(player.cash) })}
         <input
           type="number"
           min={0}
@@ -82,11 +84,13 @@ function SideEditor({
       </label>
 
       <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-[#8a6a4e]">
-        Escrituras
+        {t("trade.deeds")}
       </p>
       <ul className="m-0 mb-2 max-h-36 list-none space-y-1 overflow-y-auto p-0">
         {tradable.length === 0 ? (
-          <li className="text-xs font-bold text-[#8a6a4e]">Nenhuma negociável</li>
+          <li className="text-xs font-bold text-[#8a6a4e]">
+            {t("trade.noneNegotiable")}
+          </li>
         ) : (
           tradable.map((h) => {
             const space = getSpace(h.spaceIndex);
@@ -111,7 +115,9 @@ function SideEditor({
                     {space.name}
                     {h.mortgaged ? (
                       <span className="mt-0.5 block text-[10px] text-[#9a3412]">
-                        hipotecada · juros {formatCash(mortgageInterest(h.spaceIndex))}
+                        {t("trade.mortgagedTag", {
+                          amount: formatCash(mortgageInterest(h.spaceIndex)),
+                        })}
                       </span>
                     ) : null}
                   </span>
@@ -123,23 +129,25 @@ function SideEditor({
       </ul>
       {blocked.length > 0 ? (
         <p className="deed-sheet__note mb-2">
-          {blocked.length} com construção — venda ao banco antes.
+          {t("trade.blockedBuildings", { count: blocked.length })}
         </p>
       ) : null}
 
       <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-[#8a6a4e]">
-        Proteção
+        {t("trade.protectionSection")}
       </p>
       <ul className="m-0 list-none space-y-1 p-0">
         {player.protectionCardIds.length === 0 ? (
-          <li className="text-xs font-bold text-[#8a6a4e]">Nenhuma carta</li>
+          <li className="text-xs font-bold text-[#8a6a4e]">
+            {t("trade.noCards")}
+          </li>
         ) : (
           player.protectionCardIds.map((id) => {
             const card = getCard(id);
             const on = side.protectionCardIds.includes(id);
             const label =
               card.effect.type === "keep"
-                ? PROTECTION_LABELS[card.effect.kind]
+                ? tProtectionLabel(t, card.effect.kind)
                 : card.text;
             return (
               <li key={id}>
@@ -174,6 +182,7 @@ export function TradeOverlay({
   onClose,
   onApplied,
 }: Props) {
+  const { t } = useTranslation();
   const alive = useMemo(
     () => players.filter((p) => !p.bankrupt && p.id !== initiatorId),
     [players, initiatorId],
@@ -233,7 +242,7 @@ export function TradeOverlay({
       className="pointer-events-auto absolute inset-0 z-40 flex items-end justify-center bg-black/55 p-3 backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal="true"
-      aria-label="Negociação"
+      aria-label={t("trade.kicker")}
     >
       <div className="deed-sheet flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden">
         <header
@@ -241,20 +250,19 @@ export function TradeOverlay({
           style={{ backgroundColor: "#e9a46c" }}
         >
           <p className="deed-sheet__kicker deed-sheet__kicker--dark">
-            Negociação
+            {t("trade.kicker")}
           </p>
           <h3 className="deed-sheet__title deed-sheet__title--dark">
-            Troca entre jogadores
+            {t("trade.heading")}
           </h3>
           <p className="deed-sheet__sub deed-sheet__sub--dark">
-            Terrenos sem construção, transportes, companhias, dinheiro e
-            Proteção
+            {t("trade.subtitle")}
           </p>
         </header>
 
         <div className="deed-sheet__body min-h-0 flex-1 overflow-y-auto">
           <label className="mb-3 flex flex-col gap-1 text-xs font-bold text-[#6b5344]">
-            Negociar com
+            {t("trade.with")}
             <select
               className="rounded-lg border-2 border-[#5c3d2e] bg-white px-2 py-1.5 font-bold text-[#5c3d2e]"
               value={partnerId}
@@ -274,33 +282,28 @@ export function TradeOverlay({
           {partner ? (
             <div className="flex flex-col gap-3 sm:flex-row">
               <SideEditor
-                title="Você oferece"
+                title={t("trade.youGive")}
                 player={initiator}
                 side={give}
                 onChange={setGive}
               />
               <SideEditor
-                title="Recebe"
+                title={t("trade.receiveShort")}
                 player={partner}
                 side={receive}
                 onChange={setReceive}
               />
             </div>
           ) : (
-            <p className="font-bold text-[#8a6a4e]">
-              Não há outro jogador ativo para negociar.
-            </p>
+            <p className="font-bold text-[#8a6a4e]">{t("trade.noPartner")}</p>
           )}
 
           {mortgaged.length > 0 ? (
             <section className="deed-sheet__section mt-3">
               <h4 className="deed-sheet__section-title">
-                Bens hipotecados na troca
+                {t("trade.mortgagedSection")}
               </h4>
-              <p className="deed-sheet__note mb-2">
-                O novo dono escolhe: resgatar agora ou pagar só os juros e
-                manter hipotecado.
-              </p>
+              <p className="deed-sheet__note mb-2">{t("trade.mortgagedNote")}</p>
               <ul className="m-0 list-none space-y-2 p-0">
                 {mortgaged.map((idx) => {
                   const space = getSpace(idx);
@@ -328,7 +331,9 @@ export function TradeOverlay({
                             }))
                           }
                         >
-                          Só juros · {formatCash(mortgageInterest(idx))}
+                          {t("trade.interestOnly", {
+                            amount: formatCash(mortgageInterest(idx)),
+                          })}
                         </button>
                         <button
                           type="button"
@@ -344,7 +349,9 @@ export function TradeOverlay({
                             }))
                           }
                         >
-                          Resgatar · {formatCash(redeemCost(idx))}
+                          {t("trade.redeemAction", {
+                            amount: formatCash(redeemCost(idx)),
+                          })}
                         </button>
                       </div>
                     </li>
@@ -364,7 +371,7 @@ export function TradeOverlay({
               className="deed-btn deed-btn--soft flex-1"
               onClick={onClose}
             >
-              Cancelar
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -372,7 +379,7 @@ export function TradeOverlay({
               disabled={!partner || alive.length === 0}
               onClick={onConfirm}
             >
-              Confirmar troca
+              {t("trade.confirmTrade")}
             </button>
           </div>
         </footer>

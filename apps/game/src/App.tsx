@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { crossesGo, nextPosition, type DiceRoll } from "@cidadela/engine";
 import {
   GO_BONUS,
@@ -128,11 +129,12 @@ const LOADING_LAND_MS = 700;
 type AppScreen = "loading" | "lobby" | "game";
 
 export function App() {
+  const { t } = useTranslation();
   const [screen, setScreen] = useState<AppScreen>("loading");
   const [loadProgress, setLoadProgress] = useState<PreloadProgress>({
     stage: "fonts",
     ratio: 0,
-    hint: "Embarcando para a Bahia…",
+    hint: t("loading.hint"),
   });
   const [selectedIndex, setSelectedIndex] = useState<number | null>(0);
   const [playerCount, setPlayerCount] = useState(4);
@@ -539,14 +541,14 @@ export function App() {
     if (!activePlayerId || turnPhase !== "roll") return;
     const result = payJailFine(playersRef.current, activePlayerId);
     if (!result.ok) {
-      setJailError(result.error ?? "Não foi possível pagar.");
+      setJailError(result.error ?? t("msg.payJailFail"));
       return;
     }
     setJailError(null);
     playersRef.current = result.players;
     setPlayers(result.players);
     setTurnPhase("roll");
-  }, [activePlayerId, turnPhase]);
+  }, [activePlayerId, turnPhase, t]);
 
   const onUseJailProtection = useCallback(() => {
     if (!activePlayerId || turnPhase !== "roll") return;
@@ -556,7 +558,7 @@ export function App() {
       activePlayerId,
     );
     if (!result.ok) {
-      setJailError(result.error ?? "Sem Proteção.");
+      setJailError(result.error ?? t("msg.noProtection"));
       return;
     }
     setJailError(null);
@@ -565,7 +567,7 @@ export function App() {
     decksRef.current = result.decks;
     setDecks(result.decks);
     setTurnPhase("roll");
-  }, [activePlayerId, turnPhase]);
+  }, [activePlayerId, turnPhase, t]);
 
   const resetSessionFlags = useCallback(() => {
     setWinnerId(null);
@@ -958,7 +960,7 @@ export function App() {
       setPendingDebt(null);
       if (endGameIfWon(settled.players)) {
         presentEvent(
-          [...settled.notes, "Fim de jogo — resta um jogador de pé."],
+          [...settled.notes, t("msg.gameOver")],
           [],
         );
         return;
@@ -981,6 +983,7 @@ export function App() {
     selectedIndex,
     enqueueAuctions,
     endGameIfWon,
+    t,
   ]);
 
   const onLiquidateForDebt = useCallback(() => {
@@ -1005,7 +1008,7 @@ export function App() {
     setPendingDebt(null);
     if (endGameIfWon(broke.players)) {
       presentEvent(
-        [...broke.notes, "Fim de jogo — resta um jogador de pé."],
+        [...broke.notes, t("msg.gameOver")],
         [],
       );
       return;
@@ -1014,7 +1017,7 @@ export function App() {
       enqueueAuctions(broke.auctionQueue);
     }
     presentEvent(broke.notes, []);
-  }, [pendingDebt, turnPhase, presentEvent, enqueueAuctions, endGameIfWon]);
+  }, [pendingDebt, turnPhase, presentEvent, enqueueAuctions, endGameIfWon, t]);
 
   const onClaimRent = useCallback(() => {
     if (!pendingRent) return;
@@ -1026,7 +1029,7 @@ export function App() {
       claim.visitorId,
       claim.amount,
       { type: "player", playerId: claim.ownerId },
-      `Aluguel (${getSpace(claim.spaceIndex).name})`,
+      t("msg.rentClaim", { space: getSpace(claim.spaceIndex).name }),
     );
     playersRef.current = settled.players;
     setPlayers(settled.players);
@@ -1040,7 +1043,7 @@ export function App() {
     if (settled.status === "bankrupt") {
       if (endGameIfWon(settled.players)) {
         presentEvent(
-          [...settled.notes, "Fim de jogo — resta um jogador de pé."],
+          [...settled.notes, t("msg.gameOver")],
           [],
         );
         return;
@@ -1052,7 +1055,7 @@ export function App() {
       return;
     }
     presentEvent(settled.notes, []);
-  }, [pendingRent, presentEvent, endGameIfWon, enqueueAuctions]);
+  }, [pendingRent, presentEvent, endGameIfWon, enqueueAuctions, t]);
 
   const onRollDiceLocal = useCallback(() => {
     if (!activeRef.current || diceRolling || turnPhase !== "roll") return;
@@ -1060,14 +1063,17 @@ export function App() {
       const space = getSpace(pendingRent.spaceIndex);
       pendingNotesRef.current = [
         ...pendingNotesRef.current,
-        `Aluguel de ${space.name} ($${pendingRent.amount}) perdido — o dono não cobrou a tempo.`,
+        t("msg.rentLost", {
+          space: space.name,
+          amount: pendingRent.amount,
+        }),
       ];
       setPendingRent(null);
     }
     setTurnPhase("busy");
     setDiceRolling(true);
     setDiceRollId((id) => id + 1);
-  }, [diceRolling, turnPhase, pendingRent]);
+  }, [diceRolling, turnPhase, pendingRent, t]);
 
   const onRollDice = useCallback(() => {
     if (!isLocalActor(activeRef.current)) return;
@@ -1121,7 +1127,10 @@ export function App() {
           doublesRef.current = 0;
           setConsecutiveDoubles(0);
           pendingNotesRef.current = [
-            `3ª tentativa sem dupla — pagou $${JAIL_FINE} e saiu avançando ${roll.total}.`,
+            t("msg.jailThirdPay", {
+              amount: JAIL_FINE,
+              steps: roll.total,
+            }),
           ];
           queueLanding(playerId, roll.total);
           return;
@@ -1137,7 +1146,10 @@ export function App() {
         pendingLandingRef.current = null;
         const shown = presentEvent(
           [
-            `Sem dupla (${attempts}/${JAIL_MAX_ATTEMPTS}). Continua no Forte.`,
+            t("msg.jailNoDoubles", {
+              attempts,
+              max: JAIL_MAX_ATTEMPTS,
+            }),
           ],
           [],
         );
@@ -1174,7 +1186,7 @@ export function App() {
         setSelectedIndex(10);
         pendingLandingRef.current = null;
         const shown = presentEvent(
-          ["3ª dupla seguida — direto pro Forte, sem $200 da Chegada."],
+          [t("msg.tripleDoubles")],
           [],
         );
         if (!shown) startNextTurn(playerId);
@@ -1356,7 +1368,7 @@ export function App() {
             passesSinceBid: 0,
           });
           presentEvent(
-            [awarded.error, "Leilão reabre sem o jogador que falhou."],
+            [awarded.error, t("msg.auctionReopen")],
             [],
           );
           return;
@@ -1369,14 +1381,14 @@ export function App() {
       if (auction.currentBid <= 0 && nextPasses >= auctionPassesNeeded) {
         const keepMsg =
           auction.lot.kind === "property"
-            ? "Sem lances — propriedade continua com o banco."
-            : "Sem lances — peça continua no banco.";
+            ? t("msg.noBidsProperty")
+            : t("msg.noBidsPiece");
         finishAuctionLot(auction, [keepMsg]);
         return;
       }
       setAuction({ ...auction, passesSinceBid: nextPasses });
     },
-    [auction, auctionPassesNeeded, presentEvent, finishAuctionLot],
+    [auction, auctionPassesNeeded, presentEvent, finishAuctionLot, t],
   );
 
   const onAuctionSell = useCallback(() => {
@@ -1398,7 +1410,7 @@ export function App() {
         passesSinceBid: 0,
       });
       presentEvent(
-        [awarded.error, "Leilão reabre sem o jogador que falhou."],
+        [awarded.error, t("msg.auctionReopen")],
         [],
       );
       return;
@@ -1406,34 +1418,37 @@ export function App() {
     playersRef.current = awarded.players;
     setPlayers(awarded.players);
     finishAuctionLot(auction, awarded.notes);
-  }, [auction, presentEvent, finishAuctionLot]);
+  }, [auction, presentEvent, finishAuctionLot, t]);
 
   const onAuctionNoBids = useCallback(() => {
     if (!auction) return;
     const keepMsg =
       auction.lot.kind === "property"
-        ? "Sem lances — propriedade continua com o banco."
-        : "Sem lances — peça continua no banco.";
+        ? t("msg.noBidsProperty")
+        : t("msg.noBidsPiece");
     finishAuctionLot(auction, [keepMsg]);
-  }, [auction, finishAuctionLot]);
+  }, [auction, finishAuctionLot, t]);
 
   const turnLabel = (() => {
     if (turnPhase === "ended" && winner) {
-      return `Fim de jogo — vencedor`;
+      return t("turn.winner");
     }
     if (!activePlayer) return null;
-    if (turnPhase === "auction") return "Leilão em andamento";
+    if (turnPhase === "auction") return t("turn.auction");
     if (turnPhase === "roll" && activePlayer.inJail) {
-      return `No Forte · tentativa ${activePlayer.jailAttempts}/${JAIL_MAX_ATTEMPTS}`;
+      return t("turn.jail", {
+        n: activePlayer.jailAttempts,
+        max: JAIL_MAX_ATTEMPTS,
+      });
     }
     if (turnPhase === "roll" && consecutiveDoubles > 0 && diceRoll?.isDouble) {
-      return "Dupla! Role de novo";
+      return t("turn.doubles");
     }
-    if (turnPhase === "roll") return "Sua vez — role os dados";
-    if (turnPhase === "busy") return "Resolvendo…";
-    if (turnPhase === "action") return "Comprar ou passar a vez";
+    if (turnPhase === "roll") return t("turn.roll");
+    if (turnPhase === "busy") return t("turn.busy");
+    if (turnPhase === "action") return t("turn.action");
     if (turnPhase === "debt" && pendingDebt) {
-      return `Dívida $${pendingDebt.amount} — liquide ou falência`;
+      return t("turn.debt", { amount: pendingDebt.amount });
     }
     return null;
   })();
@@ -1772,9 +1787,8 @@ export function App() {
           onNewGame={returnToLobby}
         />
       ) : null}
-      <p className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-[#ffe8c8]/80">
-        Arraste pra orbitar · carteira embaixo à esquerda · toque duplo na
-        bandeja pra lançar
+      <p className="pointer-events-none absolute bottom-3 start-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-[#ffe8c8]/80 rtl:translate-x-1/2">
+        {t("hud.hintOrbit")}
       </p>
     </div>
   );

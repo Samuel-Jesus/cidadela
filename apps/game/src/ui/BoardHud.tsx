@@ -1,9 +1,9 @@
 import type { DiceRoll } from "@cidadela/engine";
+import { useTranslation } from "react-i18next";
 import {
   BANK_POUSADAS_MAX,
   BANK_RESORTS_MAX,
   COLOR_GROUP_LABELS,
-  DECK_LABELS,
   JAIL_FINE,
   JAIL_MAX_ATTEMPTS,
   KIND_LABELS,
@@ -17,10 +17,13 @@ import {
   isBuyableKind,
   type BoardSpace,
   type DebtInfo,
+  type DeckId,
   type DecksState,
   type PendingRentClaim,
   type PlayerState,
 } from "@cidadela/shared";
+import { tDeckLabel } from "../i18n/tCard";
+import { LanguagePicker } from "./LanguagePicker";
 
 type TurnPhase = "roll" | "busy" | "action" | "debt" | "auction" | "ended";
 
@@ -94,6 +97,7 @@ export function BoardHud({
   onOpenTrade,
   onClaimRent,
 }: Props) {
+  const { t } = useTranslation();
   const space = selectedIndex === null ? null : getSpace(selectedIndex);
   const active = players.find((p) => p.id === activePlayerId) ?? null;
   const activeDef = active ? getPawnDef(active.pawnId) : null;
@@ -121,10 +125,14 @@ export function BoardHud({
   const waitingOnline = isOnline && !controlsTurn && turnPhase !== "ended";
 
   return (
-    <aside className="hud-panel pointer-events-auto absolute right-4 top-4 z-10 flex max-h-[calc(100dvh-2rem)] w-[19.5rem] flex-col gap-3 overflow-y-auto p-3.5">
+    <aside className="hud-panel pointer-events-auto absolute end-4 top-4 z-10 flex max-h-[calc(100dvh-2rem)] w-[19.5rem] flex-col gap-3 overflow-y-auto p-3.5">
       <header className="px-0.5">
-        <p className="hud-kicker">Cidadela</p>
-        <h1 className="hud-title mt-0.5 text-[1.65rem]">Tabuleiro da Bahia</h1>
+        <div className="mb-1 flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1" />
+          <LanguagePicker compact className="shrink-0" />
+        </div>
+        <p className="hud-kicker">{t("brand.name")}</p>
+        <h1 className="hud-title mt-0.5 text-[1.65rem]">{t("brand.board")}</h1>
         {activeDef ? (
           <div className="mt-2 flex items-center gap-2 rounded-xl border-2 border-[#5c3d2e] bg-[#fffbeb] px-2.5 py-1.5 shadow-[2px_2px_0_rgba(92,61,46,0.25)]">
             <span
@@ -133,11 +141,13 @@ export function BoardHud({
             />
             <div className="min-w-0 flex-1">
               <p className="truncate font-[family-name:var(--font-game)] text-sm font-bold text-[#9a3412]">
-                Vez de {active ? getPlayerLabel(active) : activeDef.label}
+                {t("hud.turnOf", {
+                  name: active ? getPlayerLabel(active) : activeDef.label,
+                })}
               </p>
               {waitingOnline ? (
                 <p className="text-[11px] font-bold text-[#b45309]">
-                  Aguarde — não é a sua vez
+                  {t("hud.waitTurn")}
                 </p>
               ) : turnHint ? (
                 <p className="text-[11px] font-bold text-[#6b5344]">{turnHint}</p>
@@ -146,26 +156,30 @@ export function BoardHud({
           </div>
         ) : (
           <p className="mt-1 text-xs font-semibold text-[#8a6a4e]">
-            Rola, compra, ri e não vai pro Forte!
+            {t("hud.tagline")}
           </p>
         )}
         <p className="mt-1.5 text-[11px] font-bold tabular-nums text-[#6b5344]">
-          Banco · {bankStock.pousadas}/{BANK_POUSADAS_MAX} pousadas ·{" "}
-          {bankStock.resorts}/{BANK_RESORTS_MAX} resorts
+          {t("hud.bankStock", {
+            pousadas: bankStock.pousadas,
+            pousadasMax: BANK_POUSADAS_MAX,
+            resorts: bankStock.resorts,
+            resortsMax: BANK_RESORTS_MAX,
+          })}
         </p>
       </header>
 
       <section className="hud-card space-y-2 p-2.5">
-        <h2 className="hud-section-title">Baralhos</h2>
+        <h2 className="hud-section-title">{t("hud.decks")}</h2>
         <div className="flex flex-wrap gap-1.5">
           <span className="hud-chip bg-[#fff7ae]">
-            Fitinha
+            {tDeckLabel(t, "fitinha")}
             <strong className="tabular-nums">
               {decks.fitinha.drawPile.length}/16
             </strong>
           </span>
           <span className="hud-chip bg-[#ffd0e0]">
-            Bença
+            {tDeckLabel(t, "benca")}
             <strong className="tabular-nums">
               {decks.benca.drawPile.length}/16
             </strong>
@@ -174,12 +188,14 @@ export function BoardHud({
       </section>
 
       <section className="hud-card space-y-2 p-2.5">
-        <h2 className="hud-section-title">Dados</h2>
+        <h2 className="hud-section-title">{t("hud.dice")}</h2>
         {active?.inJail && turnPhase === "roll" ? (
           <div className="space-y-2">
             <p className="text-xs font-bold leading-snug text-[#9a3412]">
-              Preso no Forte · tentativa {active.jailAttempts}/
-              {JAIL_MAX_ATTEMPTS}
+              {t("hud.jailTry", {
+                n: active.jailAttempts,
+                max: JAIL_MAX_ATTEMPTS,
+              })}
             </p>
             <button
               type="button"
@@ -189,7 +205,7 @@ export function BoardHud({
               onClick={onPayJailFine}
               className="hud-btn hud-btn--mint w-full px-3 py-2 text-sm"
             >
-              Pagar ${JAIL_FINE} e sair
+              {t("hud.payJail", { amount: JAIL_FINE })}
             </button>
             <button
               type="button"
@@ -201,13 +217,13 @@ export function BoardHud({
               onClick={onUseJailProtection}
               className="hud-btn hud-btn--pink w-full px-3 py-2 text-sm"
             >
-              Usar Proteção
+              {t("hud.useProtection")}
               {active.protectionCardIds.length > 0
                 ? ` (${active.protectionCardIds.length})`
                 : ""}
             </button>
             <p className="text-[11px] font-semibold text-[#6b5344]">
-              Ou role os dados tentando uma dupla.
+              {t("hud.orRollDoubles")}
             </p>
             {jailError ? (
               <p className="rounded-lg border-2 border-[#5c3d2e] bg-[#fecaca] px-2 py-1.5 text-[11px] font-bold text-[#7f1d1d]">
@@ -217,7 +233,7 @@ export function BoardHud({
           </div>
         ) : (
           <p className="text-xs font-semibold leading-snug text-[#6b5344]">
-            Toque duplo na bandeja do centro — ou no botão aqui embaixo.
+            {t("hud.doubleTap")}
           </p>
         )}
         <button
@@ -227,12 +243,12 @@ export function BoardHud({
           className="hud-btn hud-btn--primary w-full px-3 py-2.5 text-base"
         >
           {diceRolling
-            ? "Rolando…"
+            ? t("hud.rolling")
             : !controlsTurn
-              ? "Aguardando oponente…"
+              ? t("hud.waitingOpponent")
               : active?.inJail
-                ? "Tentar dupla"
-                : "Rolar dados"}
+                ? t("hud.tryDoubles")
+                : t("hud.roll")}
         </button>
 
         {diceRoll ? (
@@ -243,16 +259,16 @@ export function BoardHud({
             </p>
             {diceRoll.isDouble ? (
               <p className="mt-1 text-xs font-bold text-[#b45309]">
-                Dupla!{" "}
+                {t("hud.doublesExclaim")}{" "}
                 {consecutiveDoubles >= 3
-                  ? "3ª → Forte 😬"
+                  ? t("hud.doublesJail")
                   : consecutiveDoubles > 0
-                    ? `${consecutiveDoubles}/3 · joga de novo`
-                    : "Joga de novo!"}
+                    ? t("hud.doublesCount", { n: consecutiveDoubles })
+                    : t("hud.doublesAgain")}
               </p>
             ) : (
               <p className="mt-1 text-xs font-semibold text-[#6b5344]">
-                Avança {diceRoll.total} casas
+                {t("hud.advance", { n: diceRoll.total })}
               </p>
             )}
           </div>
@@ -261,14 +277,14 @@ export function BoardHud({
 
       <section className="hud-card space-y-2 p-2.5">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="hud-section-title">Peões</h2>
+          <h2 className="hud-section-title">{t("hud.pawns")}</h2>
           <button
             type="button"
             className="hud-btn hud-btn--soft px-2 py-0.5 text-[11px]"
             onClick={() => onPlayerCountChange(playerCount)}
-            title="Voltar ao Lobby"
+            title={t("hud.backToLobbyTitle")}
           >
-            Lobby
+            {t("hud.lobby")}
           </button>
         </div>
 
@@ -288,12 +304,12 @@ export function BoardHud({
                   />
                   <span className="min-w-0 flex-1 truncate font-[family-name:var(--font-game)]">
                     {getPlayerLabel(player)}
-                    {localPlayerId === player.id ? " · você" : ""}
-                    {player.isBanker ? " · banq." : ""}
+                    {localPlayerId === player.id ? t("hud.youTag") : ""}
+                    {player.isBanker ? t("hud.bankerShort") : ""}
                     {player.bankrupt
-                      ? " · falido"
+                      ? t("hud.bankruptTag")
                       : turnPhase === "ended"
-                        ? " · vencedor"
+                        ? t("hud.winnerTag")
                         : ""}
                   </span>
                   <span className="shrink-0 text-xs tabular-nums text-[#1f6b45]">
@@ -387,7 +403,7 @@ export function BoardHud({
             onClick={onPassTurn}
             className="hud-btn hud-btn--soft w-full px-2.5 py-2 text-sm"
           >
-            {canBuy ? "Não comprar · leilão" : "Passar a vez"}
+            {canBuy ? t("hud.skipBuyAuction") : t("hud.endTurn")}
           </button>
         ) : null}
 
@@ -402,7 +418,7 @@ export function BoardHud({
             onClick={onOpenTrade}
             className="hud-btn hud-btn--amber w-full px-2.5 py-2 text-sm"
           >
-            Negociar
+            {t("hud.trade")}
           </button>
         ) : null}
 
@@ -414,7 +430,7 @@ export function BoardHud({
               onClick={() => onAdvanceActive(1)}
               className="hud-btn hud-btn--soft px-2.5 py-1.5 text-xs"
             >
-              +1 casa
+              {t("hud.plusHouse")}
             </button>
             <button
               type="button"
@@ -427,7 +443,7 @@ export function BoardHud({
               onClick={onMoveActiveToSelected}
               className="hud-btn hud-btn--soft px-2.5 py-1.5 text-xs"
             >
-              Ir à casa
+              {t("hud.goToHouse")}
             </button>
           </div>
         ) : null}
@@ -444,7 +460,7 @@ export function BoardHud({
             canDrawCard={canDrawCard}
             drawDisabled={!canDrawCard}
             onDrawCard={onDrawCard}
-            cardDeckLabel={cardDeck ? DECK_LABELS[cardDeck] : null}
+            cardDeck={cardDeck}
           />
         </section>
       ) : null}
@@ -461,7 +477,7 @@ function SpaceDetails({
   canDrawCard,
   drawDisabled,
   onDrawCard,
-  cardDeckLabel,
+  cardDeck,
 }: {
   space: BoardSpace;
   owner: PlayerState | null;
@@ -471,28 +487,29 @@ function SpaceDetails({
   canDrawCard: boolean;
   drawDisabled: boolean;
   onDrawCard: () => void;
-  cardDeckLabel: string | null;
+  cardDeck: DeckId | null;
 }) {
+  const { t } = useTranslation();
   const ownerDef = owner ? getPawnDef(owner.pawnId) : null;
 
   return (
     <div className="space-y-2 text-sm">
-      <p className="hud-kicker">Casa nº {space.index}</p>
+      <p className="hud-kicker">{t("hud.houseN", { n: space.index })}</p>
       <h2 className="font-[family-name:var(--font-game)] text-lg font-bold leading-snug text-[#9a3412]">
         {space.name}
       </h2>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs font-semibold">
-        <dt className="text-[#8a6a4e]">Tipo</dt>
+        <dt className="text-[#8a6a4e]">{t("hud.type")}</dt>
         <dd>{KIND_LABELS[space.kind]}</dd>
         {space.colorGroup ? (
           <>
-            <dt className="text-[#8a6a4e]">Grupo</dt>
+            <dt className="text-[#8a6a4e]">{t("hud.group")}</dt>
             <dd>{COLOR_GROUP_LABELS[space.colorGroup]}</dd>
           </>
         ) : null}
         {space.price !== undefined ? (
           <>
-            <dt className="text-[#8a6a4e]">Preço</dt>
+            <dt className="text-[#8a6a4e]">{t("hud.price")}</dt>
             <dd className="tabular-nums text-[#1f6b45]">
               {formatCash(space.price)}
             </dd>
@@ -500,13 +517,13 @@ function SpaceDetails({
         ) : null}
         {space.taxAmount !== undefined ? (
           <>
-            <dt className="text-[#8a6a4e]">Taxa</dt>
-            <dd>Pague {formatCash(space.taxAmount)}</dd>
+            <dt className="text-[#8a6a4e]">{t("hud.tax")}</dt>
+            <dd>{t("hud.taxPay", { amount: formatCash(space.taxAmount) })}</dd>
           </>
         ) : null}
         {space.price !== undefined && isBuyableKind(space.kind) ? (
           <>
-            <dt className="text-[#8a6a4e]">Dono</dt>
+            <dt className="text-[#8a6a4e]">{t("hud.owner")}</dt>
             <dd className="flex items-center gap-1.5">
               {ownerDef ? (
                 <>
@@ -517,7 +534,7 @@ function SpaceDetails({
                   {owner ? getPlayerLabel(owner) : ownerDef.label}
                 </>
               ) : (
-                <span className="text-[#8a6a4e]">Banco</span>
+                <span className="text-[#8a6a4e]">{t("hud.bankOwner")}</span>
               )}
             </dd>
           </>
@@ -531,18 +548,18 @@ function SpaceDetails({
           onClick={onBuy}
           className="hud-btn hud-btn--mint mt-1 w-full px-3 py-2 text-sm"
         >
-          Comprar por {formatCash(space.price!)}
+          {t("hud.buyFor", { price: formatCash(space.price!) })}
         </button>
       ) : null}
 
-      {canDrawCard && cardDeckLabel ? (
+      {canDrawCard && cardDeck ? (
         <button
           type="button"
           disabled={drawDisabled}
           onClick={onDrawCard}
           className="hud-btn hud-btn--pink mt-1 w-full px-3 py-2 text-sm"
         >
-          Tirar carta · {cardDeckLabel}
+          {t("hud.drawCard", { deck: tDeckLabel(t, cardDeck) })}
         </button>
       ) : null}
     </div>

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   BUILD_COST_BY_GROUP,
   COLOR_GROUP_LABELS,
@@ -62,6 +63,7 @@ export function DeedDetailOverlay({
   onBuildResort,
   actionError,
 }: Props) {
+  const { t } = useTranslation();
   const space = getSpace(holding.spaceIndex);
   const accent =
     space.colorGroup != null
@@ -149,7 +151,9 @@ export function DeedDetailOverlay({
 
           {space.kind === "propriedade" && rent ? (
             <section className="deed-sheet__section">
-              <h4 className="deed-sheet__section-title">Tabela de aluguel</h4>
+              <h4 className="deed-sheet__section-title">
+                {t("deed.rentTable")}
+              </h4>
               <dl className="deed-sheet__rows">
                 <RentRow
                   label="Aluguel"
@@ -193,7 +197,7 @@ export function DeedDetailOverlay({
           {space.kind === "transporte" ? (
             <section className="deed-sheet__section">
               <h4 className="deed-sheet__section-title">
-                Aluguel por transportes
+                {t("deed.transportRent")}
               </h4>
               <dl className="deed-sheet__rows">
                 {TRANSPORT_RENT_BY_COUNT.map((v, i) => (
@@ -210,7 +214,7 @@ export function DeedDetailOverlay({
           {space.kind === "companhia" ? (
             <section className="deed-sheet__section">
               <h4 className="deed-sheet__section-title">
-                Aluguel das companhias
+                {t("deed.companyRent")}
               </h4>
               <ul className="m-0 list-none space-y-1 p-0 text-sm font-bold text-[#5c3d2e]">
                 <li>
@@ -230,14 +234,16 @@ export function DeedDetailOverlay({
           buildCost != null ? (
             <section className="deed-sheet__section">
               <h4 className="deed-sheet__section-title">
-                Construção · {COLOR_GROUP_LABELS[space.colorGroup]}
+                {t("deed.buildTitle", {
+                  group: COLOR_GROUP_LABELS[space.colorGroup],
+                })}
               </h4>
               <dl className="deed-sheet__rows">
-                <dt>Cada pousada</dt>
+                <dt>{t("deed.perInn")}</dt>
                 <dd>{formatCash(buildCost)}</dd>
-                <dt>Resort</dt>
+                <dt>{t("deed.resort")}</dt>
                 <dd>{formatCash(buildCost)} + 4 pousadas</dd>
-                <dt>Venda ao banco</dt>
+                <dt>{t("deed.bankSale")}</dt>
                 <dd>{formatCash(Math.floor(buildCost / 2))} / peça</dd>
               </dl>
               <p className="deed-sheet__note">
@@ -251,13 +257,13 @@ export function DeedDetailOverlay({
           ) : null}
 
           <section className="deed-sheet__section">
-            <h4 className="deed-sheet__section-title">Hipoteca</h4>
+            <h4 className="deed-sheet__section-title">{t("deed.mortgage")}</h4>
             <dl className="deed-sheet__rows">
-              <dt>Recebe ao hipotecar</dt>
+              <dt>{t("deed.mortgageGet")}</dt>
               <dd>{formatCash(mValue)}</dd>
-              <dt>Juros (10%)</dt>
+              <dt>{t("deed.interest")}</dt>
               <dd>{formatCash(mInterest)}</dd>
-              <dt>Resgate</dt>
+              <dt>{t("deed.redeem")}</dt>
               <dd>{formatCash(rCost)}</dd>
             </dl>
           </section>
