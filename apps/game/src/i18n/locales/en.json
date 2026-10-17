@@ -177,6 +177,16 @@
     "action": "Buy or end turn",
     "debt": "Debt ${{amount}} — settle or go bankrupt"
   },
+  "online": {
+    "syncing": "Syncing game…",
+    "reconnecting": "Reconnecting…",
+    "syncError": "Sync failed — retrying",
+    "hostAway": "Host away — game paused",
+    "hostRetryHint": "Keep this tab open; play resumes when sync returns.",
+    "resuming": "Resuming game…",
+    "intentDenied": "Action ignored — not your turn",
+    "intentFail": "Could not send action. Try again."
+  },
   "msg": {
     "gameOver": "Game over — one player left standing.",
     "rentClaim": "Rent ({{space}})",

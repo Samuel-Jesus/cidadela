@@ -27,6 +27,10 @@ import {
   type RoomState,
 } from "../session/room";
 import {
+  ensureRoomParam,
+  loadOnlineSession,
+} from "../session/onlinePersist";
+import {
   bindUiSfxHover,
   playSfx,
   preloadUiSfx,
@@ -184,7 +188,7 @@ export function LobbyScreen({ onStart }: Props) {
         !startedRef.current
       ) {
         startedRef.current = true;
-        clearRoomParam();
+        ensureRoomParam(next.roomId);
         onStart(next.startedSetup, {
           mode: online ? "online" : "local",
           roomId: next.roomId,
@@ -193,7 +197,44 @@ export function LobbyScreen({ onStart }: Props) {
         });
       }
     });
-  }, [room?.roomId, onStart, clientId, online, startedRef]);
+  }, [room?.roomId, onStart, clientId, online]);
+
+  useEffect(() => {
+    if (!clientId || initialRoom || startedRef.current) return;
+    const saved = loadOnlineSession();
+    if (!saved || saved.localPlayerId !== clientId) return;
+    let cancelled = false;
+    setBusy(true);
+    void loadRoom(saved.roomId)
+      .then((existing) => {
+        if (cancelled || !existing) return;
+        if (
+          existing.status === "started" &&
+          existing.startedSetup &&
+          existing.members.some((m) => m.clientId === clientId)
+        ) {
+          startedRef.current = true;
+          ensureRoomParam(existing.roomId);
+          onStart(existing.startedSetup, {
+            mode: "online",
+            roomId: existing.roomId,
+            localPlayerId: clientId,
+            isHost: existing.hostId === clientId,
+          });
+          return;
+        }
+        setRoom(existing);
+        setPhase(existing.hostId === clientId ? "host" : "guest");
+        ensureRoomParam(existing.roomId);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, initialRoom, onStart]);
 
   useEffect(() => {
     if (!joinUrl) {
@@ -341,6 +382,20 @@ export function LobbyScreen({ onStart }: Props) {
           return;
         }
         setRoom(result.state);
+        if (
+          result.state.status === "started" &&
+          result.state.startedSetup &&
+          !startedRef.current
+        ) {
+          startedRef.current = true;
+          ensureRoomParam(result.state.roomId);
+          onStart(result.state.startedSetup, {
+            mode: "online",
+            roomId: result.state.roomId,
+            localPlayerId: clientId,
+            isHost: result.state.hostId === clientId,
+          });
+        }
       })
       .finally(() => setBusy(false));
   };
@@ -377,7 +432,7 @@ export function LobbyScreen({ onStart }: Props) {
         setRoom(result.state);
         if (result.state.startedSetup && !startedRef.current) {
           startedRef.current = true;
-          clearRoomParam();
+          ensureRoomParam(result.state.roomId);
           onStart(result.state.startedSetup, {
             mode: online ? "online" : "local",
             roomId: result.state.roomId,
@@ -403,6 +458,7 @@ export function LobbyScreen({ onStart }: Props) {
   const leaveToHome = () => {
     playBack();
     clearRoomParam();
+    startedRef.current = false;
     setRoom(null);
     setPhase("home");
     setHomePanel(null);

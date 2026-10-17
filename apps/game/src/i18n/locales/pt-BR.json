@@ -177,6 +177,16 @@
     "action": "Comprar ou passar a vez",
     "debt": "Dívida ${{amount}} — liquide ou falência"
   },
+  "online": {
+    "syncing": "Sincronizando partida…",
+    "reconnecting": "Reconectando…",
+    "syncError": "Falha ao sincronizar — tentando de novo",
+    "hostAway": "Anfitrião ausente — partida pausada",
+    "hostRetryHint": "Mantenha esta aba aberta; o jogo volta ao sincronizar.",
+    "resuming": "Retomando partida…",
+    "intentDenied": "Ação ignorada — não é a sua vez",
+    "intentFail": "Não foi possível enviar a ação. Tente de novo."
+  },
   "msg": {
     "gameOver": "Fim de jogo — resta um jogador de pé.",
     "rentClaim": "Aluguel ({{space}})",

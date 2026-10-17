@@ -68,8 +68,20 @@ import {
   pushGameState,
   subscribeGame,
   subscribePendingActions,
+  subscribeRoomPresence,
 } from "./session/gameSync";
 import type { OnlineSession } from "./session/onlineSession";
+import {
+  clearOnlineSession,
+  ensureRoomParam,
+  saveOnlineSession,
+} from "./session/onlinePersist";
+import { isSupabaseConfigured } from "./lib/supabase";
+import { clearRoomParam } from "./session/room";
+import {
+  OnlineStatusBanner,
+  type OnlineSyncStatus,
+} from "./ui/OnlineStatusBanner";
 import { playCarnavalMusic, stopCarnavalMusic } from "./audio/sfx";
 
 function applyMove(
@@ -163,6 +175,7 @@ export function App() {
   const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(
     null,
   );
+  const [syncStatus, setSyncStatus] = useState<OnlineSyncStatus>("live");
   const [gameVersion, setGameVersion] = useState(0);
   const pendingAuctionsRef = useRef<AuctionLot[]>([]);
   const auctionAdvanceAfterModalRef = useRef<AuctionSession | null>(null);
@@ -309,6 +322,8 @@ export function App() {
   const publishSnapshot = useCallback(async () => {
     const session = onlineRef.current;
     if (!session?.isHost || applyingRemoteRef.current) return;
+    if (!isSupabaseConfigured()) return;
+    setSyncStatus((s) => (s === "hostAway" ? s : "syncing"));
     const snap = buildSnapshot();
     const result = await pushGameState(
       session.roomId,
@@ -318,8 +333,18 @@ export function App() {
     if (result.ok) {
       gameVersionRef.current = result.version;
       setGameVersion(result.version);
+      setSyncStatus("live");
+      return;
     }
-  }, [buildSnapshot]);
+    if (result.conflict) {
+      gameVersionRef.current = result.row.version;
+      setGameVersion(result.row.version);
+      hydrateSnapshot(result.row.state);
+      setSyncStatus("live");
+      return;
+    }
+    setSyncStatus("error");
+  }, [buildSnapshot, hydrateSnapshot]);
 
   const isLocalActor = useCallback((playerId: string | null | undefined) => {
     const session = onlineRef.current;
@@ -332,14 +357,15 @@ export function App() {
     (intent: GameIntent, localApply: () => void) => {
       const session = onlineRef.current;
       if (session && !session.isHost) {
-        void enqueueGameAction(session.roomId, intent).catch((e: unknown) => {
-          console.error(e);
+        if (syncStatus === "hostAway") return;
+        void enqueueGameAction(session.roomId, intent).catch(() => {
+          setSyncStatus("error");
         });
         return;
       }
       localApply();
     },
-    [],
+    [syncStatus],
   );
 
   const dismissEventUi = useCallback(() => {
@@ -605,6 +631,9 @@ export function App() {
           localPlayerId: meta.localPlayerId,
         };
         setOnlineSession(session);
+        saveOnlineSession(session);
+        ensureRoomParam(meta.roomId);
+        setSyncStatus("syncing");
         void loadGame(meta.roomId)
           .then((row) => {
             if (row?.state) {
@@ -620,6 +649,7 @@ export function App() {
               setGameVersion(0);
               gameVersionRef.current = 0;
             }
+            setSyncStatus("live");
             setScreen("game");
           })
           .catch(() => {
@@ -628,12 +658,15 @@ export function App() {
             setPlayers(next);
             playersRef.current = next;
             setActivePlayerId(next[0]?.id ?? null);
+            setSyncStatus("error");
             setScreen("game");
           });
         return;
       }
 
+      clearOnlineSession();
       setOnlineSession(null);
+      setSyncStatus("live");
       setGameVersion(0);
       gameVersionRef.current = 0;
       const next = createPlayersFromLobby(setup);
@@ -648,7 +681,10 @@ export function App() {
 
   const returnToLobby = useCallback(() => {
     stopCarnavalMusic();
+    clearOnlineSession();
+    clearRoomParam();
     setOnlineSession(null);
+    setSyncStatus("live");
     setGameVersion(0);
     gameVersionRef.current = 0;
     setScreen("lobby");
@@ -667,13 +703,57 @@ export function App() {
 
   useEffect(() => {
     if (screen !== "game" || !onlineSession || onlineSession.isHost) return;
+    if (!isSupabaseConfigured()) return;
     return subscribeGame(onlineSession.roomId, (row) => {
       if (row.version <= gameVersionRef.current) return;
       gameVersionRef.current = row.version;
       setGameVersion(row.version);
       hydrateSnapshot(row.state);
+      setSyncStatus("live");
     });
   }, [screen, onlineSession, hydrateSnapshot]);
+
+  useEffect(() => {
+    if (screen !== "game" || !onlineSession || onlineSession.isHost) return;
+    if (!isSupabaseConfigured()) return;
+    const poll = window.setInterval(() => {
+      void loadGame(onlineSession.roomId)
+        .then((row) => {
+          if (!row) return;
+          if (row.version > gameVersionRef.current) {
+            gameVersionRef.current = row.version;
+            setGameVersion(row.version);
+            hydrateSnapshot(row.state);
+          }
+          setSyncStatus((s) =>
+            s === "hostAway" || s === "error" ? s : "live",
+          );
+        })
+        .catch(() => setSyncStatus("reconnecting"));
+    }, 6000);
+    return () => window.clearInterval(poll);
+  }, [screen, onlineSession, hydrateSnapshot]);
+
+  useEffect(() => {
+    if (screen !== "game" || !onlineSession) return;
+    if (!isSupabaseConfigured()) return;
+    const graceUntil = Date.now() + 2800;
+    return subscribeRoomPresence(
+      onlineSession.roomId,
+      {
+        userId: onlineSession.localPlayerId,
+        isHost: onlineSession.isHost,
+      },
+      ({ hostOnline }) => {
+        if (onlineSession.isHost) {
+          setSyncStatus((s) => (s === "error" ? s : "live"));
+          return;
+        }
+        if (!hostOnline && Date.now() < graceUntil) return;
+        setSyncStatus(hostOnline ? "live" : "hostAway");
+      },
+    );
+  }, [screen, onlineSession]);
 
   useEffect(() => {
     if (screen !== "game" || !onlineSession?.isHost) return;
@@ -707,6 +787,7 @@ export function App() {
 
   useEffect(() => {
     if (screen !== "game" || !onlineSession?.isHost) return;
+    if (!isSupabaseConfigured()) return;
     return subscribePendingActions(onlineSession.roomId, (action) => {
       if (processedActionsRef.current.has(action.id)) return;
       if (action.actor_id === onlineSession.localPlayerId) {
@@ -1477,7 +1558,8 @@ export function App() {
     pendingAuctionsRef.current.length;
 
   const localControlsTurn =
-    !onlineSession || onlineSession.localPlayerId === activePlayerId;
+    syncStatus !== "hostAway" &&
+    (!onlineSession || onlineSession.localPlayerId === activePlayerId);
 
   const localPlayerId = onlineSession?.localPlayerId ?? null;
 
@@ -1508,6 +1590,47 @@ export function App() {
       : activePlayer;
 
   applyRemoteIntentRef.current = (actorId, intent) => {
+    const active = activeRef.current;
+    const allowed = (() => {
+      switch (intent.type) {
+        case "rollDice":
+        case "buySelected":
+        case "passTurn":
+        case "drawCard":
+        case "dismissEvent":
+        case "payJailFine":
+        case "useJailProtection":
+        case "openTrade":
+        case "closeTrade":
+        case "applyTrade":
+        case "requestPieceAuction":
+        case "auctionSell":
+        case "auctionNoBids":
+        case "advanceActive":
+        case "moveActiveTo":
+        case "selectSpace":
+          return actorId === active;
+        case "claimRent":
+          return pendingRent?.ownerId === actorId;
+        case "payDebt":
+        case "liquidateForDebt":
+        case "declareBankruptcy":
+          return pendingDebt?.debtorId === actorId;
+        case "auctionBid":
+        case "auctionPass":
+          return (
+            Boolean(auction) && !auction!.excludedIds.includes(actorId)
+          );
+        case "auctionResolveTie":
+          return Boolean(auction?.tiedBidderIds?.includes(actorId));
+        case "setPlayers":
+          return playersRef.current.some((p) => p.id === actorId);
+        default:
+          return false;
+      }
+    })();
+    if (!allowed) return;
+
     switch (intent.type) {
       case "rollDice":
         onRollDiceLocal();
@@ -1620,6 +1743,12 @@ export function App() {
 
   return (
     <div className="relative h-dvh w-dvw overflow-hidden bg-[#120c08]">
+      {onlineSession ? (
+        <OnlineStatusBanner
+          status={syncStatus}
+          isHost={onlineSession.isHost}
+        />
+      ) : null}
       <BoardCanvas
         selectedIndex={selectedIndex}
         onSelect={setSelectedIndex}

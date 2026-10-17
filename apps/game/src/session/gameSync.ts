@@ -39,13 +39,17 @@ export async function loadGame(roomId: string): Promise<GameRow | null> {
   return (data as GameRow | null) ?? null;
 }
 
-/** Host: grava snapshot com controle otimista de versão. */
 export async function pushGameState(
   roomId: string,
   expectedVersion: number,
   state: GameSnapshot,
-): Promise<{ ok: true; version: number } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; version: number }
+  | { ok: false; conflict: true; row: GameRow }
+  | { ok: false; conflict: false; error: string }
+> {
   await ensureAnonSession();
+  const id = roomId.toUpperCase();
   const nextVersion = expectedVersion + 1;
   const { data, error } = await getSupabase()
     .from("games")
@@ -54,19 +58,69 @@ export async function pushGameState(
       state,
       updated_at: new Date().toISOString(),
     })
-    .eq("room_id", roomId.toUpperCase())
+    .eq("room_id", id)
     .eq("version", expectedVersion)
     .select("version")
     .maybeSingle();
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, conflict: false, error: error.message };
   if (!data) {
+    const row = await loadGame(id);
+    if (row) return { ok: false, conflict: true, row };
     return {
       ok: false,
+      conflict: false,
       error: "Versão desatualizada — outro write venceu.",
     };
   }
   return { ok: true, version: nextVersion };
+}
+
+
+export function subscribeRoomPresence(
+  roomId: string,
+  self: { userId: string; isHost: boolean },
+  onChange: (info: { hostOnline: boolean; memberCount: number }) => void,
+): () => void {
+  const id = roomId.toUpperCase();
+  const sb = getSupabase();
+  const channel = sb.channel(`presence-${id}`, {
+    config: { presence: { key: self.userId } },
+  });
+
+  const emit = () => {
+    const state = channel.presenceState() as Record<
+      string,
+      Array<{ userId?: string; isHost?: boolean }>
+    >;
+    let hostOnline = false;
+    let memberCount = 0;
+    for (const metas of Object.values(state)) {
+      for (const meta of metas) {
+        memberCount += 1;
+        if (meta.isHost) hostOnline = true;
+      }
+    }
+    onChange({ hostOnline, memberCount });
+  };
+
+  channel
+    .on("presence", { event: "sync" }, emit)
+    .on("presence", { event: "join" }, emit)
+    .on("presence", { event: "leave" }, emit)
+    .subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        await channel.track({
+          userId: self.userId,
+          isHost: self.isHost,
+          at: Date.now(),
+        });
+      }
+    });
+
+  return () => {
+    void sb.removeChannel(channel);
+  };
 }
 
 export async function enqueueGameAction(

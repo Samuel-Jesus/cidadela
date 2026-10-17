@@ -127,11 +127,14 @@ export async function remoteJoinRoom(
       error: "Sala não encontrada. Peça um novo link ao anfitrião.",
     };
   }
-  if (state.status !== "waiting") {
-    return { ok: false, error: "Esta partida já começou." };
-  }
   if (state.members.some((m) => m.clientId === member.clientId)) {
     return { ok: true, state };
+  }
+  if (state.status !== "waiting") {
+    return {
+      ok: false,
+      error: "Esta partida já começou. Use o mesmo aparelho/conta para voltar.",
+    };
   }
   if (state.members.length >= state.maxPlayers) {
     return { ok: false, error: "Sala cheia." };
