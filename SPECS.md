@@ -5,8 +5,8 @@
 > Sempre que `REQUISITOS.md` mudar, esta especificação deve ser revisada e alinhada.
 
 **Template:** Volere Requirements Specification (adaptado)  
-**Versão:** 0.4  
-**Status:** Alinhado às regras em `REQUISITOS.md` · hot-seat digital implementado · audiovisual (som/animações) especificado, ainda pendente no código  
+**Versão:** 0.5  
+**Status:** Alinhado às regras em `REQUISITOS.md` · hot-seat + online · SFX de UI (Lobby) parcial · SFX de partida / dados / economia ainda pendentes  
 
 ---
 
@@ -443,6 +443,40 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 
 Feedback sensorial **não altera regras** (saldo, posição, dono). Mute global e volume devem existir na UI.
 
+**Código atual:** `apps/game/src/audio/sfx.ts` (HTMLAudioElement + preload) · assets Kenney CC0 em `public/sounds/ui/` · mute no Lobby (`SfxMuteButton`). Ainda **não** há SFX de dados, peão, dinheiro nem música de casa.
+
+### Inventário — o que já existe vs o que falta
+
+| Área | Status | Notas |
+| --- | --- | --- |
+| Infra `playSfx` / unlock / volume / mute persistente | Parcial | Mute + volume em `localStorage`; slider de volume na UI ainda não |
+| SFX UI Lobby (click, hover, back, select, switch, error) | Feito | Ligado em CTAs, peão e erros do Lobby |
+| SFX UI partida (HUD, modais, carteira, leilão, trade) | **Falta** | Reusar os mesmos IDs UI ou variantes |
+| **Dados** (lançar, quicar, parar, dupla) | **Falta** | Prioridade alta — ver NFR-AV-50…54 |
+| Passos do peão / aterrissar na casa | **Falta** | NFR-AV-55…56 |
+| Dinheiro (receber / pagar / imposto) | **Falta** | NFR-AV-01…04 |
+| Compra, hipoteca, construção, carta, leilão, trade, vitória | **Falta** | NFR-AV-57…63 |
+| Carnaval / Canário (música) | **Falta** | NFR-AV-10…11 |
+| Sirene / SFX da viatura (prisão) | **Falta** | NFR-AV-22 |
+| SFX do guincho (venda de construção) | **Falta** | NFR-AV-42 |
+| Animação 3D viatura → Forte | **Falta** | NFR-AV-20…23 |
+| Animação 3D guincho | **Falta** | NFR-AV-40…42 |
+| Prefetch dos SFX de partida no loading | **Falta** | Estender `preloadAssets` / `preloadUiSfx` |
+
+### SFX de dados e movimento (partida)
+
+Sugestão de pastas: `public/sounds/dice/` · `public/sounds/game/`.
+
+| ID | Descrição | Quando disparar | Prioridade |
+| --- | --- | --- | --- |
+| NFR-AV-50 | Som de **lançar** os dados | Clique em “Rolar” / início da física (`diceRolling=true`) | Alta |
+| NFR-AV-51 | Som(s) de **impacto / quique** na bandeja | Contatos dos dados com a mesa (throttle se muitos hits) | Alta |
+| NFR-AV-52 | Som de **parada** / resultado revelado | `onRollComplete` (faces lidas) | Alta |
+| NFR-AV-53 | Stinger curto de **dupla** | Quando `diceRoll` é dupla (exceto 3ª → Forte) | Média |
+| NFR-AV-54 | Stinger de **3ª dupla → Forte** (ou sirene curta) | Antes/durante envio à prisão por 3 duplas | Média |
+| NFR-AV-55 | Tick / passo do peão | Cada casa avançada no path | Média |
+| NFR-AV-56 | Soft land ao **parar na casa** final | Fim do movimento do peão | Baixa |
+
 ### SFX de dinheiro e economia
 
 | ID | Descrição | Fit Criterion | Prioridade |
@@ -451,6 +485,18 @@ Feedback sensorial **não altera regras** (saldo, posição, dono). Mute global 
 | NFR-AV-02 | Som distinto ao **pagar** / transferir (aluguel pago, compra, construção, resgate, saída do Forte $50, negociação) | Evento de débito dispara SFX de “pagamento/transferência” | Alta |
 | NFR-AV-03 | Som específico de **imposto** (Pedágio da Linha Verde $200, Abadá do Carnaval $100) | Queda em casa `imposto` ou quitação do imposto dispara SFX de imposto (não o genérico de pagamento, ou variante clara) | Alta |
 | NFR-AV-04 | Feedback sonoro (e, se couber, microanimação na carteira) a cada ponto de transferência relevante | Observador associa o som ao motivo (crédito vs débito vs imposto) | Média |
+
+### SFX de ações de partida (além de dinheiro)
+
+| ID | Descrição | Quando disparar | Prioridade |
+| --- | --- | --- | --- |
+| NFR-AV-57 | Compra de escritura / “selo” | Compra confirmada | Média |
+| NFR-AV-58 | Hipotecar / resgatar | Ação na escritura | Baixa |
+| NFR-AV-59 | Construir pousada / resort | Build confirmado | Média |
+| NFR-AV-60 | Comprar / revelar carta Fitinha ou Bença | Draw + abertura do modal | Média |
+| NFR-AV-61 | Lance / ganhou leilão | Bid e fim do leilão | Baixa |
+| NFR-AV-62 | Aceite / recusa de negociação | Trade overlay | Baixa |
+| NFR-AV-63 | Vitória / fim de partida | `VictoryOverlay` | Média |
 
 ### Casas e momentos especiais
 
@@ -487,6 +533,8 @@ Feedback sensorial **não altera regras** (saldo, posição, dono). Mute global 
 | --- | --- | --- | --- |
 | NFR-AV-30 | Controles de volume (SFX / música) e mute | Preferência persiste na sessão (localStorage ok no MVP) | Média |
 | NFR-AV-31 | Músicas longas do Carnaval não travam o turno: fade-out ao passar a vez ou ao sair da casa | Volume cai em ≤2s ao mudar de contexto | Média |
+
+**NFR-AV-30 (estado):** mute no Lobby **feito**; slider de volume e mute visível **na partida** ainda faltam.
 
 ---
 
@@ -530,7 +578,10 @@ Feedback sensorial **não altera regras** (saldo, posição, dono). Mute global 
 | 8 | Lobby anfitrião + link/QR + join (FR-05…05g) | 6 | Feito (Supabase) |
 | 8b | Loading com avião (FR-06…06b) antes do Lobby | 6 | Feito |
 | 9 | Playtest de balanceamento | 6 | Pendente |
-| 10 | Áudio: SFX dinheiro / imposto + pools Carnaval & Canário (§17b) | 6 | Pendente |
+| 10a | SFX UI Lobby (`sfx.ts` + Kenney) | 6 | Feito (parcial; mute ok) |
+| 10b | SFX **dados** + passos do peão (NFR-AV-50…56) | 6 | Pendente |
+| 10c | SFX dinheiro / imposto / ações (NFR-AV-01…04, 57…63) | 6 | Pendente |
+| 10d | Pools Carnaval & Canário (§17b) | 6 | Pendente |
 | 11 | Animação viatura → Forte pelo miolo do tabuleiro (FR-44a / NFR-AV-20…23) | 6 | Pendente |
 | 12 | Animação guincho ao vender pousada/resort (FR-64a / NFR-AV-40…42) | 6 | Pendente |
 | 13 | Multiplayer online (Supabase Realtime) | 9 | Feito (host-authoritative); Edge Function anti-cheat opcional |
@@ -591,11 +642,16 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 - [x] **Loading** com avião (FR-06…06b) na entrada do app
 - [x] Sync de sala e partida entre aparelhos (Supabase — FR-05g)
 - [ ] Cobertura Vitest ampliada (cartas, Forte, falência ponta a ponta)
-- [ ] **Áudio:** SFX de recebimento, pagamento/transferência e impostos (NFR-AV-01…04)
+- [x] **Áudio UI Lobby:** click/hover/select/switch/error + mute (`apps/game/src/audio/`)
+- [ ] **Áudio — dados:** lançar, quique, parada, dupla / 3ª dupla (NFR-AV-50…54)
+- [ ] **Áudio — peão:** passo por casa + land (NFR-AV-55…56)
+- [ ] **Áudio — economia:** receber, pagar, imposto (NFR-AV-01…04)
+- [ ] **Áudio — ações:** compra, hipoteca, build, carta, leilão, trade, vitória (NFR-AV-57…63)
+- [ ] **Áudio — UI partida:** mesmos SFX no HUD/modais (hoje só Lobby)
 - [ ] **Carnaval:** músicas aleatórias (pools Carnaval + Canário) + efeitos leves (FR-43a / NFR-AV-10…11)
 - [ ] **Prisão:** animação do carro da polícia buscando o peão, cruzando o miolo e deixando no Forte (FR-44a / NFR-AV-20…23)
 - [ ] **Venda de construção:** guincho busca pousada/resort na casa e leva embora (FR-64a / NFR-AV-40…42)
-- [ ] Controles de volume / mute (NFR-AV-30)
+- [ ] Controles: slider de volume + mute na partida (NFR-AV-30; mute Lobby ok)
 - [x] Multiplayer online (Supabase Realtime; host aplica regras)
 - [ ] Edge Function como autoridade de regras (anti-cheat)
 - [ ] Pousadas/resorts visíveis no tabuleiro 3D
@@ -606,7 +662,8 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 - Banqueiro automático na versão digital (implícito); papel nomeado (FR-04) ainda aberto.
 - Cartas com efeitos tipados conforme §13 — feitos no shared.
 - Playtests com as tabelas §8; ajustar se necessário e refletir em `REQUISITOS.md`.
-- Camada `audio/` + `fx/` no `apps/game` (Howler/Web Audio + animações R3F) desacoplada das regras em `shared`.
+- Camada `audio/` no `apps/game` (hoje HTMLAudioElement; Howler/Web Audio opcional depois) + `fx/` R3F, desacoplada de `shared`.
+- Dados: amarrar SFX em `onRollDice` / contatos cannon / `onRollComplete` (`DiceTray` / `App.tsx`).
 - Viatura: path spline pelo centro do tabuleiro (BOARD mid) casa atual → Forte (10).
 - Guincho: spawn na lateral da casa → “puxa” mesh da pousada/resort → exit para fora do board (ou depósito); depende de pousadas/resorts visíveis no 3D.
 
@@ -628,9 +685,9 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 | §13 Baralhos | FR-40–FR-46 | Feito (confirmar edge FR-46 em playtest) |
 | §14 Adaptações | §4, NFR-10, NFR-70, NFR-80 | Doc |
 | §15 Carteira | FR-24, FR-64, FR-64a, FR-100–FR-107, PUC 12–13, NFR-22, NFR-AV-01…04, NFR-AV-40…45 | Feito regras; SFX + guincho pendentes |
-| Áudio / animações digitais | §17b, NFR-AV-*, NFR-82 | Especificado v0.4; código pendente |
-| Waiting Room / implementação | §18, §21, §26 | Atualizado v0.4 |
+| Áudio / animações digitais | §17b, NFR-AV-*, NFR-82 | v0.5: UI Lobby parcial; dados/economia/Carnaval/FX pendentes |
+| Waiting Room / implementação | §18, §21, §26 | Atualizado v0.5 |
 
 ---
 
-*Fim da especificação Volere v0.4 — manter sincronizado com `REQUISITOS.md` e o código.*
+*Fim da especificação Volere v0.5 — manter sincronizado com `REQUISITOS.md` e o código.*

@@ -25,24 +25,7 @@ export function BoardTable() {
         <meshStandardMaterial color="#e8d5b5" roughness={0.7} />
       </mesh>
 
-      <CenterLabel />
-
       <JailRoad />
-    </group>
-  );
-}
-
-function CenterLabel() {
-  return (
-    <group position={[0, BOARD_Y + 0.15, 0]}>
-      <mesh castShadow>
-        <boxGeometry args={[4.5, 0.12, 1.2]} />
-        <meshStandardMaterial color="#6b452f" roughness={0.6} />
-      </mesh>
-      <mesh position={[0, 0.1, 0]}>
-        <boxGeometry args={[4.2, 0.05, 0.9]} />
-        <meshStandardMaterial color="#d4a373" roughness={0.5} metalness={0.1} />
-      </mesh>
     </group>
   );
 }

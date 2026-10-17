@@ -3,9 +3,9 @@
 > **Referências:** [`REQUISITOS.md`](./REQUISITOS.md) · [`SPECS.md`](./SPECS.md)  
 > Stack oficial alinhada aos FRs do `SPECS.md` (turnos, tabuleiro, banco, Forte, negociações, falência).
 
-**Versão:** 0.5  
-**Status:** Stack oficial — **Three.js + React Three Fiber** · hot-seat + **Supabase** (lobby/partida online)  
-**Decisão:** 2026-03-15 (evoluiu da Opção B Phaser → 3D real) · sync implementação 2026-10-16 · Supabase 2026-10-16
+**Versão:** 0.6  
+**Status:** Stack oficial — **Three.js + React Three Fiber** · hot-seat + **Supabase** · SFX UI (Lobby)  
+**Decisão:** 2026-03-15 (evoluiu da Opção B Phaser → 3D real) · sync 2026-10-16 · áudio docs 2026-10-17
 
 ---
 
@@ -70,6 +70,7 @@ Tabuleiro e cena em **Three.js** via **React Three Fiber**, com shell React/Vite
 | 3D | three + @react-three/fiber + @react-three/drei |
 | Dados | @cidadela/shared |
 | Testes | Vitest em `packages/shared` (`pnpm test`) |
+| Áudio | HTMLAudioElement em `apps/game/src/audio/` (Kenney CC0 UI); SFX de partida ainda não |
 | Pacotes | pnpm workspaces |
 
 ### Estrutura
@@ -81,7 +82,9 @@ cidadela/
     shared/          # regras: board, rent, jail, auction, trade, falência…
   apps/
     game/
+      public/sounds/ # ui/ (Kenney) · futuro: dice/ · game/ · music/
       src/
+        audio/         # sfx.ts · SfxMuteButton
         landmarks/     # modelos 3D por casa
         scene/         # BoardCanvas, tiles, peões, dados
         ui/            # BoardHud · Wallet · Auction · Trade · Victory
@@ -138,7 +141,17 @@ cidadela/
 - [x] Lobby local "Jogar neste aparelho" (hot-seat FR-05h, **somente DEV**)
 - [x] Sync de sala e partida multi-aparelho (Supabase Realtime)
 - [x] Loading inicial com avião (pré-carga de assets)
-- [ ] Áudio/FX (`SPECS.md` §17b): SFX dinheiro/imposto; Carnaval+Canário; viatura → Forte; guincho ao vender construção
+- [x] SFX UI Lobby (`audio/sfx.ts` + mute)
+- [ ] Áudio de partida — lista do que falta (detalhe em `SPECS.md` §17b):
+  - [ ] **Dados:** lançar, quique, parada, dupla / 3ª dupla
+  - [ ] **Peão:** passo por casa + aterrissar
+  - [ ] **Economia:** receber $, pagar $, imposto
+  - [ ] **Ações:** compra, hipoteca, build, carta, leilão, trade, vitória
+  - [ ] **UI partida:** SFX no HUD/modais (hoje só Lobby)
+  - [ ] **Carnaval/Canário:** pools de música + FX leves
+  - [ ] Mute/volume na partida (mute Lobby ok)
+  - [ ] Animação viatura → Forte + sirene
+  - [ ] Animação guincho ao vender construção + SFX
 
 ---
 
@@ -150,7 +163,8 @@ cidadela/
 4. Phaser **descontinuado** neste projeto
 5. Regras tipadas em **`packages/shared`**; `engine` focado em dados por enquanto
 6. Aluguel digital padrão: **claim** (dono cobra); auto só via opção de API (`rentMode`)
+7. Áudio: SFX curtos via HTMLAudio; música de casa (Carnaval) como pool separado; mute não cancela animações
 
 ---
 
-*Stack oficial v0.4 — Three.js + hot-seat. Atualizar se landmarks passarem a GLTF externos ou se o multiplayer entrar.*
+*Stack oficial v0.6 — Three.js + Supabase + SFX UI. Ver `SPECS.md` §17b para inventário audiovisual.*

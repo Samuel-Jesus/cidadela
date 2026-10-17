@@ -1,4 +1,5 @@
 export type UiSfx = "click" | "hover" | "back" | "select" | "switch" | "error";
+export type DiceSfx = "mix" | "fall";
 
 const FILES: Record<UiSfx, string> = {
   click: "click_004.ogg",
@@ -9,7 +10,13 @@ const FILES: Record<UiSfx, string> = {
   error: "error_003.ogg",
 };
 
+const DICE_FILES: Record<DiceSfx, string> = {
+  mix: "mix_dices.ogg",
+  fall: "fall_dices.ogg",
+};
+
 const BASE = "/sounds/ui";
+const DICE_BASE = "/sounds/dice";
 const MUTE_KEY = "cidadela.sfx.muted";
 const VOLUME_KEY = "cidadela.sfx.volume";
 
@@ -22,6 +29,7 @@ let volume = readVolume();
 const cache = new Map<string, HTMLAudioElement>();
 let lastHoverAt = 0;
 let hoverBound = false;
+let mixLoop: HTMLAudioElement | null = null;
 
 function readMuted(): boolean {
   try {
@@ -42,12 +50,13 @@ function readVolume(): number {
   }
 }
 
-function getAudio(file: string): HTMLAudioElement {
-  let a = cache.get(file);
+function getAudio(file: string, base = BASE): HTMLAudioElement {
+  const key = `${base}/${file}`;
+  let a = cache.get(key);
   if (!a) {
-    a = new Audio(`${BASE}/${file}`);
+    a = new Audio(key);
     a.preload = "auto";
-    cache.set(file, a);
+    cache.set(key, a);
   }
   return a;
 }
@@ -74,12 +83,49 @@ export function playSfx(id: UiSfx, opts?: { volume?: number }): void {
   try {
     const src = getAudio(FILES[id]);
     const node = src.cloneNode(true) as HTMLAudioElement;
-    const base = opts?.volume ?? (id === "hover" ? volume * 0.45 : volume);
-    node.volume = Math.min(1, Math.max(0, base));
+    const baseVol = opts?.volume ?? (id === "hover" ? volume * 0.45 : volume);
+    node.volume = Math.min(1, Math.max(0, baseVol));
     void node.play().catch(() => undefined);
   } catch {
     return;
   }
+}
+
+export function playDiceSfx(id: DiceSfx, opts?: { volume?: number }): void {
+  if (muted || volume <= 0) return;
+  try {
+    const src = getAudio(DICE_FILES[id], DICE_BASE);
+    const node = src.cloneNode(true) as HTMLAudioElement;
+    node.volume = Math.min(1, Math.max(0, opts?.volume ?? volume * 0.85));
+    void node.play().catch(() => undefined);
+  } catch {
+    return;
+  }
+}
+
+export function startDiceMixLoop(): void {
+  stopDiceMixLoop();
+  if (muted || volume <= 0) return;
+  try {
+    const a = getAudio(DICE_FILES.mix, DICE_BASE);
+    a.loop = true;
+    a.currentTime = 0;
+    a.volume = Math.min(1, volume * 0.7);
+    mixLoop = a;
+    void a.play().catch(() => undefined);
+  } catch {
+    return;
+  }
+}
+
+export function stopDiceMixLoop(): void {
+  if (!mixLoop) return;
+  try {
+    mixLoop.pause();
+    mixLoop.currentTime = 0;
+    mixLoop.loop = false;
+  } catch {}
+  mixLoop = null;
 }
 
 export function playHoverSfx(): void {
@@ -109,6 +155,7 @@ export function isSfxMuted(): boolean {
 
 export function setSfxMuted(next: boolean): void {
   muted = next;
+  if (next) stopDiceMixLoop();
   try {
     localStorage.setItem(MUTE_KEY, next ? "1" : "0");
   } catch {
@@ -136,4 +183,5 @@ export function setSfxVolume(next: number): void {
 
 export function preloadUiSfx(): void {
   for (const file of Object.values(FILES)) getAudio(file);
+  for (const file of Object.values(DICE_FILES)) getAudio(file, DICE_BASE);
 }

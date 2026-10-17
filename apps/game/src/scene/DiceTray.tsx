@@ -13,22 +13,17 @@ type Props = {
   onRollComplete: (roll: DiceRoll) => void;
 };
 
-function TrayFloor() {
+function TableFloor() {
   const [ref] = usePlane(() => ({
     type: "Static",
-    position: [0, BOARD_Y + 0.28, 0],
+    position: [0, BOARD_Y + 0.08, 0],
     rotation: [-Math.PI / 2, 0, 0],
-    material: { friction: 0.4, restitution: 0.4 },
+    material: { friction: 0.45, restitution: 0.35 },
   }));
-  return (
-    <mesh ref={ref} receiveShadow>
-      <circleGeometry args={[1.6, 48]} />
-      <meshStandardMaterial color="#3d2918" roughness={0.85} />
-    </mesh>
-  );
+  return <mesh ref={ref} visible={false} />;
 }
 
-function TrayWall({
+function InvisibleWall({
   position,
   args,
 }: {
@@ -42,15 +37,6 @@ function TrayWall({
     material: { friction: 0.4, restitution: 0.35 },
   }));
   return <mesh ref={ref} visible={false} />;
-}
-
-function TrayRim() {
-  return (
-    <mesh position={[0, BOARD_Y + 0.18, 0]} castShadow receiveShadow>
-      <cylinderGeometry args={[1.7, 1.85, 0.2, 48]} />
-      <meshStandardMaterial color="#5c3d2e" roughness={0.7} />
-    </mesh>
-  );
 }
 
 function DoubleTapRollZone({
@@ -127,12 +113,11 @@ function DiceWorld({
 
   return (
     <group>
-      <TrayRim />
-      <TrayFloor />
-      <TrayWall position={[0, y, 1.55]} args={[3.2, wallH, 0.12]} />
-      <TrayWall position={[0, y, -1.55]} args={[3.2, wallH, 0.12]} />
-      <TrayWall position={[1.55, y, 0]} args={[0.12, wallH, 3.2]} />
-      <TrayWall position={[-1.55, y, 0]} args={[0.12, wallH, 3.2]} />
+      <TableFloor />
+      <InvisibleWall position={[0, y, 1.55]} args={[3.2, wallH, 0.12]} />
+      <InvisibleWall position={[0, y, -1.55]} args={[3.2, wallH, 0.12]} />
+      <InvisibleWall position={[1.55, y, 0]} args={[0.12, wallH, 3.2]} />
+      <InvisibleWall position={[-1.55, y, 0]} args={[0.12, wallH, 3.2]} />
 
       <PhysicsDie index={0} rolling={rolling} rollId={rollId} onFace={onFace} />
       <PhysicsDie index={1} rolling={rolling} rollId={rollId} onFace={onFace} />
