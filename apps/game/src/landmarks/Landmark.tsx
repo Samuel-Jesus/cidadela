@@ -12,6 +12,7 @@ import { PlanoInclinadoLandmark } from "./PlanoInclinadoLandmark";
 import { QuartelPoliciaLandmark } from "./QuartelPoliciaLandmark";
 import { FarolDaBarraLandmark } from "./FarolDaBarraLandmark";
 import { ForteSaoMarceloLandmark } from "./ForteSaoMarceloLandmark";
+import { HidrometroLandmark } from "./HidrometroLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -80,7 +81,13 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     );
   }
   if (index === 28) {
-    return <Embasa accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+    return (
+      <HidrometroLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
   }
   if (index === 30) {
     const quartelFit = Math.min(slotWidth ?? 1.2, slotDepth ?? 1.2) * 0.9;
@@ -388,38 +395,6 @@ function RioVermelho() {
       <Box args={[0.22, 0.1, 0.22]} position={[0.3, 0.8, 0]} color="#c0392b" />
       <Box args={[0.7, 0.05, 0.4]} position={[0, 0.03, 0.35]} color="#5dade2" />
     </Group>
-  );
-}
-
-function EmbasaFallback() {
-  return (
-    <Group>
-      <Cyl args={[0.35, 0.35, 0.55, 16]} position={[-0.25, 0.3, 0]} color="#5dade2" />
-      <Cyl args={[0.28, 0.28, 0.45, 16]} position={[0.3, 0.25, 0.1]} color="#3498db" />
-      <Box args={[0.9, 0.08, 0.5]} position={[0, 0.05, 0]} color="#85929e" />
-    </Group>
-  );
-}
-
-function Embasa({
-  accent,
-  fitWidth,
-  fitDepth,
-}: {
-  accent?: boolean;
-  fitWidth: number;
-  fitDepth: number;
-}) {
-  return (
-    <Suspense fallback={<EmbasaFallback />}>
-      <GltfLandmark
-        url="/models/hidrometro.gltf"
-        fitWidth={fitWidth}
-        fitDepth={fitDepth}
-        polish
-        accent={accent}
-      />
-    </Suspense>
   );
 }
 

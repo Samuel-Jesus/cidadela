@@ -1,0 +1,72 @@
+// Requer Three.js. Uso: const modelo = criarHidrometro(THREE); cena.add(modelo);
+// No loop de animação: modelo.userData.tick(deltaSegundos);
+// Botões: modelo.userData.alternarTampa(); modelo.userData.alternarRegistro();
+
+function criarHidrometro(THREE){
+  const g=new THREE.Group(); g.name='Hidrometro';
+  const M=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.6,metalness:.2},o||{}));
+  const m={pipe:M(0xaeb0b2,{metalness:.35,roughness:.55}),nut:M(0x9a9c9e,{metalness:.4}),blue:M(0x1a2fb4,{roughness:.45}),black:M(0x17181a,{roughness:.7,metalness:0}),
+    brass:M(0xd9a21b,{metalness:.7,roughness:.35}),red:M(0xd92b2b,{metalness:0,roughness:.5}),dark:M(0x0b0b0c)};
+  const cyl=(r,h,mt,x,y,z,rz,rx,seg,p)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,seg||24),mt);o.position.set(x,y,z);o.rotation.z=rz||0;o.rotation.x=rx||0;(p||g).add(o);return o};
+  const ball=(r,mt,x,y,z)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(r,18,14),mt);o.position.set(x,y,z);g.add(o)};
+  const ring=(x,y,z,r)=>{const o=new THREE.Mesh(new THREE.TorusGeometry(r,.035,6,18),m.nut);o.position.set(x,y,z);o.rotation.y=Math.PI/2;g.add(o)};
+  const Y=1.3, R=.19, PI2=Math.PI/2;
+
+  /* tubulação: dois cotovelos com pernas para baixo e trecho central */
+  cyl(R,3.15,m.pipe,-2.675,Y,0,PI2); cyl(R,3.1,m.pipe,2.65,Y,0,PI2);
+  [-4.2,4.2].forEach(x=>{
+    ball(R+.05,m.pipe,x,Y,0);
+    cyl(R,Y,m.pipe,x,Y/2,0); cyl(R+.05,.22,m.nut,x,Y*.42,0); cyl(R+.03,.12,m.nut,x,.06,0);
+  });
+  [-3.9,3.9].forEach(x=>{ring(x,Y,0,R+.03);ring(x+(x<0?.1:-.1),Y,0,R+.03)});
+
+  /* uniões sextavadas */
+  [-1.02,1.02].forEach(x=>{ cyl(.31,.45,m.nut,x,Y,0,PI2,0,6); cyl(R+.06,.2,m.nut,x+(x<0?-.3:.3),Y,0,PI2) });
+
+  /* corpo azul, anel preto, mostrador e tampa */
+  cyl(.82,1.15,m.blue,0,Y-.02,0);
+  cyl(.9,.34,m.black,0,1.95,0,0,0,22);
+  cyl(.84,.04,m.black,0,2.13,0);
+  const cv=document.createElement('canvas'); cv.width=cv.height=256;
+  const cx=cv.getContext('2d'), tex=new THREE.CanvasTexture(cv);
+  const desenhar=n=>{
+    cx.fillStyle='#f4f4ee'; cx.fillRect(0,0,256,256);
+    cx.textAlign='center'; cx.fillStyle='#1d4fb8'; cx.font='bold 28px sans-serif'; cx.fillText('EMBASA',128,60);
+    cx.fillStyle='#111'; cx.fillRect(40,80,176,40);
+    const s=String(n%100000).padStart(5,'0'); cx.font='bold 32px monospace';
+    for(let i=0;i<5;i++){ cx.fillStyle=i===4?'#ff5545':'#fff'; cx.fillText(s[i],62+i*33,112); }
+    cx.fillStyle='#111'; cx.font='15px sans-serif'; cx.fillText('m³',226,112);
+    cx.fillStyle='#d33'; cx.beginPath(); cx.arc(86,182,28,0,7); cx.fill();
+    cx.fillStyle='#fff'; cx.fillRect(84,158,4,24);
+    cx.fillStyle='#222'; cx.beginPath(); cx.arc(168,182,20,0,7); cx.fill();
+    cx.fillStyle='#e33'; cx.fillRect(162,176,12,12);
+    tex.needsUpdate=true;
+  };
+  desenhar(0);
+  const dial=new THREE.Mesh(new THREE.CircleGeometry(.74,32),new THREE.MeshStandardMaterial({map:tex,roughness:.4}));
+  dial.rotation.x=-PI2; dial.position.y=2.16; g.add(dial);
+  const pivo=new THREE.Group(); pivo.position.set(0,2.17,-.86); g.add(pivo);
+  cyl(.9,.07,m.black,0,0,.86,0,0,28,pivo);
+
+  /* registro: tê, corpo de latão, saída e volante vermelho */
+  const RX=2.5;
+  cyl(R,.9,m.pipe,RX,Y+.45,0); cyl(R+.05,.18,m.nut,RX,Y+.9,0); ring(RX,Y+.7,0,R+.03);
+  cyl(.3,.75,m.brass,RX,2.6,0); cyl(.23,.9,m.brass,RX,2.6,.45,0,PI2);
+  const boca=new THREE.Mesh(new THREE.CircleGeometry(.15,16),m.dark); boca.position.set(RX,2.6,.91); g.add(boca);
+  cyl(.1,.3,m.brass,RX,3.1,0);
+  const volante=new THREE.Group(); volante.position.set(RX,3.3,0); g.add(volante);
+  cyl(.07,1,m.red,0,0,0,PI2,0,12,volante);
+  cyl(.1,.12,m.red,0,0,0,0,0,12,volante);
+
+  /* animação: tampa, registro e contador */
+  const e={tampa:1.75,tampaAlvo:1.75,reg:0,regAlvo:0,t:0,n:0};
+  pivo.rotation.x=-e.tampa;
+  g.userData.alternarTampa=()=>{e.tampaAlvo=e.tampaAlvo>.5?0:1.75; return e.tampaAlvo>.5};
+  g.userData.alternarRegistro=()=>{e.regAlvo=e.regAlvo>.5?0:PI2; return e.regAlvo<.5};
+  g.userData.tick=dt=>{
+    e.tampa+=(e.tampaAlvo-e.tampa)*Math.min(1,dt*6); pivo.rotation.x=-e.tampa;
+    e.reg+=(e.regAlvo-e.reg)*Math.min(1,dt*6); volante.rotation.y=e.reg;
+    if(e.regAlvo<.5){ e.t+=dt; if(e.t>.9){ e.t=0; e.n++; desenhar(e.n); } }
+  };
+  return g;
+}
