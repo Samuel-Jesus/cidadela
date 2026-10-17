@@ -65,6 +65,7 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
       layout.index === 25 ||
       layout.index === 27 ||
       layout.index === 28 ||
+      layout.index === 30 ||
       layout.index === 35 ||
       layout.index === 39;
     let landmarkPos: [number, number, number];

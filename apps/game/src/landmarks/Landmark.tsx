@@ -9,6 +9,7 @@ import { CarnavalLandmark } from "./CarnavalLandmark";
 import { PedagioLinhaVerdeLandmark } from "./PedagioLinhaVerdeLandmark";
 import { PelourinhoLandmark } from "./PelourinhoLandmark";
 import { PlanoInclinadoLandmark } from "./PlanoInclinadoLandmark";
+import { QuartelPoliciaLandmark } from "./QuartelPoliciaLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -30,6 +31,7 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     index === 25 ||
     index === 27 ||
     index === 28 ||
+    index === 30 ||
     index === 35 ||
     index === 39;
   const fitWidth = (slotWidth ?? 1.2) * (isGltf ? 0.98 : 0.95);
@@ -65,6 +67,16 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   }
   if (index === 28) {
     return <Embasa accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
+  if (index === 30) {
+    const quartelFit = Math.min(slotWidth ?? 1.2, slotDepth ?? 1.2) * 0.9;
+    return (
+      <QuartelPoliciaLandmark
+        accent={accent}
+        fitWidth={quartelFit}
+        fitDepth={quartelFit}
+      />
+    );
   }
   if (index === 35) {
     return <MetroDeSalvadorLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
@@ -122,8 +134,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
       return <RioVermelho />;
     case 29:
       return <Pituba />;
-    case 30:
-      return <VaParaOForte />;
     case 31:
       return <PraiaDoForte />;
     case 32:
@@ -475,17 +485,6 @@ function Pituba() {
       <Box args={[0.35, 0.9, 0.35]} position={[-0.25, 0.45, 0]} color="#aed6f1" />
       <Box args={[0.4, 1.1, 0.4]} position={[0.25, 0.55, 0]} color="#85c1e9" />
       <Box args={[0.25, 0.6, 0.25]} position={[0, 0.3, 0.3]} color="#d4e6f1" />
-    </Group>
-  );
-}
-
-function VaParaOForte() {
-  return (
-    <Group>
-      <Box args={[0.7, 0.55, 0.15]} position={[0, 0.3, 0]} color="#2c3e50" />
-      <Box args={[0.25, 0.35, 0.08]} position={[0.1, 0.25, 0.1]} color="#5d4037" />
-      <Cone args={[0.2, 0.35, 3]} position={[0, 0.85, 0]} rotation={[Math.PI, 0, 0]} color="#c0392b" />
-      <Box args={[0.12, 0.35, 0.12]} position={[0, 0.7, 0]} color="#c0392b" />
     </Group>
   );
 }
