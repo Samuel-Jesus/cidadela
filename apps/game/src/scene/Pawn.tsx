@@ -9,7 +9,7 @@ import {
   stepDurationFor,
   yawFollowFor,
 } from "../pawns/pawnKind";
-import { BOARD_Y, TILE_THICKNESS, type SpaceLayout } from "./layout";
+import { BOARD_Y, type SpaceLayout } from "./layout";
 import { consumePawnPathDir } from "./pawnPathIntent";
 import { pawnSlotOffset } from "./pawnSlots";
 
@@ -38,7 +38,7 @@ function spacePoint(
   const [ox, oz] = pawnSlotOffset(slotIndex, slotCount, layout);
   return {
     x: layout.x + ox,
-    y: BOARD_Y + TILE_THICKNESS + 0.02,
+    y: BOARD_Y + 0.08,
     z: layout.z + oz,
   };
 }
