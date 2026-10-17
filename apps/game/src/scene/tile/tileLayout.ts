@@ -37,19 +37,30 @@ export function computeLandmarkSlot(layout: SpaceLayout): LandmarkSlot {
 
   let landmarkPos: [number, number, number];
   if (corner) {
-    const inset = cornerSize * (gltf ? 0.03 : 0.18);
+    const insetFactor =
+      layout.index === 0 || layout.index === 10
+        ? 0.12
+        : gltf
+          ? 0.03
+          : 0.18;
+    const inset = cornerSize * insetFactor;
     landmarkPos = [ox * inset, 0, oz * inset];
   } else if (side) {
-    const back = layout.width * (gltf ? 0.18 : 0.28);
+    const backFactor =
+      layout.index === 39 ? 0.24 : gltf ? 0.18 : 0.28;
+    const back = layout.width * backFactor;
     landmarkPos = [ox * back, 0, 0];
   } else {
     const back = layout.depth * (gltf ? 0.18 : 0.28);
     landmarkPos = [0, 0, oz * back];
   }
 
+  const cornerSlot =
+    layout.index === 0 ? cornerSize * 0.96 : cornerSize * 0.9;
+
   return {
-    slotWidth: corner ? cornerSize * 0.9 : trackWidth,
-    slotDepth: corner ? cornerSize * 0.9 : radialDepth,
+    slotWidth: corner ? cornerSlot : trackWidth,
+    slotDepth: corner ? cornerSlot : radialDepth,
     landmarkPos,
   };
 }
