@@ -32,6 +32,8 @@ export type CardResolveResult = {
   pendingDebt?: DebtInfo | null;
   auctionQueue?: AuctionLot[];
   pendingRent?: PendingRentClaim | null;
+  /** Direção da animação do peão: -1 = sentido anti-horário (voltar casas). */
+  pathDir?: -1 | 1;
 };
 
 const MAX_CARD_DEPTH = 3;
@@ -170,6 +172,7 @@ export function resolveCardEffect(
   let pendingDebt: DebtInfo | null = null;
   let auctionQueue: AuctionLot[] = [];
   let movedTo: number | null = null;
+  let pathDir: -1 | 1 | undefined;
   let landingOpts: {
     transportMultiplier?: number;
     utilityDiceTotal?: number;
@@ -323,6 +326,7 @@ export function resolveCardEffect(
       nextPlayers = updatePlayer(nextPlayers, playerId, { position });
       notes.push(`Voltou ${effect.steps} casas.`);
       movedTo = position;
+      pathDir = -1;
       break;
     }
 
@@ -383,6 +387,7 @@ export function resolveCardEffect(
       utilityDice,
       pendingDebt,
       auctionQueue,
+      pathDir,
     };
   }
 
@@ -408,5 +413,6 @@ export function resolveCardEffect(
       ...(landed.auctionQueue ?? []),
     ],
     pendingRent: landed.pendingRent ?? null,
+    pathDir,
   };
 }

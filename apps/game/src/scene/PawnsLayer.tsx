@@ -43,6 +43,7 @@ export function PawnsLayer({
         return (
           <Pawn
             key={player.id}
+            playerId={player.id}
             pawnId={player.pawnId}
             spaceIndex={player.position}
             layoutsByIndex={layoutsByIndex}

@@ -10,6 +10,7 @@ import {
   yawFollowFor,
 } from "../pawns/pawnKind";
 import { BOARD_Y, TILE_THICKNESS, type SpaceLayout } from "./layout";
+import { consumePawnPathDir } from "./pawnPathIntent";
 import { pawnSlotOffset } from "./pawnSlots";
 
 const BOARD_SIZE = 40;
@@ -17,6 +18,7 @@ const SLOT_SLIDE_DURATION = 0.4;
 
 type Props = {
   pawnId: PawnId;
+  playerId: string;
   spaceIndex: number;
   layoutsByIndex: Map<number, SpaceLayout>;
   slotIndex: number;
@@ -41,12 +43,19 @@ function spacePoint(
   };
 }
 
-function buildPath(from: number, to: number): number[] {
-  const steps = (to - from + BOARD_SIZE) % BOARD_SIZE;
-  if (steps === 0) return [];
+function buildPath(from: number, to: number, dir: -1 | 1): number[] {
+  if (from === to) return [];
   const path: number[] = [];
-  for (let i = 1; i <= steps; i++) {
-    path.push((from + i) % BOARD_SIZE);
+  if (dir < 0) {
+    const steps = (from - to + BOARD_SIZE) % BOARD_SIZE;
+    for (let i = 1; i <= steps; i++) {
+      path.push((from - i + BOARD_SIZE) % BOARD_SIZE);
+    }
+  } else {
+    const steps = (to - from + BOARD_SIZE) % BOARD_SIZE;
+    for (let i = 1; i <= steps; i++) {
+      path.push((from + i) % BOARD_SIZE);
+    }
   }
   return path;
 }
@@ -63,6 +72,7 @@ function lerpAngle(a: number, b: number, t: number) {
 
 export function Pawn({
   pawnId,
+  playerId,
   spaceIndex,
   layoutsByIndex,
   slotIndex,
@@ -115,7 +125,7 @@ export function Pawn({
       spaceRef.current = spaceIndex;
       slotRef.current = { slotIndex, slotCount };
 
-      const indices = buildPath(from, spaceIndex);
+      const indices = buildPath(from, spaceIndex, consumePawnPathDir(playerId));
       fromRef.current = g
         ? { x: g.position.x, y: destPoint.y, z: g.position.z }
         : { ...destPoint };
@@ -158,7 +168,7 @@ export function Pawn({
     progressRef.current = 0;
     movingRef.current = true;
     notifyArriveRef.current = false;
-  }, [spaceIndex, slotIndex, slotCount, layoutsByIndex, kind]);
+  }, [spaceIndex, slotIndex, slotCount, layoutsByIndex, kind, playerId]);
 
   useFrame((_, dt) => {
     const g = group.current;

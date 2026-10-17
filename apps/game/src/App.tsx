@@ -36,6 +36,7 @@ import {
   type PendingRentClaim,
   type PlayerState,
 } from "@cidadela/shared";
+import { setPawnPathDir } from "./scene/pawnPathIntent";
 import {
   preloadGameAssets,
   type PreloadProgress,
@@ -835,6 +836,7 @@ export function App() {
         activePlayerId,
         deckId,
       );
+      if (resolved.pathDir) setPawnPathDir(activePlayerId, resolved.pathDir);
       decksRef.current = resolved.decks;
       setDecks(resolved.decks);
       playersRef.current = resolved.players;
@@ -1217,6 +1219,7 @@ export function App() {
             utilityDiceTotal: pending.utilityDiceTotal,
             drawAndResolve: (deckId, p, d) => {
               const r = drawAndResolveCard(p, d, playerId, deckId);
+              if (r.pathDir) setPawnPathDir(playerId, r.pathDir);
               return {
                 players: r.players,
                 decks: r.decks,
