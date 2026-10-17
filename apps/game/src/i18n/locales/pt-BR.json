@@ -162,7 +162,10 @@
     "taxPay": "Pague {{amount}}",
     "buyFor": "Comprar por {{price}}",
     "drawCard": "Tirar carta · {{deck}}",
-    "backToLobbyTitle": "Voltar ao Lobby"
+    "backToLobbyTitle": "Voltar ao Lobby",
+    "more": "Mais",
+    "less": "Menos",
+    "bankStockShort": "Banco · {{pousadas}}p · {{resorts}}r"
   },
   "turn": {
     "winner": "Fim de jogo — vencedor",

@@ -1,4 +1,5 @@
 import type { DiceRoll } from "@cidadela/engine";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   BANK_POUSADAS_MAX,
@@ -98,11 +99,27 @@ export function BoardHud({
   onClaimRent,
 }: Props) {
   const { t } = useTranslation();
+  const [isNarrow, setIsNarrow] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const sync = () => {
+      setIsNarrow(mq.matches);
+      if (!mq.matches) setMobileExpanded(false);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  const showExtras = !isNarrow || mobileExpanded;
   const space = selectedIndex === null ? null : getSpace(selectedIndex);
   const active = players.find((p) => p.id === activePlayerId) ?? null;
   const activeDef = active ? getPawnDef(active.pawnId) : null;
   const owner =
     selectedIndex === null ? null : findPropertyOwner(players, selectedIndex);
+
   const canBuy =
     controlsTurn &&
     turnPhase === "action" &&
@@ -113,17 +130,392 @@ export function BoardHud({
     active !== null &&
     space !== null &&
     active.cash >= (space.price ?? Infinity);
+
   const cardDeck = space ? deckIdFromSpaceKind(space.kind) : null;
   const canDrawCard = Boolean(
-    controlsTurn &&
-    active &&
-    cardDeck &&
-    turnPhase !== "busy" &&
-    !diceRolling,
+    controlsTurn && active && cardDeck && turnPhase !== "busy" && !diceRolling,
   );
   const bankStock = bankStockFromPlayers(players);
   const waitingOnline = isOnline && !controlsTurn && turnPhase !== "ended";
 
+  const hasJailChoice = Boolean(active?.inJail) && turnPhase === "roll";
+
+  if (isNarrow) {
+    return (
+      <aside
+        className="hud-panel pointer-events-auto absolute inset-x-2 z-10 flex flex-col overflow-hidden"
+        style={{
+          bottom: `max(0.4rem, env(safe-area-inset-bottom, 0px))`,
+          maxHeight: mobileExpanded ? "min(78dvh, 38rem)" : "min(46dvh, 20rem)",
+          transition: "max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+      >
+        <button
+          type="button"
+          aria-label={mobileExpanded ? t("hud.less") : t("hud.more")}
+          aria-expanded={mobileExpanded}
+          onClick={() => setMobileExpanded((v) => !v)}
+          className="flex w-full touch-manipulation items-center justify-center pb-1 pt-2.5"
+        >
+          <span className="h-1 w-10 rounded-full bg-[#5c3d2e]/35" />
+        </button>
+
+        <div className="flex shrink-0 items-center gap-2 px-3 pb-2">
+          {activeDef ? (
+            <>
+              <span
+                className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-[#5c3d2e]"
+                style={{ backgroundColor: activeDef.color }}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-[family-name:var(--font-game)] text-sm font-bold leading-tight text-[#9a3412]">
+                  {active ? getPlayerLabel(active) : activeDef.label}
+                  {waitingOnline ? (
+                    <span className="ms-1 text-[10px] font-semibold text-[#b45309]">
+                      {" "}· {t("hud.waitTurn")}
+                    </span>
+                  ) : turnHint ? (
+                    <span className="ms-1 text-[10px] font-semibold text-[#6b5344]">
+                      {" "}· {turnHint}
+                    </span>
+                  ) : null}
+                </p>
+                <p className="text-[10px] font-bold tabular-nums text-[#6b5344]">
+                  {isNarrow && !mobileExpanded
+                    ? t("hud.bankStockShort", {
+                      pousadas: bankStock.pousadas,
+                      resorts: bankStock.resorts,
+                    })
+                    : t("hud.bankStock", {
+                      pousadas: bankStock.pousadas,
+                      pousadasMax: BANK_POUSADAS_MAX,
+                      resorts: bankStock.resorts,
+                      resortsMax: BANK_RESORTS_MAX,
+                    })}
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-[#9a3412]">
+                {t("brand.board")}
+              </p>
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={!active || diceRolling || !controlsTurn}
+            onClick={onRollDice}
+            className="hud-btn hud-btn--primary shrink-0 px-4 py-2 text-sm"
+          >
+            {diceRolling
+              ? t("hud.rolling")
+              : !controlsTurn
+                ? t("hud.waitingOpponent")
+                : active?.inJail
+                  ? t("hud.tryDoubles")
+                  : t("hud.roll")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileExpanded((v) => !v)}
+            className="hud-btn hud-btn--soft shrink-0 px-2 py-1.5 text-[11px]"
+            aria-expanded={mobileExpanded}
+          >
+            {mobileExpanded ? "▴" : "▾"}
+          </button>
+
+          <LanguagePicker compact className="shrink-0" />
+        </div>
+        {diceRoll ? (
+          <div className="mx-3 mb-2 shrink-0 rounded-xl border-2 border-dashed border-[#5c3d2e]/40 bg-[#fffbeb] px-3 py-1.5">
+            <p className="hud-dice-result text-base text-[#5c3d2e]">
+              {diceRoll.die1} + {diceRoll.die2} ={" "}
+              <span className="font-bold text-[#c2410c]">{diceRoll.total}</span>
+              {diceRoll.isDouble ? (
+                <span className="ms-2 text-[11px] font-bold text-[#b45309]">
+                  {t("hud.doublesExclaim")}{" "}
+                  {consecutiveDoubles >= 3
+                    ? t("hud.doublesJail")
+                    : t("hud.doublesAgain")}
+                </span>
+              ) : (
+                <span className="ms-2 text-[11px] font-semibold text-[#6b5344]">
+                  {t("hud.advance", { n: diceRoll.total })}
+                </span>
+              )}
+            </p>
+          </div>
+        ) : null}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="flex flex-col gap-2 px-3 pb-3">
+            {hasJailChoice ? (
+              <div className="hud-card space-y-2 p-2.5">
+                <p className="text-xs font-bold leading-snug text-[#9a3412]">
+                  {t("hud.jailTry", {
+                    n: active!.jailAttempts,
+                    max: JAIL_MAX_ATTEMPTS,
+                  })}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={
+                      !controlsTurn || diceRolling || active!.cash < JAIL_FINE
+                    }
+                    onClick={onPayJailFine}
+                    className="hud-btn hud-btn--mint flex-1 px-2 py-2 text-xs"
+                  >
+                    {t("hud.payJail", { amount: JAIL_FINE })}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      !controlsTurn ||
+                      diceRolling ||
+                      active!.protectionCardIds.length === 0
+                    }
+                    onClick={onUseJailProtection}
+                    className="hud-btn hud-btn--pink flex-1 px-2 py-2 text-xs"
+                  >
+                    {t("hud.useProtection")}
+                    {active!.protectionCardIds.length > 0
+                      ? ` (${active!.protectionCardIds.length})`
+                      : ""}
+                  </button>
+                </div>
+                {jailError ? (
+                  <p className="rounded-lg border-2 border-[#5c3d2e] bg-[#fecaca] px-2 py-1.5 text-[11px] font-bold text-[#7f1d1d]">
+                    {jailError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {pendingRent ? (
+              <div className="hud-card space-y-2 p-2.5">
+                <p className="font-[family-name:var(--font-game)] text-sm font-bold text-[#166534]">
+                  Aluguel · {formatCash(pendingRent.amount)} ·{" "}
+                  {getSpace(pendingRent.spaceIndex).name}
+                </p>
+                <button
+                  type="button"
+                  onClick={onClaimRent}
+                  className="hud-btn hud-btn--mint w-full px-2.5 py-2 text-sm"
+                >
+                  Cobrar aluguel
+                </button>
+              </div>
+            ) : null}
+            {turnPhase === "debt" && pendingDebt && active ? (
+              <div className="hud-card space-y-2 p-2.5">
+                <p className="font-[family-name:var(--font-game)] text-sm font-bold text-[#9a3412]">
+                  Dívida: {formatCash(pendingDebt.amount)}
+                </p>
+                <p className="text-[10px] font-semibold text-[#6b5344]">
+                  {pendingDebt.reason} ·{" "}
+                  {pendingDebt.creditor.type === "player"
+                    ? "a outro jogador"
+                    : "ao banco"}
+                </p>
+                <p className="text-[10px] font-bold text-[#5c3d2e]">
+                  Caixa {formatCash(active.cash)} · liquidável até{" "}
+                  {formatCash(debtRaisable)}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={active.cash < pendingDebt.amount}
+                    onClick={onPayDebt}
+                    className="hud-btn hud-btn--mint flex-1 px-2 py-2 text-xs"
+                  >
+                    Pagar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onLiquidateForDebt}
+                    className="hud-btn hud-btn--soft flex-1 px-2 py-2 text-xs"
+                  >
+                    Liquidar tudo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onDeclareBankruptcy}
+                    className="hud-btn hud-btn--pink shrink-0 px-2 py-2 text-xs"
+                  >
+                    Falência
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {(canBuy || canDrawCard || (turnPhase === "action" && controlsTurn)) &&
+              turnPhase !== "debt" ? (
+              <div className="hud-card flex flex-col gap-2 p-2.5">
+                {canBuy && space ? (
+                  <button
+                    type="button"
+                    onClick={onBuySelected}
+                    className="hud-btn hud-btn--mint w-full px-3 py-2 text-sm"
+                  >
+                    {t("hud.buyFor", { price: formatCash(space.price!) })}
+                  </button>
+                ) : null}
+                {canDrawCard && cardDeck ? (
+                  <button
+                    type="button"
+                    onClick={onDrawCard}
+                    className="hud-btn hud-btn--pink w-full px-3 py-2 text-sm"
+                  >
+                    {t("hud.drawCard", { deck: tDeckLabel(t, cardDeck) })}
+                  </button>
+                ) : null}
+                {turnPhase === "action" && controlsTurn ? (
+                  <button
+                    type="button"
+                    onClick={onPassTurn}
+                    className="hud-btn hud-btn--soft w-full px-2.5 py-2 text-sm"
+                  >
+                    {canBuy ? t("hud.skipBuyAuction") : t("hud.endTurn")}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {showExtras ? (
+              <>
+                <section className="hud-card space-y-2 p-2.5">
+                  <h2 className="hud-section-title">{t("hud.decks")}</h2>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="hud-chip bg-[#fff7ae]">
+                      {tDeckLabel(t, "fitinha")}
+                      <strong className="tabular-nums">
+                        {decks.fitinha.drawPile.length}/16
+                      </strong>
+                    </span>
+                    <span className="hud-chip bg-[#ffd0e0]">
+                      {tDeckLabel(t, "benca")}
+                      <strong className="tabular-nums">
+                        {decks.benca.drawPile.length}/16
+                      </strong>
+                    </span>
+                  </div>
+                </section>
+                <section className="hud-card space-y-2 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="hud-section-title">{t("hud.pawns")}</h2>
+                    <div className="flex gap-1.5">
+                      {controlsTurn &&
+                        active &&
+                        !active.bankrupt &&
+                        turnPhase !== "ended" &&
+                        turnPhase !== "auction" &&
+                        players.some((p) => !p.bankrupt && p.id !== active.id) ? (
+                        <button
+                          type="button"
+                          onClick={onOpenTrade}
+                          className="hud-btn hud-btn--amber px-2 py-0.5 text-[11px]"
+                        >
+                          {t("hud.trade")}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="hud-btn hud-btn--soft px-2 py-0.5 text-[11px]"
+                        onClick={() => onPlayerCountChange(playerCount)}
+                        title={t("hud.backToLobbyTitle")}
+                      >
+                        {t("hud.lobby")}
+                      </button>
+                    </div>
+                  </div>
+
+                  <ul className="space-y-1.5">
+                    {players.map((player) => {
+                      const def = getPawnDef(player.pawnId);
+                      const selected = player.id === activePlayerId;
+                      return (
+                        <li key={player.id}>
+                          <div
+                            className={`hud-player flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm font-bold ${selected ? "hud-player--active" : ""
+                              } ${player.bankrupt ? "opacity-45" : ""}`}
+                          >
+                            <span
+                              className="h-4 w-4 shrink-0 rounded-full border-2 border-[#5c3d2e]"
+                              style={{ backgroundColor: def.color }}
+                            />
+                            <span className="min-w-0 flex-1 truncate font-[family-name:var(--font-game)]">
+                              {getPlayerLabel(player)}
+                              {localPlayerId === player.id
+                                ? t("hud.youTag")
+                                : ""}
+                              {player.isBanker ? t("hud.bankerShort") : ""}
+                              {player.bankrupt
+                                ? t("hud.bankruptTag")
+                                : turnPhase === "ended"
+                                  ? t("hud.winnerTag")
+                                  : ""}
+                            </span>
+                            <span className="shrink-0 text-xs tabular-nums text-[#1f6b45]">
+                              {formatCash(player.cash)}
+                            </span>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {auctionQueueCount > 0 && turnPhase !== "auction" ? (
+                    <p className="text-[11px] font-bold text-[#b45309]">
+                      Leilão na fila: {auctionQueueCount} escritura
+                      {auctionQueueCount === 1 ? "" : "s"}
+                    </p>
+                  ) : null}
+                </section>
+                {space ? (
+                  <section className="hud-card p-2.5">
+                    <SpaceDetails
+                      space={space}
+                      owner={owner}
+                      canBuy={false}
+                      buyDisabled
+                      onBuy={onBuySelected}
+                      canDrawCard={false}
+                      drawDisabled
+                      onDrawCard={onDrawCard}
+                      cardDeck={cardDeck}
+                    />
+                  </section>
+                ) : null}
+                {!isOnline ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      disabled={!active || diceRolling || turnPhase === "busy"}
+                      onClick={() => onAdvanceActive(1)}
+                      className="hud-btn hud-btn--soft px-2.5 py-1.5 text-xs"
+                    >
+                      {t("hud.plusHouse")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        !active ||
+                        selectedIndex === null ||
+                        diceRolling ||
+                        turnPhase === "busy"
+                      }
+                      onClick={onMoveActiveToSelected}
+                      className="hud-btn hud-btn--soft px-2.5 py-1.5 text-xs"
+                    >
+                      {t("hud.goToHouse")}
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        </div>
+      </aside>
+    );
+  }
   return (
     <aside className="hud-panel pointer-events-auto absolute end-4 top-4 z-10 flex max-h-[calc(100dvh-2rem)] w-[19.5rem] flex-col gap-3 overflow-y-auto p-3.5">
       <header className="px-0.5">
@@ -136,7 +528,7 @@ export function BoardHud({
         {activeDef ? (
           <div className="mt-2 flex items-center gap-2 rounded-xl border-2 border-[#5c3d2e] bg-[#fffbeb] px-2.5 py-1.5 shadow-[2px_2px_0_rgba(92,61,46,0.25)]">
             <span
-              className="inline-block h-3.5 w-3.5 rounded-full border-2 border-[#5c3d2e]"
+              className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border-2 border-[#5c3d2e]"
               style={{ backgroundColor: activeDef.color }}
             />
             <div className="min-w-0 flex-1">
@@ -150,7 +542,9 @@ export function BoardHud({
                   {t("hud.waitTurn")}
                 </p>
               ) : turnHint ? (
-                <p className="text-[11px] font-bold text-[#6b5344]">{turnHint}</p>
+                <p className="truncate text-[11px] font-bold text-[#6b5344]">
+                  {turnHint}
+                </p>
               ) : null}
             </div>
           </div>
@@ -299,7 +693,7 @@ export function BoardHud({
                     } ${player.bankrupt ? "opacity-45" : ""}`}
                 >
                   <span
-                    className="inline-block h-4 w-4 rounded-full border-2 border-[#5c3d2e]"
+                    className="inline-block h-4 w-4 shrink-0 rounded-full border-2 border-[#5c3d2e]"
                     style={{ backgroundColor: def.color }}
                   />
                   <span className="min-w-0 flex-1 truncate font-[family-name:var(--font-game)]">
@@ -331,8 +725,10 @@ export function BoardHud({
             <p className="text-[11px] font-bold text-[#6b5344]">
               Dono:{" "}
               {(() => {
-                const owner = players.find((p) => p.id === pendingRent.ownerId);
-                return owner ? getPlayerLabel(owner) : "—";
+                const rentOwner = players.find(
+                  (p) => p.id === pendingRent.ownerId,
+                );
+                return rentOwner ? getPlayerLabel(rentOwner) : "—";
               })()}
               . Cobrar antes do próximo lance de dados.
             </p>

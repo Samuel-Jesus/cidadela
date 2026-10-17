@@ -162,7 +162,10 @@
     "taxPay": "ادفع {{amount}}",
     "buyFor": "اشترِ بـ {{price}}",
     "drawCard": "اسحب بطاقة · {{deck}}",
-    "backToLobbyTitle": "العودة إلى الردهة"
+    "backToLobbyTitle": "العودة إلى الردهة",
+    "more": "المزيد",
+    "less": "أقل",
+    "bankStockShort": "البنك · {{pousadas}}ن · {{resorts}}م"
   },
   "turn": {
     "winner": "انتهت اللعبة — الفائز",

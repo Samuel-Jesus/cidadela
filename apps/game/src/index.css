@@ -34,6 +34,76 @@ canvas {
   box-shadow:
     5px 6px 0 #3d2818,
     0 14px 28px rgba(0, 0, 0, 0.28);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+
+@media (max-width: 767px) {
+  button,
+  a,
+  input,
+  select,
+  label,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+  .hud-panel {
+    border-radius: 1.15rem 1.15rem 0.65rem 0.65rem;
+    box-shadow:
+      0 -4px 0 #3d2818,
+      0 -12px 32px rgba(0, 0, 0, 0.35);
+  }
+  .hud-btn {
+    min-height: 2.75rem;
+  }
+  .wlt {
+    --wlt-w: min(20rem, calc(100vw - 1.25rem));
+    --wlt-pocket-h: 5.6rem;
+    --wlt-open-h: min(44dvh, 16rem);
+  }
+
+  .wlt-wrap {
+    inset-inline-start: max(0.6rem, env(safe-area-inset-left, 0px));
+  }
+
+  .wlt--open {
+    --wlt-open-h: min(52dvh, 18rem);
+  }
+  .deed-sheet__body {
+    padding: 0.7rem 0.85rem;
+  }
+
+  .deed-sheet__footer {
+    padding: 0.65rem 0.85rem;
+  }
+  .lobby-cta {
+    min-height: 4rem;
+    padding: 1rem 1.1rem;
+  }
+  .deed-btn {
+    min-height: 2.75rem;
+  }
+  .sfx-mute {
+    padding: 0.55rem 0.95rem;
+    min-height: 2.5rem;
+  }
+  .lobby-shell {
+    padding-top: 1.25rem;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+  }
+  .loading__plane-svg {
+    width: min(90vw, 320px);
+    height: auto;
+  }
+
+  .loading__flight {
+    min-height: 5rem;
+  }
+
+  .loading__content {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .hud-title {

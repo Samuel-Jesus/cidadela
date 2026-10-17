@@ -56,7 +56,11 @@ export function LanguagePicker({ className = "", compact = false }: Props) {
         aria-controls={listId}
         aria-label={t("lang.label")}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex min-w-[9.5rem] items-center gap-2 rounded-lg border-2 border-[#5c3d2e] bg-[#fffef8] px-2 py-1.5 text-start text-xs font-bold text-[#5c3d2e] shadow-[2px_2px_0_rgba(92,61,46,0.2)]"
+        className={`inline-flex items-center gap-2 rounded-lg border-2 border-[#5c3d2e] bg-[#fffef8] text-start text-xs font-bold text-[#5c3d2e] shadow-[2px_2px_0_rgba(92,61,46,0.2)] ${
+          compact
+            ? "min-w-0 gap-1.5 px-1.5 py-1"
+            : "min-w-[9.5rem] px-2 py-1.5"
+        }`}
       >
         <img
           src={LOCALE_FLAG_SRC[current]}
@@ -66,7 +70,11 @@ export function LanguagePicker({ className = "", compact = false }: Props) {
           className="h-4 w-[22px] shrink-0 rounded-[2px] object-cover ring-1 ring-[#5c3d2e]/35"
           decoding="async"
         />
-        <span className="min-w-0 flex-1 truncate">{LOCALE_LABELS[current]}</span>
+        {compact ? null : (
+          <span className="min-w-0 flex-1 truncate">
+            {LOCALE_LABELS[current]}
+          </span>
+        )}
         <span className="text-[10px] opacity-70" aria-hidden>
           {open ? "▴" : "▾"}
         </span>

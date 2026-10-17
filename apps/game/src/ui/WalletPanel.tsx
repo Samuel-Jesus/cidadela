@@ -71,7 +71,7 @@ export function WalletPanel({
 
   if (!player) {
     return (
-      <div className="pointer-events-auto absolute bottom-4 start-4 z-20">
+      <div className="wlt-wrap pointer-events-auto absolute bottom-4 start-4 z-20 max-md:bottom-auto max-md:top-[max(0.5rem,env(safe-area-inset-top))] max-md:start-[max(0.65rem,env(safe-area-inset-left))]">
         <div className="wlt-none">{t("wallet.pickPawn")}</div>
       </div>
     );
@@ -96,7 +96,7 @@ export function WalletPanel({
 
   return (
     <>
-      <div className="pointer-events-auto absolute bottom-5 start-4 z-20">
+      <div className="wlt-wrap pointer-events-auto absolute bottom-5 start-4 z-20 max-md:bottom-auto max-md:top-[max(0.5rem,env(safe-area-inset-top))] max-md:start-[max(0.65rem,env(safe-area-inset-left))]">
         <div
           className={`wlt ${open ? "wlt--open" : ""}`}
           style={cssVars({ "--wlt-accent": def.color })}

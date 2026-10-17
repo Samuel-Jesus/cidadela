@@ -1801,7 +1801,7 @@ export function App() {
           onNewGame={returnToLobby}
         />
       ) : null}
-      <p className="pointer-events-none absolute bottom-3 start-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-[#ffe8c8]/80 rtl:translate-x-1/2">
+      <p className="pointer-events-none absolute bottom-3 start-1/2 z-10 hidden -translate-x-1/2 text-center text-xs font-semibold text-[#ffe8c8]/80 max-md:bottom-[max(0.5rem,env(safe-area-inset-bottom))] md:block rtl:translate-x-1/2">
         {t("hud.hintOrbit")}
       </p>
     </div>
