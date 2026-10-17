@@ -4,6 +4,8 @@ import { ContactShadows, OrbitControls } from "@react-three/drei";
 import type { Group } from "three";
 import { getPawnDef, type PawnId } from "@cidadela/shared";
 import { playSfx, unlockAudio } from "../audio/sfx";
+import { getPawnKind } from "../pawns/pawnKind";
+import { PawnTypeFx } from "../pawns/PawnTypeFx";
 import { PawnVisual } from "../pawns/PawnVisual";
 
 type Props = {
@@ -16,17 +18,37 @@ type Props = {
 
 function PreviewPawn({ pawnId }: { pawnId: PawnId }) {
   const group = useRef<Group>(null);
+  const body = useRef<Group>(null);
   const idle = useRef(true);
+  const movingRef = useRef(true);
+  const kind = getPawnKind(pawnId);
 
   useFrame((_, dt) => {
-    if (!group.current || !idle.current) return;
-    group.current.rotation.y += dt * 0.55;
+    const g = group.current;
+    const b = body.current;
+    if (!g) return;
+    if (idle.current) g.rotation.y += dt * 0.35;
+
+    const t = performance.now() * 0.001;
+    if (!b) return;
+    if (kind === "ship") {
+      b.position.y = Math.sin(t * 1.5) * 0.028 + Math.sin(t * 2.4) * 0.012;
+      b.rotation.z = Math.sin(t * 1.25) * 0.05;
+      b.rotation.x = Math.sin(t * 1.8 + 0.5) * 0.035;
+    } else {
+      b.position.y = Math.sin(t * 3.2) * 0.01;
+      b.rotation.z = Math.sin(t * 2.2) * 0.025;
+      b.rotation.x = Math.sin(t * 2.8) * 0.015;
+    }
   });
 
   return (
     <>
       <group ref={group} position={[0, 0.05, 0]} scale={0.95}>
-        <PawnVisual key={pawnId} pawnId={pawnId} />
+        <group ref={body}>
+          <PawnVisual key={pawnId} pawnId={pawnId} />
+          <PawnTypeFx key={`${pawnId}-fx`} kind={kind} movingRef={movingRef} />
+        </group>
       </group>
       <OrbitControls
         makeDefault
