@@ -4,6 +4,10 @@ import {
   preloadLandmarkModels,
 } from "../landmarks/GltfLandmark";
 import { PAWN_MODEL_LIST, preloadPawnModels } from "../pawns/pawnModels";
+import {
+  JAIL_ROAD_MODELS,
+  preloadJailRoadModels,
+} from "../scene/JailRoad";
 
 export type PreloadStage = "fonts" | "download" | "build" | "ready";
 
@@ -63,6 +67,7 @@ async function downloadModels(
   const downloads = [
     ...LANDMARK_MODELS.map((m) => ({ url: m.url, label: m.label })),
     ...PAWN_MODEL_LIST.map((m) => ({ url: m.url, label: `Peão ${m.label}` })),
+    ...JAIL_ROAD_MODELS.map((m) => ({ url: m.url, label: m.label })),
   ];
   const states: DownloadState[] = downloads.map(() => ({
     loaded: 0,
@@ -167,6 +172,7 @@ function buildModels(onRatio: (r: number) => void): Promise<void> {
 
     preloadLandmarkModels();
     preloadPawnModels();
+    preloadJailRoadModels();
 
     window.setTimeout(() => {
       if (!started) finish();

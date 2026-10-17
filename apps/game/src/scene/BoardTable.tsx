@@ -1,11 +1,11 @@
 import { BOARD_SIZE, BOARD_Y } from "./layout";
+import { JailRoad } from "./JailRoad";
 
 export function BoardTable() {
   const size = BOARD_SIZE + 1.2;
 
   return (
     <group>
-      {/* Tampo da mesa */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
         <circleGeometry args={[16, 64]} />
         <meshStandardMaterial color="#3b2416" roughness={0.85} />
@@ -15,26 +15,24 @@ export function BoardTable() {
         <meshStandardMaterial color="#4a2f1c" roughness={0.8} />
       </mesh>
 
-      {/* Base / slab do tabuleiro */}
       <mesh position={[0, BOARD_Y * 0.45, 0]} castShadow receiveShadow>
         <boxGeometry args={[size, BOARD_Y * 0.85, size]} />
         <meshStandardMaterial color="#5c3d2e" roughness={0.75} />
       </mesh>
 
-      {/* Centro do tabuleiro */}
       <mesh position={[0, BOARD_Y + 0.02, 0]} receiveShadow>
         <boxGeometry args={[BOARD_SIZE * 0.72, 0.08, BOARD_SIZE * 0.72]} />
         <meshStandardMaterial color="#e8d5b5" roughness={0.7} />
       </mesh>
 
-      {/* Título no centro */}
       <CenterLabel />
+
+      <JailRoad />
     </group>
   );
 }
 
 function CenterLabel() {
-  // Texto via HTML overlay seria melhor; aqui um bloco decorativo 3D
   return (
     <group position={[0, BOARD_Y + 0.15, 0]}>
       <mesh castShadow>
