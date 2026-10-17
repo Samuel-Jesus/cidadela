@@ -1,0 +1,104 @@
+// Requer Three.js. Uso: const modelo = criarIlhaDeMare(THREE); cena.add(modelo);
+// No loop de animação: modelo.userData.tick(deltaSegundos);
+// Níveis: modelo.userData.definirNivel(n)  // 0 = terreno, 1 a 4 = pousadas, 5 = resort
+// Nível atual: modelo.userData.nivel()
+
+function criarIlhaDeMare(THREE){
+  const g=new THREE.Group(); g.name='IlhaDeMare'; const PI=Math.PI;
+  let sd=13; const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+  const M=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.82},o||{}));
+  const m={sea:M(0x2cc4bb,{roughness:.25}),seaS:M(0x0e7480),shal:M(0x86e6d4,{roughness:.3}),sand:M(0xe6d3a0),grass:M(0x7fa83c),dirt:M(0x8a7a62),wood:M(0x8a6a45),woodD:M(0x6b4f35),
+    white:M(0xf4f2ea),tile:M(0xc2562f,{flatShading:true}),blue:M(0x2b66b8),glass:M(0x233046,{roughness:.2}),trunk:M(0x7a6a52),leaf:M(0x2f8a2e),leaf2:M(0x3f9d36),
+    verde:M(0x2fa04a,{flatShading:true}),pool:M(0x25a8d8,{roughness:.2}),poolB:M(0x1f6fc0),barco:M(0x2f9a5a),dark:M(0x23262b),palha:M(0xa07a3a,{flatShading:true}),
+    mata:M(0x356b2b,{flatShading:true}),morro:M(0x4a7a30,{flatShading:true}),pele:M(0x7a5238)};
+  const bx=(w,h,d,mt,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const cyl=(rt,rb,h,mt,x,y,z,p,seg)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||12),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const ball=(r,mt,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(r,10,8),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const hip=(r0,r1,h,mt,x,y,z,sx,sz,p)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r0,r1,h,4),mt);o.rotation.y=PI/4;o.scale.set(sx,1,sz);o.position.set(x,y,z);(p||g).add(o);return o};
+
+  /* mar, águas rasas, ilha, praia em crescente e morros com mata */
+  bx(20,1.2,14,m.sea,0,-.6,0).material=[m.seaS,m.seaS,m.sea,m.seaS,m.seaS,m.seaS];
+  const rasa=new THREE.Mesh(new THREE.CircleGeometry(7.5,32),m.shal); rasa.rotation.x=-PI/2; rasa.scale.y=.75; rasa.position.set(0,.012,2.8); g.add(rasa);
+  bx(15,.9,5.5,m.grass,0,-.15,-2.25).material=[m.dirt,m.dirt,m.grass,m.dirt,m.dirt,m.dirt];
+  const cs=new THREE.Shape(); cs.moveTo(-7.5,-.5); cs.bezierCurveTo(-4,-2.6,4,-2.6,7.5,-.5); cs.lineTo(7.5,0); cs.lineTo(-7.5,0); cs.closePath();
+  const praia=new THREE.Mesh(new THREE.ExtrudeGeometry(cs,{depth:.34,bevelEnabled:false}),m.sand); praia.rotation.x=-PI/2; g.add(praia);
+  const morros=[[-4.5,-3.8,3.2,1.6,.7,1.1],[3.8,-4.2,3.4,1.6,.8,1.2],[0,-4.8,3.6,1.8,.9,1],[-6.2,-2.5,2,1.2,.6,1]];
+  morros.forEach(q=>{ const s=new THREE.Mesh(new THREE.SphereGeometry(q[2],20,12),m.morro); s.scale.set(q[3],q[4],q[5]); s.position.set(q[0],.1,q[1]); g.add(s);
+    for(let i=0;i<9;i++){ const a=(rnd()-.5)*1.6*q[2]*q[3], b=(rnd()-.5)*1.6*q[2]*q[5], k=1-(a/(q[2]*q[3]))**2-(b/(q[2]*q[5]))**2; if(k<=0) continue;
+      const r=.3+rnd()*.35, c=new THREE.Color().setHSL(.26+rnd()*.05,.5,.2+rnd()*.1), bsh=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),M(c,{flatShading:true}));
+      bsh.position.set(q[0]+a,.1+q[2]*q[4]*Math.sqrt(k)+r*.4,q[1]+b); g.add(bsh); } });
+  const palma=(x,z,h,y0)=>{ const p=new THREE.Group(); p.position.set(x,y0===undefined?.3:y0,z); g.add(p); bx(.1,h,.1,m.trunk,0,h/2,0,p);
+    for(let i=0;i<8;i++){ const yw=new THREE.Group(); yw.position.y=h; yw.rotation.y=i*PI/4; p.add(yw); const tl=new THREE.Group(); tl.rotation.z=-.3-(i%2)*.25; yw.add(tl); bx(.85,.02,.15,i%2?m.leaf:m.leaf2,.42,0,0,tl); } };
+  [[-7,-.8,2],[-5.4,-3,2.4],[-2.5,-3.2,2.2],[2.2,-3.4,2.3],[5.5,-3.2,2.1],[7.1,-1.2,1.8],[6.8,.1,1.6],[-6.9,.4,1.6]].forEach(p=>palma(p[0],p[1],p[2]));
+
+  /* capela branca, casinhas, píer, barco de pesca, escuna e banhistas */
+  bx(1.3,1,.9,m.white,-6.3,.8,-1.3); hip(.1,.9,.5,m.tile,-6.3,1.55,-1.3,1.05,.75); bx(.2,.35,.05,m.blue,-6.3,.62,-.83); bx(.14,.2,.05,m.blue,-6.7,1.0,-.83); bx(.14,.2,.05,m.blue,-5.9,1.0,-.83);
+  bx(.3,.5,.3,m.white,-6.9,1.6,-1.0); ball(.1,m.dark,-6.9,1.95,-1.0);
+  [[6.5,-3.7,0x5fc6c0],[5,-4.2,0xe58aa5]].forEach(c=>{ bx(1.1,.7,.9,M(c[2]),c[0],.65,c[1]); hip(.1,.85,.4,m.tile,c[0],1.2,c[1],.95,.8); });
+  bx(.6,.1,3.2,m.wood,.2,.38,3.4); for(let z=2.2;z<=4.8;z+=.8) [-.25,.25].forEach(x=>cyl(.05,.05,.8,m.woodD,.2+x,0,z,g,6));
+  const tx=document.createElement('canvas'); tx.width=256; tx.height=48; const tc=tx.getContext('2d'); tc.fillStyle='#fff'; tc.font='bold 22px Arial,sans-serif'; tc.textAlign='center'; tc.textBaseline='middle'; tc.fillText('DEUS DO IMPOSSÍVEL',128,26);
+  const nome=new THREE.CanvasTexture(tx);
+  const pesca=new THREE.Group(); pesca.position.set(-2.6,0,3.4); pesca.rotation.y=.5; g.add(pesca);
+  bx(2,.35,.7,m.barco,0,.12,0,pesca); bx(.5,.3,.7,m.barco,1.15,.2,0,pesca).rotation.z=.4; bx(2.1,.06,.75,m.white,0,.32,0,pesca);
+  [-.8,0,.8].forEach(x=>[.3,-.3].forEach(z=>cyl(.02,.02,.5,m.white,x,.6,z,pesca,6))); bx(1.7,.03,.7,M(0xe8e4d8),0,.86,0,pesca);
+  const pn=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.2),new THREE.MeshBasicMaterial({map:nome,transparent:true})); pn.position.set(0,.14,.36); pesca.add(pn);
+  const escuna=new THREE.Group(); escuna.position.set(5.5,0,4.6); escuna.rotation.y=-.3; g.add(escuna);
+  bx(2.8,.5,.95,m.dark,0,.18,0,escuna); bx(2.82,.12,.97,m.white,0,.44,0,escuna); bx(2.3,.05,.9,m.white,-.1,.52,0,escuna);
+  [-1,1].forEach(x=>[.4,-.4].forEach(z=>cyl(.02,.02,.7,m.dark,x,.9,z,escuna,6))); bx(2.3,.05,1,M(0xdad7cc),-.1,1.28,0,escuna); cyl(.025,.025,2.2,m.white,.5,1.6,0,escuna,6);
+  for(let i=0;i<5;i++){ const f=new THREE.Group(); f.position.set(-.8+i*.35,.55,(i%2?.2:-.2)); escuna.add(f); bx(.1,.2,.08,M([0xe03030,0xf2c230,0x2e6ee0,0xffffff,0xe58aa5][i]),0,.1,0,f); ball(.045,m.pele,0,.26,0,f); }
+  const nad=[]; for(let i=0;i<12;i++){ const f=new THREE.Group(); f.position.set(4.0+rnd()*2.6,.02,5.6+rnd()*1.2); g.add(f); ball(.06,m.pele,0,.06,0,f); const a=bx(.03,.2,.03,m.pele,-.05,.18,0,f); a.rotation.z=.3; const b=bx(.03,.2,.03,m.pele,.05,.18,0,f); b.rotation.z=-.3; nad.push({f,ph:rnd()*6}); }
+  [[6.5,6.0],[7,5.4]].forEach(p=>{ const j=new THREE.Group(); j.position.set(p[0],0,p[1]); g.add(j); bx(.55,.12,.22,M(p[0]>6.8?0xf2c230:0x2b2b30),0,.06,0,j); bx(.15,.1,.15,m.white,.05,.17,0,j); });
+
+  /* pousadas (níveis 1 a 4) e resort (nível 5): cada peça "cai" com efeito de mola */
+  const pousada=(cor)=>{
+    const p=new THREE.Group();
+    bx(2.4,.1,1.8,m.wood,0,.05,0,p); bx(2,.7,1.3,M(cor),0,.5,-.15,p); hip(.1,1.35,.5,m.tile,0,1.1,-.15,1.1,.9,p);
+    bx(2.3,.06,.62,m.tile,0,.93,.55,p).rotation.x=.18;
+    [-.95,-.32,.32,.95].forEach(x=>bx(.06,.62,.06,m.white,x,.45,.72,p));
+    [-.55,.55].forEach(x=>{ bx(.34,.4,.04,m.white,x,.55,.5,p); bx(.26,.32,.05,m.glass,x,.55,.51,p); [-.2,.2].forEach(s=>bx(.07,.32,.05,m.blue,x+s,.55,.52,p)); });
+    bx(.38,.55,.05,m.woodD,0,.4,.5,p);
+    const rede=bx(.9,.04,.12,M(0xe85a5a),.4,.32,.9,p); rede.rotation.z=.15;
+    return p;
+  };
+  const pCores=[0x5fc6c0,0xf2c24a,0xe58aa5,0xf4f4f0], lotes=[-4.5,-1.5,1.5,4.5];
+  const itens=[];
+  const novo=(grp,x,y,z)=>{ grp.position.set(x,y,z); g.add(grp); grp.visible=false; grp.scale.setScalar(.001); const it={g:grp,y,s:0,v:0,alvo:0}; itens.push(it); return it; };
+  const pit=lotes.map((x,i)=>novo(pousada(pCores[i]),x,.3,-.9));
+  pit.forEach((it,i)=>{ const pm=new THREE.Group(); it.g.add(pm); const p=new THREE.Group(); p.position.set(1.35,0,.55); it.g.add(p); bx(.08,.8,.08,m.trunk,0,.4,0,p);
+    for(let k=0;k<6;k++){ const yw=new THREE.Group(); yw.position.y=.8; yw.rotation.y=k*PI/3; p.add(yw); const tl=new THREE.Group(); tl.rotation.z=-.35; yw.add(tl); bx(.55,.02,.12,m.leaf,.27,0,0,tl); } });
+
+  const resort=new THREE.Group();
+  /* hospedagem principal em dois pavimentos */
+  bx(3.4,1.4,1.5,m.white,-3.2,1,-1.3,resort); hip(.1,1.9,.6,m.verde,-3.2,1.99,-1.3,1.25,.95,resort);
+  for(let k=0;k<4;k++) [.5,1.05].forEach((y,j)=>{ bx(.34,.42,.04,m.white,-4.3+k*.72,.55+y,-.54,resort); bx(.26,.34,.05,m.glass,-4.3+k*.72,.55+y,-.53,resort); });
+  bx(3.5,.06,.3,m.wood,-3.2,1.1,-.45,resort); bx(3.5,.2,.03,m.white,-3.2,1.22,-.3,resort);
+  /* pavilhões de telhado verde */
+  [[-.2,-1.2],[.9,-1.4],[.4,-.2]].forEach(p=>{ [[-.4,-.4],[.4,-.4],[-.4,.4],[.4,.4]].forEach(d=>bx(.06,.7,.06,m.woodD,p[0]+d[0],.65,p[1]+d[1],resort)); hip(.05,.75,.45,m.verde,p[0],1.2,p[1],1,1,resort); bx(.9,.05,.9,m.wood,p[0],.32,p[1],resort); });
+  /* piscina com borda azul */
+  bx(3.2,.1,1.6,m.poolB,4.1,.35,-1.5,resort); bx(3,.12,1.4,m.pool,4.1,.36,-1.5,resort);
+  [[2.9,-.3],[3.6,-.3],[4.3,-.3],[5,-.3]].forEach(p=>{ bx(.5,.1,.22,m.white,p[0],.36,p[1],resort); bx(.5,.04,.22,m.blue,p[0],.42,p[1],resort); });
+  [[2.9,.1],[4,.1],[5.1,.1]].forEach((p,i)=>{ cyl(.02,.02,.7,m.dark,p[0],.65,p[1],resort,6); cyl(0,.4,.15,M([0xe03030,0xf2c230,0x2e86ab][i]),p[0],1.03,p[1],resort,10); });
+  /* tendas brancas na praia, píer comprido com quiosque de palha */
+  for(let x=-3.2;x<=2.1;x+=.8){ bx(.5,.35,.4,m.white,x,.5,.45,resort); bx(.6,.05,.5,m.white,x,.72,.45,resort); }
+  bx(.5,.1,2.8,m.wood,2.2,.4,3.1,resort); for(let z=1.8;z<=4.4;z+=.8) [-.25,.25].forEach(x=>cyl(.05,.05,.8,m.woodD,2.2+x,0,z,resort,6));
+  cyl(.5,.5,.06,m.wood,2.2,.4,4.6,resort,12); cyl(.02,.6,.5,m.palha,2.2,.98,4.6,resort,10);
+  const rit=novo(resort,0,.0,0); rit.y=0;
+  /* resort foi montado em coordenadas absolutas; sobe o piso para a altura do platô */
+  rit.y=.3;
+
+  let nivel=0, t=0;
+  const aplicar=()=>{ pit.forEach((it,i)=>it.alvo=(nivel>=1&&nivel<=4&&i<nivel)?1:0); rit.alvo=nivel===5?1:0; };
+  g.userData.definirNivel=n=>{ nivel=Math.max(0,Math.min(5,n|0)); aplicar(); return nivel; };
+  g.userData.nivel=()=>nivel;
+  g.userData.tick=dt=>{
+    t+=dt;
+    itens.forEach(it=>{
+      it.v+=(it.alvo-it.s)*dt*110; it.v*=Math.exp(-dt*8); it.s+=it.v*dt;
+      const s=Math.max(0,it.s); it.g.visible=s>.01||it.alvo>0; it.g.scale.setScalar(Math.max(.001,s));
+      it.g.position.y=it.y+(1-Math.min(1,s))*1.6;
+    });
+    pesca.rotation.z=.02*Math.sin(t*1.7); pesca.position.y=.02*Math.sin(t*1.9); escuna.rotation.z=.025*Math.sin(t*1.3); escuna.position.y=.02*Math.sin(t*1.5+1);
+    nad.forEach(n=>{ n.f.position.y=.02+.04*Math.abs(Math.sin(t*2.5+n.ph)); });
+  };
+  return g;
+}

@@ -13,6 +13,7 @@ import { QuartelPoliciaLandmark } from "./QuartelPoliciaLandmark";
 import { FarolDaBarraLandmark } from "./FarolDaBarraLandmark";
 import { ForteSaoMarceloLandmark } from "./ForteSaoMarceloLandmark";
 import { HidrometroLandmark } from "./HidrometroLandmark";
+import { IlhaDeMareLandmark } from "./IlhaDeMareLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -25,6 +26,7 @@ type Props = {
 export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props) {
   const isGltf =
     index === 0 ||
+    index === 1 ||
     index === 4 ||
     index === 5 ||
     index === 10 ||
@@ -42,6 +44,15 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
 
   if (index === 0) {
     return <AeroportoSalvadorLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+  }
+  if (index === 1) {
+    return (
+      <IlhaDeMareLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
   }
   if (index === 4) {
     return <PedagioLinhaVerdeLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
@@ -115,8 +126,6 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
 
 function LandmarkMesh({ index }: { index: number }): ReactNode {
   switch (index) {
-    case 1:
-      return <IlhaDeMare />;
     case 2:
     case 17:
     case 33:
@@ -168,19 +177,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
     default:
       return <Box args={[0.4, 0.4, 0.4]} position={[0, 0.2, 0]} color="#aaaaaa" />;
   }
-}
-
-function IlhaDeMare() {
-  return (
-    <Group>
-      <Cyl args={[0.55, 0.65, 0.18, 10]} position={[0, 0.08, 0]} color="#f6e58d" />
-      <Cyl args={[0.08, 0.08, 0.55, 6]} position={[-0.15, 0.4, 0.1]} color="#6d4c41" />
-      <Cone args={[0.28, 0.45, 7]} position={[-0.15, 0.75, 0.1]} color="#27ae60" />
-      <Cyl args={[0.06, 0.06, 0.4, 6]} position={[0.2, 0.32, -0.1]} color="#6d4c41" />
-      <Cone args={[0.22, 0.35, 7]} position={[0.2, 0.58, -0.1]} color="#1e8449" />
-      <Box args={[1.4, 0.05, 1.4]} position={[0, 0.02, 0]} color="#3498db" />
-    </Group>
-  );
 }
 
 function Benca() {

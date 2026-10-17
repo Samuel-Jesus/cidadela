@@ -3,7 +3,7 @@ import type { SpaceLayout } from "../layout";
 export const LANDMARK_Y = 0.02;
 
 const GLTF_LANDMARK_INDEXES = new Set([
-  0, 4, 5, 10, 12, 15, 20, 25, 27, 28, 30, 35, 39,
+  0, 1, 4, 5, 10, 12, 15, 20, 25, 27, 28, 30, 35, 39,
 ]);
 
 export function isSideTile(yaw: number) {
