@@ -5,8 +5,8 @@
 > Sempre que `REQUISITOS.md` mudar, esta especificação deve ser revisada e alinhada.
 
 **Template:** Volere Requirements Specification (adaptado)  
-**Versão:** 0.5  
-**Status:** Alinhado às regras em `REQUISITOS.md` · hot-seat + online · SFX de UI (Lobby) parcial · SFX de partida / dados / economia ainda pendentes  
+**Versão:** 0.6  
+**Status:** Alinhado a `REQUISITOS.md` §16 · hot-seat + online (reconnect/presença) · HUD mobile · i18n pt-BR/en/ar · SFX UI Lobby + música Carnaval parcial · SFX de dados/economia/UI partida ainda pendentes  
 
 ---
 
@@ -255,8 +255,13 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | FR-05d | Anfitrião é o **banqueiro** (FR-04) e também jogador (nome/peão próprios na sala) | `isBanker` = anfitrião | Média | Lobby |
 | FR-05e | Anfitrião inicia quando há ≥2 jogadores na sala (idealmente a mesa cheia) | `Começar` cria jogadores FR-02/FR-03 a partir dos membros conectados | Alta | Lobby |
 | FR-05f | Nova partida / vitória volta ao Lobby (nova sessão) | Estado da sala anterior descartado | Média | Lobby |
-| FR-05g | Sync da sala e da partida via **Supabase** (Realtime + Postgres) | Auth anônima; anfitrião aplica regras e grava `games.state`; convidados enviam `game_actions` e hidratam | Alta | Lobby / Online |
+| FR-05g | Sync da sala e da partida via **Supabase** (Realtime + Postgres) | Auth anônima; anfitrião aplica regras e grava `games.state`; convidados enviam `game_actions` e hidratam | Alta | Lobby / Online · §16 |
 | FR-05h | **Jogar neste aparelho** (hot-seat): uma pessoa monta a mesa toda (2–8 assentos com nome, peão único e banqueiro) e começa direto | **Só em `import.meta.env.DEV`** — não vai para produção; valida com `validateLobbySetup` | Baixa | Lobby / Dev |
+| FR-05i | **Reconnect / rejoin:** membro existente retoma partida após refresh ou pelo mesmo link/`sessionStorage` | URL `?room=` preservada durante a partida; `cidadela:onlineSession` no sessionStorage; join em sala `playing` só se já for membro | Alta | Online · §16 |
+| FR-05j | **Presença do anfitrião:** convidados detectam host online/offline (Realtime Presence) | Banner “anfitrião ausente”; intents de convidado bloqueados enquanto host estiver fora (grace ~3s no join) | Alta | Online · §16 |
+| FR-05k | **Autorização de intents:** anfitrião só aplica ação se o `actor_id` for elegível (vez, dono do aluguel, devedor, lance de leilão, etc.) | Intent fora da vez é ignorado; não altera `games.state` | Alta | Online |
+| FR-05l | Conflito de versão no push do host: recarrega snapshot remoto e não sobrescreve às cegas | `pushGameState` retorna conflict + row; host hidrata e segue | Média | Online |
+| FR-05m | Guest tem **poll de backup** do estado (~6s) além do Realtime | Se Realtime falhar, versão maior ainda hidrata a UI | Média | Online |
 | FR-06 | (Digital) Tela de **Loading** antes do Lobby, com **avião** | Splash/loading visível até assets críticos prontos (ou timeout seguro) | Alta | Boot / Loading |
 | FR-06a | Loading: avião em movimento (temática Bahia / aeroporto) | Animação contínua; marca “Cidadela” legível | Alta | Loading |
 | FR-06b | Loading cobre pré-carga de modelos 3D (landmarks GLTF) e shell | Lobby só aparece após loading concluir (mínimo visual opcional ~1,5s) | Média | Loading |
@@ -397,6 +402,9 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | NFR-20 | Fluxo de turno compreensível para quem conhece jogos do gênero | Jogador conclui 1 turno sem consultar regras externas além do painel de ajuda | Média |
 | NFR-21 | Regras críticas (Forte, hipoteca, falência) têm confirmação clara | Ações irreversíveis pedem confirmação | Média |
 | NFR-22 | Carteira do jogador ativo/selecionado permanece legível durante o turno | Saldo e escrituras visíveis sem abrir modal obrigatório | Alta |
+| NFR-23 | **Mobile (≤767px):** HUD em barra inferior recolhível; Rolar e ações urgentes (dívida, aluguel, comprar) acessíveis sem expandir | Safe-area respeitada; carteira no topo; hint de órbita oculto no mobile | Alta |
+| NFR-24 | Status online visível (sync / reconectando / erro / host ausente) | Banner não bloqueia o tabuleiro; some quando `live` | Média |
+| NFR-25 | Controles de turno só liberam ações do jogador local elegível | “Aguarde — não é a sua vez” quando online e não é a vez; hostAway desliga controles | Alta |
 
 ## 12. Desempenho
 
@@ -409,7 +417,8 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | ID | Descrição | Fit Criterion | Prioridade |
 | --- | --- | --- | --- |
 | NFR-40 | Versão mesa: jogável com componentes físicos descritos nas regras | Partida possível só com regras + componentes | Alta |
-| NFR-41 | Versão digital (se houver): plataforma e stack a definir | TBD | Baixa |
+| NFR-41 | Versão digital: navegador moderno (desktop + mobile); stack em `STACK.md` | Chrome/Safari/Firefox recentes; touch + mouse | Alta |
+| NFR-42 | Online requer Supabase configurado (`VITE_SUPABASE_*`) + migração SQL | Sem env, lobby online indisponível; hot-seat DEV segue local | Alta |
 
 ## 14. Manutenção e suporte
 
@@ -429,7 +438,9 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 | ID | Descrição | Fit Criterion | Prioridade | Origem |
 | --- | --- | --- | --- | --- |
 | NFR-70 | Representação respeitosa da cultura baiana | Revisão de conteúdo evita estereótipos ofensivos | Alta | Adaptações baianas |
-| NFR-71 | Idioma principal: português (Brasil) | UI e regras em pt-BR | Alta | Projeto |
+| NFR-71 | Idioma principal: português (Brasil) | UI e regras em pt-BR por padrão | Alta | Projeto |
+| NFR-72 | UI, mensagens de turno e textos de cartas em **pt-BR**, **en** e **ar** | Seletor de idioma (bandeiras); `dir=rtl` em ar; nomes das **casas** do tabuleiro permanecem em pt | Alta | §16 / i18n |
+| NFR-73 | Preferência de idioma persiste na sessão | Reload mantém locale escolhido | Média | i18n |
 
 ## 17. Conformidade / legal
 
@@ -443,7 +454,7 @@ O produto (mesa ou digital) deve permitir uma partida completa até restar um ve
 
 Feedback sensorial **não altera regras** (saldo, posição, dono). Mute global e volume devem existir na UI.
 
-**Código atual:** `apps/game/src/audio/sfx.ts` (HTMLAudioElement + preload) · assets Kenney CC0 em `public/sounds/ui/` · mute no Lobby (`SfxMuteButton`). Ainda **não** há SFX de dados, peão, dinheiro nem música de casa.
+**Código atual:** `apps/game/src/audio/sfx.ts` (HTMLAudioElement + preload) · Kenney CC0 em `public/sounds/ui/` · mute Lobby · **música Carnaval** (OGG em `public/sounds/carnaval/`, toca ao aterrissar na casa 20). Ainda faltam SFX de dados, peão, economia e UI da partida.
 
 ### Inventário — o que já existe vs o que falta
 
@@ -455,8 +466,8 @@ Feedback sensorial **não altera regras** (saldo, posição, dono). Mute global 
 | **Dados** (lançar, quicar, parar, dupla) | **Falta** | Prioridade alta — ver NFR-AV-50…54 |
 | Passos do peão / aterrissar na casa | **Falta** | NFR-AV-55…56 |
 | Dinheiro (receber / pagar / imposto) | **Falta** | NFR-AV-01…04 |
-| Compra, hipoteca, construção, carta, leilão, trade, vitória | **Falta** | NFR-AV-57…63 |
-| Carnaval / Canário (música) | **Falta** | NFR-AV-10…11 |
+| Compra, hipoteca, construção, carta, leilão, trade, vitória | **Parcial** | Leilão start + carta “sem sorte” + ganhar $ + aluguel + vez (`/sounds/game/`); resto NFR-AV-57…63 |
+| Carnaval (música ao aterrissar) | **Parcial** | Pool OGG (`igor_kanario*`); para ao sair/mute/lobby. FX confete e pool ≥3 “Canário” ainda faltam (NFR-AV-10…11) |
 | Sirene / SFX da viatura (prisão) | **Falta** | NFR-AV-22 |
 | SFX do guincho (venda de construção) | **Falta** | NFR-AV-42 |
 | Animação 3D viatura → Forte | **Falta** | NFR-AV-20…23 |
@@ -545,11 +556,13 @@ Sugestão de pastas: `public/sounds/dice/` · `public/sounds/game/`.
 1. Playtest de balanceamento das tabelas §8 (aviso em `REQUISITOS.md` §14).
 2. ~~Incremento mínimo de leilão digital~~ — **fechado:** $5 em bens ≤$100, senão $10 (`minBidIncrement` / peças usam custo de grupo).
 3. ~~UX digital da cobrança de aluguel (FR-22a)~~ — **fechado no MVP:** modo `claim` (dono cobra no HUD; próximo roll perde o direito). Toggle “auto” opcional ainda não existe na UI.
-4. ~~Multiplayer online~~ — Supabase Realtime (host-authoritative); Edge Function anti-cheat opcional.
-5. ~~Papel de banqueiro explícito (FR-04) e tela de preparação~~ — **Lobby especificado (FR-05…)**; implementar no app.
-6. Pacote de áudio: faixas originais vs licença (Carnaval / Canário) — ver NFR-82.
+4. ~~Multiplayer online~~ — Supabase Realtime (host-authoritative); reconnect/presença (FR-05i…m); Edge Function anti-cheat e **transferência de host** ainda opcionais.
+5. ~~Papel de banqueiro explícito (FR-04) e tela de preparação~~ — Lobby implementado (FR-05…).
+6. Pacote de áudio: faixas originais vs licença (Carnaval / Canário) — ver NFR-82 (já há OGG de Carnaval no app).
 7. Duração e cancelamento da animação da viatura (skip no hot-seat?).
 8. Guincho: um por peça vs batch na liquidação; skip no hot-seat?
+9. Transferência automática de anfitrião se o host abandonar a sessão (exige mudança de RLS / migração).
+10. i18n dos **nomes das casas** do tabuleiro (hoje só UI/cartas; casas ficam em pt).
 
 ## 19. Soluções prontas
 
@@ -581,10 +594,14 @@ Sugestão de pastas: `public/sounds/dice/` · `public/sounds/game/`.
 | 10a | SFX UI Lobby (`sfx.ts` + Kenney) | 6 | Feito (parcial; mute ok) |
 | 10b | SFX **dados** + passos do peão (NFR-AV-50…56) | 6 | Pendente |
 | 10c | SFX dinheiro / imposto / ações (NFR-AV-01…04, 57…63) | 6 | Pendente |
-| 10d | Pools Carnaval & Canário (§17b) | 6 | Pendente |
+| 10d | Pools Carnaval & Canário (§17b) | 6 | Parcial (Carnaval OGG); Canário/FX pendentes |
 | 11 | Animação viatura → Forte pelo miolo do tabuleiro (FR-44a / NFR-AV-20…23) | 6 | Pendente |
 | 12 | Animação guincho ao vender pousada/resort (FR-64a / NFR-AV-40…42) | 6 | Pendente |
-| 13 | Multiplayer online (Supabase Realtime) | 9 | Feito (host-authoritative); Edge Function anti-cheat opcional |
+| 13 | Multiplayer online (Supabase Realtime) | 9 | Feito (host-authoritative) |
+| 13b | Reconnect, presença, auth de intents, poll (FR-05i…m) | 13 | Feito |
+| 13c | Transferência de host / Edge Function autoridade | 13 | Pendente |
+| 14 | HUD mobile (NFR-23) + banner online (NFR-24) | 6 | Feito |
+| 15 | i18n pt-BR / en / ar (NFR-72) — UI, msgs, cartas | 6 | Feito; nomes de casas pendente |
 
 ## 22. Migração
 
@@ -613,7 +630,7 @@ A estimar (arte temática, componentes físicos, desenvolvimento digital, juríd
 
 ## 26. Waiting Room
 
-Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital** (hot-seat):
+Regras de mesa em `REQUISITOS.md` (+ §16 digital). Status de **implementação**:
 
 ### Feito no código
 
@@ -632,29 +649,27 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 - [x] Movimento peão casa a casa (path/waypoints)
 - [x] Carteira e fluxos (§15) — UI + ações de escritura
 - [x] Vitest FRs críticos em `packages/shared` (`pnpm test`)
+- [x] Lobby online + hot-seat DEV + Loading (FR-05…06b)
+- [x] Multiplayer Supabase + reconnect/presença/auth de intents (FR-05g, FR-05i…m)
+- [x] HUD mobile (NFR-23) + banner de sync (NFR-24)
+- [x] i18n pt-BR / en / ar — UI, mensagens, cartas (NFR-72)
+- [x] Música Carnaval ao aterrissar (parcial NFR-AV-10)
+- [x] Áudio UI Lobby + mute
 
 ### Ainda pendente / fase 2
 
 - [ ] Toggle UI cobrança automática vs pedida (hoje só `claim`)
 - [ ] Playtest formal de balanceamento (§8)
-- [x] **Lobby** anfitrião (só qtd) + link/QR; convidado escolhe nome/peão (FR-05…05g)
-- [x] **Lobby local** "Jogar neste aparelho" — só em dev (FR-05h; oculto em prod)
-- [x] **Loading** com avião (FR-06…06b) na entrada do app
-- [x] Sync de sala e partida entre aparelhos (Supabase — FR-05g)
 - [ ] Cobertura Vitest ampliada (cartas, Forte, falência ponta a ponta)
-- [x] **Áudio UI Lobby:** click/hover/select/switch/error + mute (`apps/game/src/audio/`)
-- [ ] **Áudio — dados:** lançar, quique, parada, dupla / 3ª dupla (NFR-AV-50…54)
-- [ ] **Áudio — peão:** passo por casa + land (NFR-AV-55…56)
-- [ ] **Áudio — economia:** receber, pagar, imposto (NFR-AV-01…04)
-- [ ] **Áudio — ações:** compra, hipoteca, build, carta, leilão, trade, vitória (NFR-AV-57…63)
-- [ ] **Áudio — UI partida:** mesmos SFX no HUD/modais (hoje só Lobby)
-- [ ] **Carnaval:** músicas aleatórias (pools Carnaval + Canário) + efeitos leves (FR-43a / NFR-AV-10…11)
-- [ ] **Prisão:** animação do carro da polícia buscando o peão, cruzando o miolo e deixando no Forte (FR-44a / NFR-AV-20…23)
-- [ ] **Venda de construção:** guincho busca pousada/resort na casa e leva embora (FR-64a / NFR-AV-40…42)
-- [ ] Controles: slider de volume + mute na partida (NFR-AV-30; mute Lobby ok)
-- [x] Multiplayer online (Supabase Realtime; host aplica regras)
-- [ ] Edge Function como autoridade de regras (anti-cheat)
+- [ ] **Áudio — dados / peão / economia / ações / UI partida** (NFR-AV-*)
+- [ ] Carnaval: pool Canário ≥3 + FX leves; licença NFR-82 em build público
+- [ ] **Prisão:** animação viatura pelo miolo (FR-44a / NFR-AV-20…23)
+- [ ] **Venda de construção:** guincho (FR-64a / NFR-AV-40…42)
+- [ ] Slider de volume + mute na partida (NFR-AV-30)
+- [ ] Edge Function autoridade / anti-cheat
+- [ ] Transferência automática de host (questão §18.9)
 - [ ] Pousadas/resorts visíveis no tabuleiro 3D
+- [ ] i18n dos nomes das casas do tabuleiro
 
 ## 27. Ideias de solução
 
@@ -676,18 +691,19 @@ Regras de mesa fechadas em `REQUISITOS.md`. Status de **implementação digital*
 | §1 Objetivo / material | §1, FR-83, FR-53 | Feito (fim de jogo + estoque) |
 | §2 Preparação / Lobby | FR-01–FR-06b, C-03 | Feito (Loading + Lobby) |
 | §3 Vez | FR-10–FR-13 | Feito |
-| §4–5 Tabuleiro / tipos | FR-20–FR-25, FR-30–31, FR-40–46, FR-90–91, C-04, FR-43a | Feito + audiovisual Carnaval pendente |
+| §4–5 Tabuleiro / tipos | FR-20–FR-25, FR-30–31, FR-40–46, FR-90–91, C-04, FR-43a | Feito; Carnaval música parcial |
 | §6 Forte | FR-70–FR-75, FR-44a | Feito + animação viatura pendente |
 | §7–8 Construção / tabelas | FR-50–FR-56, FR-25, FR-64a | Feito regras; guincho na venda pendente |
 | §9 Hipotecas | FR-60–FR-65 | Feito |
 | §10 Leilão | FR-85–FR-89 | Feito |
 | §11–12 Negociação / falência | FR-80–FR-84 | Feito |
 | §13 Baralhos | FR-40–FR-46 | Feito (confirmar edge FR-46 em playtest) |
-| §14 Adaptações | §4, NFR-10, NFR-70, NFR-80 | Doc |
-| §15 Carteira | FR-24, FR-64, FR-64a, FR-100–FR-107, PUC 12–13, NFR-22, NFR-AV-01…04, NFR-AV-40…45 | Feito regras; SFX + guincho pendentes |
-| Áudio / animações digitais | §17b, NFR-AV-*, NFR-82 | v0.5: UI Lobby parcial; dados/economia/Carnaval/FX pendentes |
-| Waiting Room / implementação | §18, §21, §26 | Atualizado v0.5 |
+| §14 Adaptações | §4, NFR-10, NFR-70…73, NFR-80 | Doc + i18n UI |
+| §15 Carteira | FR-24, FR-64, FR-64a, FR-100–FR-107, PUC 12–13, NFR-22, NFR-AV-* | Feito regras; SFX + guincho pendentes |
+| §16 Versão digital | FR-05g…m, NFR-23…25, NFR-41…42, NFR-72 | Feito (online polish + mobile + i18n) |
+| Áudio / animações digitais | §17b, NFR-AV-*, NFR-82 | v0.6: Lobby + Carnaval parcial; resto pendente |
+| Waiting Room / implementação | §18, §21, §26 | Atualizado v0.6 |
 
 ---
 
-*Fim da especificação Volere v0.5 — manter sincronizado com `REQUISITOS.md` e o código.*
+*Fim da especificação Volere v0.6 — manter sincronizado com `REQUISITOS.md` e o código.*

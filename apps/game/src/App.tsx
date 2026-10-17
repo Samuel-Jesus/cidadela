@@ -82,7 +82,15 @@ import {
   OnlineStatusBanner,
   type OnlineSyncStatus,
 } from "./ui/OnlineStatusBanner";
-import { playCarnavalMusic, stopCarnavalMusic } from "./audio/sfx";
+import { playCarnavalMusic, playGameSfx, stopCarnavalMusic } from "./audio/sfx";
+
+const UNLUCKY_CARD_EFFECTS = new Set([
+  "go_to_jail",
+  "pay_bank",
+  "pay_per_building",
+  "pay_each",
+  "move_back",
+]);
 
 function applyMove(
   player: PlayerState,
@@ -104,12 +112,26 @@ function applyMove(
   const position = nextPosition(from, steps);
   const bonus =
     opts.grantGoBonus && crossesGo(from, steps) ? GO_BONUS : 0;
+  if (bonus > 0) playGameSfx("cashGain");
 
   return {
     ...player,
     position,
     cash: player.cash + bonus,
   };
+}
+
+function playCashGains(
+  before: readonly PlayerState[],
+  after: readonly PlayerState[],
+): void {
+  for (const p of after) {
+    const prev = before.find((x) => x.id === p.id);
+    if (prev && p.cash > prev.cash) {
+      playGameSfx("cashGain");
+      return;
+    }
+  }
 }
 
 function nextPlayerId(
@@ -378,6 +400,9 @@ export function App() {
   const presentEvent = useCallback((notes: string[], cards: CardDef[]) => {
     const primary = cards[0] ?? null;
     const rest = primary ? cards.slice(1) : cards;
+    if (cards.some((c) => UNLUCKY_CARD_EFFECTS.has(c.effect.type))) {
+      playGameSfx("badLuck");
+    }
     setDrawnCard(primary);
     setCardNotes(notes);
     setFollowUpCards(rest);
@@ -922,6 +947,7 @@ export function App() {
         deckId,
       );
       if (resolved.pathDir) setPawnPathDir(activePlayerId, resolved.pathDir);
+      playCashGains(prevPlayers, resolved.players);
       decksRef.current = resolved.decks;
       setDecks(resolved.decks);
       playersRef.current = resolved.players;
@@ -1106,14 +1132,18 @@ export function App() {
     if (!pendingRent) return;
     const claim = pendingRent;
     setPendingRent(null);
+    const beforeClaim = playersRef.current;
     const settled = settleDebt(
-      playersRef.current,
+      beforeClaim,
       decksRef.current,
       claim.visitorId,
       claim.amount,
       { type: "player", playerId: claim.ownerId },
       t("msg.rentClaim", { space: getSpace(claim.spaceIndex).name }),
     );
+    if (settled.status === "paid") {
+      playCashGains(beforeClaim, settled.players);
+    }
     playersRef.current = settled.players;
     setPlayers(settled.players);
     decksRef.current = settled.decks;
@@ -1299,6 +1329,57 @@ export function App() {
     if (!someoneOnCarnaval) stopCarnavalMusic();
   }, [players]);
 
+  const gameSfxReadyRef = useRef(false);
+  const prevActiveSfxRef = useRef<string | null>(null);
+  const prevAuctionSfxRef = useRef<string | null>(null);
+  const prevRentSfxRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (screen !== "game") {
+      gameSfxReadyRef.current = false;
+      prevActiveSfxRef.current = null;
+      prevAuctionSfxRef.current = null;
+      prevRentSfxRef.current = null;
+      return;
+    }
+    if (!gameSfxReadyRef.current) {
+      gameSfxReadyRef.current = true;
+      prevActiveSfxRef.current = activePlayerId;
+      prevAuctionSfxRef.current = auction
+        ? `${auction.lot.kind}:${auction.lot.spaceIndex}`
+        : null;
+      prevRentSfxRef.current = pendingRent
+        ? `${pendingRent.visitorId}:${pendingRent.spaceIndex}`
+        : null;
+      return;
+    }
+
+    if (
+      activePlayerId &&
+      activePlayerId !== prevActiveSfxRef.current &&
+      turnPhase === "roll"
+    ) {
+      playGameSfx("yourTurn");
+    }
+    prevActiveSfxRef.current = activePlayerId;
+
+    const auctionKey = auction
+      ? `${auction.lot.kind}:${auction.lot.spaceIndex}`
+      : null;
+    if (auctionKey && auctionKey !== prevAuctionSfxRef.current) {
+      playGameSfx("auctionStart");
+    }
+    prevAuctionSfxRef.current = auctionKey;
+
+    const rentKey = pendingRent
+      ? `${pendingRent.visitorId}:${pendingRent.spaceIndex}`
+      : null;
+    if (rentKey && rentKey !== prevRentSfxRef.current) {
+      playGameSfx("payRent");
+    }
+    prevRentSfxRef.current = rentKey;
+  }, [screen, activePlayerId, turnPhase, auction, pendingRent]);
+
   const onPawnArrive = useCallback(
     (playerId: string, spaceIndex: number) => {
       if (playerId !== activeRef.current) return;
@@ -1340,6 +1421,7 @@ export function App() {
           },
         );
 
+        playCashGains(prevPlayers, resolved.players);
         decksRef.current = resolved.decks;
         setDecks(resolved.decks);
         playersRef.current = resolved.players;

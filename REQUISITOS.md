@@ -21,6 +21,7 @@ Versão baiana do gênero Monopoly clássico. As regras seguem o jogo original; 
 13. Baralhos completos
 14. Ajustes de equilíbrio e adaptações
 15. Carteira e fluxos de dinheiro (consolidação / digital)
+16. Versão digital (resumo de produto)
 
 ---
 
@@ -531,6 +532,24 @@ Cada jogador tem uma **carteira**: saldo, escrituras e cartas Proteção em mão
 ### Saldo insuficiente
 
 Liquidar (vender construções / hipotecar) até cobrir a dívida; se não der, falência (§12). Compra e construção sem saldo são rejeitadas.
+
+---
+
+## 16. Versão digital (resumo de produto)
+
+As regras de mesa deste documento valem iguais no app. Detalhes verificáveis ficam em [`SPECS.md`](./SPECS.md) e a stack em [`STACK.md`](./STACK.md). Resumo do que a versão digital acrescenta sem mudar o objetivo do jogo:
+
+| Tema | Comportamento digital |
+| --- | --- |
+| **Aluguel** | Modo padrão **pedido**: o dono cobra no HUD antes do próximo lance de dados; se não cobrar a tempo, o direito se perde |
+| **Lobby** | Anfitrião cria sala (2–8), compartilha link/QR; convidados escolhem nome e peão; anfitrião é o banqueiro |
+| **Online** | Sync via Supabase; **anfitrião aplica as regras** e publica o estado; convidados enviam intenções. Refresh/rejoin para quem já é membro; presença do anfitrião; partida pausa se o anfitrião sumir |
+| **Hot-seat** | “Jogar neste aparelho” só em build de desenvolvimento |
+| **HUD / mobile** | Em telas estreitas o painel vira **barra inferior** recolhível (rolar e ações urgentes sempre à mão); carteira sobe para o topo |
+| **Idiomas** | UI, mensagens de turno e textos de cartas em **pt-BR**, **en** e **ar** (RTL). Nomes das casas do tabuleiro permanecem em português |
+| **Carnaval** | Ao aterrissar na casa 20, toca uma faixa aleatória do pool (para ao sair / mute / voltar ao lobby). Sem prêmio em dinheiro (§3 / §5) |
+
+Pendências típicas de produto (não regras de mesa): pousadas/resorts 3D no tabuleiro, mais SFX de partida, animação da viatura ao Forte, guincho ao vender construção, transferência automática de anfitrião se ele abandonar a sessão.
 
 ---
 

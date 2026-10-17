@@ -1,5 +1,11 @@
 export type UiSfx = "click" | "hover" | "back" | "select" | "switch" | "error";
 export type DiceSfx = "mix" | "fall";
+export type GameSfx =
+  | "cashGain"
+  | "badLuck"
+  | "auctionStart"
+  | "yourTurn"
+  | "payRent";
 
 const FILES: Record<UiSfx, string> = {
   click: "click_004.ogg",
@@ -15,8 +21,17 @@ const DICE_FILES: Record<DiceSfx, string> = {
   fall: "fall_dices.ogg",
 };
 
+const GAME_FILES: Record<GameSfx, string> = {
+  cashGain: "ganhar_grana.ogg",
+  badLuck: "sem_sorte.ogg",
+  auctionStart: "start_leilao.ogg",
+  yourTurn: "vez_de_jogar.ogg",
+  payRent: "pagar_aluguel_perder_grana.ogg",
+};
+
 const BASE = "/sounds/ui";
 const DICE_BASE = "/sounds/dice";
+const GAME_BASE = "/sounds/game";
 const CARNAVAL_BASE = "/sounds/carnaval";
 const MUTE_KEY = "cidadela.sfx.muted";
 const VOLUME_KEY = "cidadela.sfx.volume";
@@ -104,6 +119,18 @@ export function playDiceSfx(id: DiceSfx, opts?: { volume?: number }): void {
     const src = getAudio(DICE_FILES[id], DICE_BASE);
     const node = src.cloneNode(true) as HTMLAudioElement;
     node.volume = Math.min(1, Math.max(0, opts?.volume ?? volume * 0.85));
+    void node.play().catch(() => undefined);
+  } catch {
+    return;
+  }
+}
+
+export function playGameSfx(id: GameSfx, opts?: { volume?: number }): void {
+  if (muted || volume <= 0) return;
+  try {
+    const src = getAudio(GAME_FILES[id], GAME_BASE);
+    const node = src.cloneNode(true) as HTMLAudioElement;
+    node.volume = Math.min(1, Math.max(0, opts?.volume ?? volume * 0.9));
     void node.play().catch(() => undefined);
   } catch {
     return;
@@ -228,5 +255,6 @@ export function setSfxVolume(next: number): void {
 export function preloadUiSfx(): void {
   for (const file of Object.values(FILES)) getAudio(file);
   for (const file of Object.values(DICE_FILES)) getAudio(file, DICE_BASE);
+  for (const file of Object.values(GAME_FILES)) getAudio(file, GAME_BASE);
   for (const file of CARNAVAL_TRACKS) getAudio(file, CARNAVAL_BASE);
 }

@@ -3,9 +3,9 @@
 > **Referências:** [`REQUISITOS.md`](./REQUISITOS.md) · [`SPECS.md`](./SPECS.md)  
 > Stack oficial alinhada aos FRs do `SPECS.md` (turnos, tabuleiro, banco, Forte, negociações, falência).
 
-**Versão:** 0.6  
-**Status:** Stack oficial — **Three.js + React Three Fiber** · hot-seat + **Supabase** · SFX UI (Lobby)  
-**Decisão:** 2026-03-15 (evoluiu da Opção B Phaser → 3D real) · sync 2026-10-16 · áudio docs 2026-10-17
+**Versão:** 0.7  
+**Status:** Stack oficial — **Three.js + R3F** · hot-seat + **Supabase** (reconnect/presença) · HUD mobile · i18n · SFX UI + Carnaval  
+**Decisão:** 2026-03-15 (Phaser → 3D) · sync 2026-10-16 · áudio/docs 2026-10-17 · online/mobile/i18n 2026-10-17
 
 ---
 
@@ -20,8 +20,9 @@ Tabuleiro e cena em **Three.js** via **React Three Fiber**, com shell React/Vite
 | Shell (HUD, menus) | **React 19** + Vite + Tailwind |
 | Motor de regras | **TypeScript puro** (`packages/engine`) |
 | Landmarks | Procedurais em `apps/game/src/landmarks/` |
-| Multiplayer | **Supabase** (Postgres + Realtime + auth anônima); hot-seat local sem rede |
-| Mobile nativo | Fora do MVP (PWA possível depois) |
+| Multiplayer | **Supabase** (Postgres + Realtime + Presence + auth anônima); hot-seat local sem rede |
+| i18n | **i18next** + react-i18next (`pt-BR` / `en` / `ar`, RTL) |
+| Mobile web | HUD bottom sheet + safe-area; PWA nativo fora do MVP |
 
 **Histórico:** Opção B começou com Phaser (faux-3D isométrico). Substituído por Three.js para câmera orbitável, luzes, sombras e modelos por casa.
 
@@ -35,8 +36,9 @@ Tabuleiro e cena em **Three.js** via **React Three Fiber**, com shell React/Vite
 | Estado de partida (2–8 jogadores) | FR-01 |
 | Tabuleiro 3D + landmarks por casa | FR-90, NFR-10 |
 | HUD React (carteira: saldo, escrituras, cartas) | PUC / NFR |
-| Hot-seat local → multiplayer depois | SPECS §27 |
-| pt-BR e temática baiana | NFR-70, NFR-71 |
+| Hot-seat (DEV) + multiplayer online | FR-05…05m |
+| pt-BR + en + ar (UI/cartas) | NFR-71…73 |
+| HUD usável no celular | NFR-23…25 |
 
 ---
 
@@ -45,14 +47,17 @@ Tabuleiro e cena em **Three.js** via **React Three Fiber**, com shell React/Vite
 ```
 ┌──────────────────────────────────────────────────┐
 │  Shell React (Vite)                              │
-│  HUD DOM · lobby (futuro) · modais               │
+│  Lobby · Loading · HUD · Wallet · overlays       │
+│  i18n · OnlineStatusBanner · session persist     │
 ├──────────────────────────────────────────────────┤
 │  React Three Fiber Canvas                        │
 │  BoardTable · SpaceTile · Landmark · OrbitControls│
 ├──────────────────────────────────────────────────┤
-│  packages/shared — BOARD[40], tipos              │
+│  session/ — room + gameSync (Supabase Realtime)  │
 ├──────────────────────────────────────────────────┤
-│  packages/engine — regras puras (stub → futuro)  │
+│  packages/shared — BOARD[40], regras tipadas     │
+├──────────────────────────────────────────────────┤
+│  packages/engine — dados (roll)                  │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -70,7 +75,8 @@ Tabuleiro e cena em **Three.js** via **React Three Fiber**, com shell React/Vite
 | 3D | three + @react-three/fiber + @react-three/drei |
 | Dados | @cidadela/shared |
 | Testes | Vitest em `packages/shared` (`pnpm test`) |
-| Áudio | HTMLAudioElement em `apps/game/src/audio/` (Kenney CC0 UI); SFX de partida ainda não |
+| Áudio | HTMLAudioElement (`audio/sfx.ts`); Kenney UI + OGG Carnaval; SFX de dados/economia ainda não |
+| i18n | i18next · locales em `apps/game/src/i18n/` |
 | Pacotes | pnpm workspaces |
 
 ### Estrutura
@@ -82,12 +88,18 @@ cidadela/
     shared/          # regras: board, rent, jail, auction, trade, falência…
   apps/
     game/
-      public/sounds/ # ui/ (Kenney) · futuro: dice/ · game/ · music/
+      public/
+        sounds/      # ui/ · carnaval/ · dice/ · game/ (grana, aluguel, leilão, vez, sem_sorte)
+        flags/       # br · us · sa (LanguagePicker)
       src/
-        audio/         # sfx.ts · SfxMuteButton
-        landmarks/     # modelos 3D por casa
-        scene/         # BoardCanvas, tiles, peões, dados
-        ui/            # BoardHud · Wallet · Auction · Trade · Victory
+        audio/       # sfx.ts · SfxMuteButton · playCarnavalMusic
+        i18n/        # pt-BR · en · ar + tCard
+        landmarks/   # modelos 3D por casa
+        scene/       # BoardCanvas, tiles, peões, dados
+        session/     # room · gameSync · onlinePersist · gameSnapshot
+        ui/          # BoardHud · Wallet · OnlineStatusBanner · overlays
+  supabase/
+    migrations/      # 001_rooms_games.sql
 ```
 
 ---
@@ -97,7 +109,11 @@ cidadela/
 - **Lobby online:** tabelas `rooms` / `room_members`; link + QR; Realtime.
 - **Partida:** `games.state` (JSONB `GameSnapshot`) + `game_actions` (intents).
 - **Autoridade:** anfitrião aplica `@cidadela/shared` no cliente e grava o snapshot; convidados enviam intents e hidratam via Realtime.
-- **Hot-seat local (FR-05h):** não usa Supabase.
+- **Reconnect (FR-05i):** `?room=` na URL + `sessionStorage` (`onlinePersist.ts`); membro existente pode reentrar em sala `playing`.
+- **Presença (FR-05j):** canal Realtime Presence; banner se o host sumir; guests não enviam intents enquanto `hostAway`.
+- **Resiliência:** conflito de versão no push → hydrate remoto; guest faz poll ~6s de backup.
+- **Auth de intents (FR-05k):** host valida actor (vez / aluguel / dívida / leilão) antes de aplicar.
+- **Hot-seat local (FR-05h):** não usa Supabase; só em `import.meta.env.DEV`.
 - **Setup:** copie [`.env.example`](./.env.example) → `.env` na raiz (Vite `envDir`); rode [`supabase/migrations/001_rooms_games.sql`](./supabase/migrations/001_rooms_games.sql) no SQL Editor; ative **Anonymous Sign-Ins**.
 
 ---
@@ -140,31 +156,36 @@ cidadela/
 - [x] Lobby anfitrião (qtd + link/QR) e entrada de convidados (nome/peão) via Supabase
 - [x] Lobby local "Jogar neste aparelho" (hot-seat FR-05h, **somente DEV**)
 - [x] Sync de sala e partida multi-aparelho (Supabase Realtime)
+- [x] Reconnect / presença / auth de intents / poll de backup
 - [x] Loading inicial com avião (pré-carga de assets)
+- [x] HUD mobile (barra inferior recolhível) + banner de sync
+- [x] i18n pt-BR / en / ar (UI, mensagens, cartas)
 - [x] SFX UI Lobby (`audio/sfx.ts` + mute)
-- [ ] Áudio de partida — lista do que falta (detalhe em `SPECS.md` §17b):
-  - [ ] **Dados:** lançar, quique, parada, dupla / 3ª dupla
-  - [ ] **Peão:** passo por casa + aterrissar
-  - [ ] **Economia:** receber $, pagar $, imposto
-  - [ ] **Ações:** compra, hipoteca, build, carta, leilão, trade, vitória
-  - [ ] **UI partida:** SFX no HUD/modais (hoje só Lobby)
-  - [ ] **Carnaval/Canário:** pools de música + FX leves
+- [x] Música Carnaval ao aterrissar (OGG; para ao sair/mute)
+- [x] SFX partida: ganhar $, aluguel, leilão, vez, carta azar (`playGameSfx`)
+- [ ] Áudio de partida — restante (`SPECS.md` §17b):
+  - [ ] **Dados / peão / UI partida** + demais ações (compra, hipoteca, vitória…)
+  - [ ] Pool Canário + FX leves no Carnaval
   - [ ] Mute/volume na partida (mute Lobby ok)
   - [ ] Animação viatura → Forte + sirene
   - [ ] Animação guincho ao vender construção + SFX
+- [ ] Transferência de host / Edge Function autoridade
+- [ ] i18n dos nomes das casas
 
 ---
 
 ## 6. Decisões fechadas
 
-1. MVP **hot-seat** + **online Supabase** (host aplica regras)
-2. HUD **React overlay**
+1. MVP **hot-seat (DEV)** + **online Supabase** (host aplica regras)
+2. HUD **React overlay** (desktop painel lateral; mobile bottom sheet)
 3. Tabuleiro **Three.js** com landmarks procedurais
 4. Phaser **descontinuado** neste projeto
 5. Regras tipadas em **`packages/shared`**; `engine` focado em dados por enquanto
 6. Aluguel digital padrão: **claim** (dono cobra); auto só via opção de API (`rentMode`)
-7. Áudio: SFX curtos via HTMLAudio; música de casa (Carnaval) como pool separado; mute não cancela animações
+7. Áudio: SFX curtos via HTMLAudio; música Carnaval em pool; mute não cancela animações
+8. i18n: UI/cartas traduzíveis; **nomes do tabuleiro** ficam em pt até decisão explícita
+9. Online: reconnect via URL + sessionStorage; presença do host; sem handoff de host no MVP
 
 ---
 
-*Stack oficial v0.6 — Three.js + Supabase + SFX UI. Ver `SPECS.md` §17b para inventário audiovisual.*
+*Stack oficial v0.7 — Three.js + Supabase + mobile/i18n. Ver `SPECS.md` §17b e `REQUISITOS.md` §16.*
