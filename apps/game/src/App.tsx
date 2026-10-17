@@ -70,6 +70,7 @@ import {
   subscribePendingActions,
 } from "./session/gameSync";
 import type { OnlineSession } from "./session/onlineSession";
+import { playCarnavalMusic, stopCarnavalMusic } from "./audio/sfx";
 
 function applyMove(
   player: PlayerState,
@@ -646,6 +647,7 @@ export function App() {
   );
 
   const returnToLobby = useCallback(() => {
+    stopCarnavalMusic();
     setOnlineSession(null);
     setGameVersion(0);
     gameVersionRef.current = 0;
@@ -1208,10 +1210,22 @@ export function App() {
     [queueLanding, presentEvent, startNextTurn],
   );
 
+  // Para a música do Carnaval quando ninguém mais está na casa.
+  useEffect(() => {
+    const someoneOnCarnaval = players.some(
+      (p) => !p.bankrupt && getSpace(p.position).kind === "carnaval",
+    );
+    if (!someoneOnCarnaval) stopCarnavalMusic();
+  }, [players]);
+
   const onPawnArrive = useCallback(
     (playerId: string, spaceIndex: number) => {
       if (playerId !== activeRef.current) return;
       setSelectedIndex(spaceIndex);
+
+      if (getSpace(spaceIndex).kind === "carnaval") {
+        playCarnavalMusic();
+      }
 
       const pending = pendingLandingRef.current;
       if (!pending || pending.playerId !== playerId || resolvingRef.current) {

@@ -17,8 +17,14 @@ const DICE_FILES: Record<DiceSfx, string> = {
 
 const BASE = "/sounds/ui";
 const DICE_BASE = "/sounds/dice";
+const CARNAVAL_BASE = "/sounds/carnaval";
 const MUTE_KEY = "cidadela.sfx.muted";
 const VOLUME_KEY = "cidadela.sfx.volume";
+
+const CARNAVAL_TRACKS = [
+  "igor_kanario01.ogg",
+  "igor_kanario02.ogg",
+] as const;
 
 export const UI_SFX_HOVER_SELECTOR = "button.lobby-cta:not(:disabled)";
 
@@ -30,6 +36,7 @@ const cache = new Map<string, HTMLAudioElement>();
 let lastHoverAt = 0;
 let hoverBound = false;
 let mixLoop: HTMLAudioElement | null = null;
+let carnavalTrack: HTMLAudioElement | null = null;
 
 function readMuted(): boolean {
   try {
@@ -124,8 +131,42 @@ export function stopDiceMixLoop(): void {
     mixLoop.pause();
     mixLoop.currentTime = 0;
     mixLoop.loop = false;
-  } catch {}
+  } catch { }
   mixLoop = null;
+}
+
+export function playCarnavalMusic(): void {
+  stopCarnavalMusic();
+  if (muted || volume <= 0) return;
+  try {
+    const file =
+      CARNAVAL_TRACKS[Math.floor(Math.random() * CARNAVAL_TRACKS.length)]!;
+    const a = getAudio(file, CARNAVAL_BASE);
+    a.loop = false;
+    a.currentTime = 0;
+    a.volume = Math.min(1, volume * 0.8);
+    const onEnded = () => {
+      if (carnavalTrack === a) carnavalTrack = null;
+    };
+    a.addEventListener("ended", onEnded, { once: true });
+    carnavalTrack = a;
+    void a.play().catch(() => undefined);
+  } catch {
+    return;
+  }
+}
+
+export function stopCarnavalMusic(): void {
+  if (!carnavalTrack) return;
+  try {
+    carnavalTrack.pause();
+    carnavalTrack.currentTime = 0;
+  } catch { }
+  carnavalTrack = null;
+}
+
+export function isCarnavalMusicPlaying(): boolean {
+  return Boolean(carnavalTrack && !carnavalTrack.paused);
 }
 
 export function playHoverSfx(): void {
@@ -155,7 +196,10 @@ export function isSfxMuted(): boolean {
 
 export function setSfxMuted(next: boolean): void {
   muted = next;
-  if (next) stopDiceMixLoop();
+  if (next) {
+    stopDiceMixLoop();
+    stopCarnavalMusic();
+  }
   try {
     localStorage.setItem(MUTE_KEY, next ? "1" : "0");
   } catch {
@@ -184,4 +228,5 @@ export function setSfxVolume(next: number): void {
 export function preloadUiSfx(): void {
   for (const file of Object.values(FILES)) getAudio(file);
   for (const file of Object.values(DICE_FILES)) getAudio(file, DICE_BASE);
+  for (const file of CARNAVAL_TRACKS) getAudio(file, CARNAVAL_BASE);
 }
