@@ -10,6 +10,7 @@ import { PedagioLinhaVerdeLandmark } from "./PedagioLinhaVerdeLandmark";
 import { PelourinhoLandmark } from "./PelourinhoLandmark";
 import { PlanoInclinadoLandmark } from "./PlanoInclinadoLandmark";
 import { QuartelPoliciaLandmark } from "./QuartelPoliciaLandmark";
+import { FarolDaBarraLandmark } from "./FarolDaBarraLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -63,7 +64,13 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     return <PlanoInclinadoLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
   if (index === 27) {
-    return <FarolDaBarra accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
+    return (
+      <FarolDaBarraLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
   }
   if (index === 28) {
     return <Embasa accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
@@ -410,40 +417,6 @@ function RioVermelho() {
       <Box args={[0.22, 0.1, 0.22]} position={[0.3, 0.8, 0]} color="#c0392b" />
       <Box args={[0.7, 0.05, 0.4]} position={[0, 0.03, 0.35]} color="#5dade2" />
     </Group>
-  );
-}
-
-function FarolDaBarraFallback() {
-  return (
-    <Group>
-      <Cyl args={[0.18, 0.22, 1.0, 10]} position={[0, 0.55, 0]} color="#fdfefe" />
-      <Box args={[0.08, 0.55, 0.35]} position={[0, 0.55, 0]} color="#c0392b" />
-      <Box args={[0.35, 0.12, 0.35]} position={[0, 1.1, 0]} color="#2c3e50" />
-      <Sphere args={[0.08]} position={[0, 1.25, 0]} color="#f4d03f" />
-      <Box args={[0.7, 0.2, 0.5]} position={[0, 0.1, 0.35]} color="#5d6d7e" />
-    </Group>
-  );
-}
-
-function FarolDaBarra({
-  accent,
-  fitWidth,
-  fitDepth,
-}: {
-  accent?: boolean;
-  fitWidth: number;
-  fitDepth: number;
-}) {
-  return (
-    <Suspense fallback={<FarolDaBarraFallback />}>
-      <GltfLandmark
-        url="/models/farol-da-barra.gltf"
-        fitWidth={fitWidth}
-        fitDepth={fitDepth}
-        polish
-        accent={accent}
-      />
-    </Suspense>
   );
 }
 
