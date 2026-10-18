@@ -3,7 +3,7 @@ import type { SpaceLayout } from "../layout";
 import { inkOn } from "./inkOn";
 import { isSideTile } from "./tileLayout";
 
-const NAME_FONT =
+export const STREET_SIGN_FONT =
   "https://cdn.jsdelivr.net/fontsource/fonts/fredoka@5.2.5/latin-700-normal.woff";
 
 const WHITE = "#f4f6f8";
@@ -44,7 +44,7 @@ function SignFace({
     <group position={[0, 0, z]}>
       <Text
         position={[0, whiteH / 2 + 0.035, 0]}
-        font={NAME_FONT}
+        font={STREET_SIGN_FONT}
         fontSize={0.13}
         maxWidth={plateW * 0.94}
         textAlign="center"
@@ -58,7 +58,7 @@ function SignFace({
       </Text>
       <Text
         position={[0, whiteH / 2 - 0.08, 0]}
-        font={NAME_FONT}
+        font={STREET_SIGN_FONT}
         fontSize={0.052}
         maxWidth={plateW * 0.95}
         textAlign="center"
@@ -70,7 +70,7 @@ function SignFace({
       </Text>
       <Text
         position={[-plateW * 0.4, -blueH / 2, 0]}
-        font={NAME_FONT}
+        font={STREET_SIGN_FONT}
         fontSize={0.048}
         anchorX="left"
         anchorY="middle"
@@ -80,7 +80,7 @@ function SignFace({
       </Text>
       <Text
         position={[plateW * 0.4, -blueH / 2, 0]}
-        font={NAME_FONT}
+        font={STREET_SIGN_FONT}
         fontSize={0.045}
         anchorX="right"
         anchorY="middle"

@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { FitToSlot } from "./FitToSlot";
 import { GltfLandmark } from "./GltfLandmark";
 import { AeroportoSalvadorLandmark } from "./AeroportoSalvadorLandmark";
@@ -276,18 +276,6 @@ function MorroSaoPaulo() {
   );
 }
 
-function ElevadorLacerdaFallback() {
-  return (
-    <Group>
-      <Box args={[0.35, 1.15, 0.35]} position={[-0.22, 0.6, 0]} color="#bdc3c7" />
-      <Box args={[0.35, 1.15, 0.35]} position={[0.22, 0.6, 0]} color="#aeb6bf" />
-      <Box args={[0.15, 0.9, 0.12]} position={[-0.22, 0.55, 0.2]} color="#5dade2" />
-      <Box args={[0.15, 0.9, 0.12]} position={[0.22, 0.55, 0.2]} color="#5dade2" />
-      <Box args={[0.9, 0.12, 0.45]} position={[0, 1.25, 0]} color="#85929e" />
-    </Group>
-  );
-}
-
 function ElevadorLacerda({
   accent,
   fitWidth,
@@ -298,15 +286,13 @@ function ElevadorLacerda({
   fitDepth: number;
 }) {
   return (
-    <Suspense fallback={<ElevadorLacerdaFallback />}>
-      <GltfLandmark
-        url="/models/elevador-lacerda.gltf"
-        fitWidth={fitWidth}
-        fitDepth={fitDepth}
-        polish
-        accent={accent}
-      />
-    </Suspense>
+    <GltfLandmark
+      url="/models/elevador-lacerda.gltf"
+      fitWidth={fitWidth}
+      fitDepth={fitDepth}
+      polish
+      accent={accent}
+    />
   );
 }
 

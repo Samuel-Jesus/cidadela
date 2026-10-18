@@ -1,4 +1,4 @@
-import { Suspense, useMemo } from "react";
+import { useMemo } from "react";
 import { Clone, useGLTF } from "@react-three/drei";
 import { BOARD_Y } from "./layout";
 
@@ -133,31 +133,29 @@ export function JailRoad() {
   const props = useMemo(() => buildProps(), []);
 
   return (
-    <Suspense fallback={null}>
-      <group name="jail-road">
-        {tiles.map((t) => (
-          <RoadMesh
-            key={`${t.kind}-${t.gx}-${t.gz}`}
-            url={URLS[t.kind]}
-            position={[t.gx * SCALE, ROAD_Y, t.gz * SCALE]}
-            rotationY={t.rot}
-          />
-        ))}
-        {props.map((p, i) => (
-          <RoadMesh
-            key={`prop-${p.kind}-${i}`}
-            url={p.kind === "light" ? URLS.light : URLS.cone}
-            position={[
-              p.gx * SCALE + (p.ox ?? 0) * SCALE,
-              ROAD_Y,
-              p.gz * SCALE + (p.oz ?? 0) * SCALE,
-            ]}
-            rotationY={p.rot}
-            scale={p.kind === "cone" ? SCALE * 0.9 : SCALE}
-          />
-        ))}
-      </group>
-    </Suspense>
+    <group name="jail-road">
+      {tiles.map((t) => (
+        <RoadMesh
+          key={`${t.kind}-${t.gx}-${t.gz}`}
+          url={URLS[t.kind]}
+          position={[t.gx * SCALE, ROAD_Y, t.gz * SCALE]}
+          rotationY={t.rot}
+        />
+      ))}
+      {props.map((p, i) => (
+        <RoadMesh
+          key={`prop-${p.kind}-${i}`}
+          url={p.kind === "light" ? URLS.light : URLS.cone}
+          position={[
+            p.gx * SCALE + (p.ox ?? 0) * SCALE,
+            ROAD_Y,
+            p.gz * SCALE + (p.oz ?? 0) * SCALE,
+          ]}
+          rotationY={p.rot}
+          scale={p.kind === "cone" ? SCALE * 0.9 : SCALE}
+        />
+      ))}
+    </group>
   );
 }
 

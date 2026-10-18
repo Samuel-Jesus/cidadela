@@ -8,6 +8,7 @@ import {
   JAIL_ROAD_MODELS,
   preloadJailRoadModels,
 } from "../scene/JailRoad";
+import { STREET_SIGN_FONT } from "../scene/tile/StreetSign";
 
 export type PreloadStage = "fonts" | "download" | "build" | "ready";
 
@@ -50,12 +51,24 @@ function formatMb(bytes: number): string {
 
 async function loadFonts(): Promise<void> {
   if (typeof document === "undefined" || !("fonts" in document)) return;
-  await withTimeout(
-    Promise.all(FONT_FACES.map((f) => document.fonts.load(f))).then(
-      () => document.fonts.ready,
-    ),
-    FONT_TIMEOUT_MS,
-  ).catch(() => undefined);
+  const faces = Promise.all(FONT_FACES.map((f) => document.fonts.load(f))).then(
+    () => document.fonts.ready,
+  );
+  const signFont = fetch(STREET_SIGN_FONT)
+    .then((r) => (r.ok ? r.arrayBuffer() : null))
+    .then(async (buf) => {
+      if (!buf || !("FontFace" in window)) return;
+      const face = new FontFace("Fredoka", buf, {
+        weight: "700",
+        style: "normal",
+      });
+      await face.load();
+      document.fonts.add(face);
+    })
+    .catch(() => undefined);
+  await withTimeout(Promise.all([faces, signFont]), FONT_TIMEOUT_MS).catch(
+    () => undefined,
+  );
 }
 
 type DownloadState = { loaded: number; total: number; done: boolean };

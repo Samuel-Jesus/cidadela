@@ -1,8 +1,9 @@
 import { Canvas } from "@react-three/fiber";
 import { ContactShadows, Html, OrbitControls } from "@react-three/drei";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import type { DiceRoll } from "@cidadela/engine";
 import { BOARD, type PlayerState } from "@cidadela/shared";
+import { BoardReadySignal } from "./BoardReadySignal";
 import { BoardTable } from "./BoardTable";
 import { DiceTray } from "./DiceTray";
 import { JailEscort } from "./JailEscort";
@@ -24,6 +25,8 @@ type Props = {
   onRollComplete: (roll: DiceRoll) => void;
   onPawnArrive?: (playerId: string, spaceIndex: number) => void;
   onJailEscortComplete?: (mission: JailEscortMission) => void;
+  onBoardProgress?: (ratio: number) => void;
+  onBoardReady?: () => void;
 };
 
 export function BoardCanvas({
@@ -39,6 +42,8 @@ export function BoardCanvas({
   onRollComplete,
   onPawnArrive,
   onJailEscortComplete,
+  onBoardProgress,
+  onBoardReady,
 }: Props) {
   const layouts = useMemo(() => computeSpaceLayouts(), []);
 
@@ -68,35 +73,50 @@ export function BoardCanvas({
       <hemisphereLight args={["#ffe8c8", "#2a1810", 0.42]} />
       <directionalLight position={[-8, 10, -6]} intensity={0.35} color="#b8d4ff" />
 
-      <BoardTable />
-      {layouts.map((layout) => (
-        <SpaceTile
-          key={layout.index}
-          layout={layout}
-          selected={selectedIndex === layout.index}
-          onSelect={onSelect}
+      <Suspense fallback={null}>
+        <BoardTable />
+        {layouts.map((layout) => (
+          <SpaceTile
+            key={layout.index}
+            layout={layout}
+            selected={selectedIndex === layout.index}
+            onSelect={onSelect}
+          />
+        ))}
+
+        <DiceTray
+          rolling={diceRolling}
+          rollId={diceRollId}
+          canRoll={canRoll}
+          onRollRequest={onRollRequest}
+          onRollComplete={onRollComplete}
         />
-      ))}
 
-      <DiceTray
-        rolling={diceRolling}
-        rollId={diceRollId}
-        canRoll={canRoll}
-        onRollRequest={onRollRequest}
-        onRollComplete={onRollComplete}
-      />
+        <PawnsLayer
+          players={players}
+          layouts={layouts}
+          activePlayerId={activePlayerId}
+          onSelectPlayer={onSelectPlayer}
+          onPawnArrive={onPawnArrive}
+        />
 
-      <PawnsLayer
-        players={players}
-        layouts={layouts}
-        activePlayerId={activePlayerId}
-        onSelectPlayer={onSelectPlayer}
-        onPawnArrive={onPawnArrive}
-      />
+        <JailEscort onComplete={onJailEscortComplete} />
 
-      <JailEscort onComplete={onJailEscortComplete} />
+        <ContactShadows
+          position={[0, 0.03, 0]}
+          opacity={0.45}
+          scale={32}
+          blur={2.5}
+          far={12}
+        />
 
-      <ContactShadows position={[0, 0.03, 0]} opacity={0.45} scale={32} blur={2.5} far={12} />
+        {onBoardReady ? (
+          <BoardReadySignal
+            onProgress={onBoardProgress}
+            onReady={onBoardReady}
+          />
+        ) : null}
+      </Suspense>
 
       <OrbitControls
         makeDefault

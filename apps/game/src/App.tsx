@@ -93,6 +93,7 @@ import {
   ensureSfxOverridesReady,
   playCarnavalMusic,
   playGameSfx,
+  preloadUiSfx,
   stopCarnavalMusic,
 } from "./audio/sfx";
 
@@ -183,6 +184,8 @@ export function App() {
     ratio: 0,
     hint: t("loading.hint"),
   });
+  const [boardReady, setBoardReady] = useState(false);
+  const [boardProgress, setBoardProgress] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(0);
   const [playerCount, setPlayerCount] = useState(4);
   const [players, setPlayers] = useState<PlayerState[]>([]);
@@ -254,6 +257,17 @@ export function App() {
   useEffect(() => {
     void ensureSfxOverridesReady();
   }, []);
+
+  useEffect(() => {
+    if (screen !== "game") {
+      setBoardReady(false);
+      setBoardProgress(0);
+      return;
+    }
+    setBoardReady(false);
+    setBoardProgress(0.08);
+    preloadUiSfx();
+  }, [screen]);
 
   useEffect(() => {
     if (screen !== "loading") return;
@@ -2013,6 +2027,7 @@ export function App() {
         diceRolling={diceRolling}
         diceRollId={diceRollId}
         canRoll={
+          boardReady &&
           turnPhase === "roll" &&
           !showEventModal &&
           !winnerId &&
@@ -2022,6 +2037,8 @@ export function App() {
         onRollComplete={onRollComplete}
         onPawnArrive={onPawnArrive}
         onJailEscortComplete={onJailEscortComplete}
+        onBoardProgress={setBoardProgress}
+        onBoardReady={() => setBoardReady(true)}
       />
       <GameSfxHud />
       <WalletPanel
@@ -2193,6 +2210,14 @@ export function App() {
       <p className="pointer-events-none absolute bottom-3 start-1/2 z-10 hidden -translate-x-1/2 text-center text-xs font-semibold text-[#ffe8c8]/80 max-md:bottom-[max(0.5rem,env(safe-area-inset-bottom))] md:block rtl:translate-x-1/2">
         {t("hud.hintOrbit")}
       </p>
+      {!boardReady ? (
+        <div className="absolute inset-0 z-50">
+          <LoadingScreen
+            progress={Math.max(0.08, boardProgress)}
+            hint={t("loading.preparing")}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

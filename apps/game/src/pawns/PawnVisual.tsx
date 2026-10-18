@@ -1,4 +1,4 @@
-import { Suspense, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { Group, Mesh, MeshStandardMaterial } from "three";
 import type { PawnId } from "@cidadela/shared";
@@ -9,15 +9,6 @@ type Props = {
   pawnId: PawnId;
   targetHeight?: number;
 };
-
-function PawnFallback() {
-  return (
-    <mesh castShadow position={[0, 0.2, 0]}>
-      <boxGeometry args={[0.3, 0.4, 0.3]} />
-      <meshStandardMaterial color="#94a3b8" roughness={0.7} />
-    </mesh>
-  );
-}
 
 function GhostPulse({ children }: { children: ReactNode }) {
   const root = useRef<Group>(null);
@@ -59,13 +50,11 @@ function GhostPulse({ children }: { children: ReactNode }) {
 export function PawnVisual({ pawnId, targetHeight }: Props) {
   const model = getPawnModel(pawnId);
   const mesh = (
-    <Suspense fallback={<PawnFallback />}>
-      <BlockyPawnMesh
-        url={model.url}
-        targetHeight={targetHeight ?? model.targetHeight}
-        maxSpan={model.maxSpan}
-      />
-    </Suspense>
+    <BlockyPawnMesh
+      url={model.url}
+      targetHeight={targetHeight ?? model.targetHeight}
+      maxSpan={model.maxSpan}
+    />
   );
   if (pawnId === "shipGhost") return <GhostPulse>{mesh}</GhostPulse>;
   return mesh;
