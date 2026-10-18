@@ -21,6 +21,7 @@ import { FitinhaDoBonfimLandmark } from "./FitinhaDoBonfimLandmark";
 import { IlheusLandmark } from "./IlheusLandmark";
 import { CachoeiraLandmark } from "./CachoeiraLandmark";
 import { ValencaLandmark } from "./ValencaLandmark";
+import { MorroSaoPauloLandmark } from "./MorroSaoPauloLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -44,6 +45,7 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     index === 9 ||
     index === 10 ||
     index === 11 ||
+    index === 14 ||
     index === 22 ||
     index === 36 ||
     index === 12 ||
@@ -154,6 +156,15 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   if (index === 12) {
     return <CoelbaLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
+  if (index === 14) {
+    return (
+      <MorroSaoPauloLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
+  }
   if (index === 15) {
     return <ElevadorLacerda accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
@@ -209,8 +220,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
   switch (index) {
     case 13:
       return <Itacare />;
-    case 14:
-      return <MorroSaoPaulo />;
     case 16:
       return <Lencois />;
     case 18:
@@ -249,17 +258,6 @@ function Itacare() {
       <Box args={[0.9, 0.08, 0.5]} position={[0, 0.05, 0.25]} color="#1abc9c" />
       <Box args={[0.35, 0.04, 0.12]} position={[0.15, 0.2, 0.2]} rotation={[0, 0, 0.5]} color="#f5b041" />
       <Cone args={[0.2, 0.35, 6]} position={[-0.3, 0.5, -0.2]} color="#196f3d" />
-    </Group>
-  );
-}
-
-function MorroSaoPaulo() {
-  return (
-    <Group>
-      <Cone args={[0.55, 0.7, 6]} position={[0, 0.35, 0]} color="#d5d8dc" />
-      <Cyl args={[0.08, 0.1, 0.45, 8]} position={[0, 0.85, 0]} color="#f5b7b1" />
-      <Box args={[0.18, 0.08, 0.18]} position={[0, 1.1, 0]} color="#e74c3c" />
-      <Box args={[0.9, 0.05, 0.5]} position={[0, 0.03, 0.35]} color="#5dade2" />
     </Group>
   );
 }

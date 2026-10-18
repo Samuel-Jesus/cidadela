@@ -1,0 +1,157 @@
+// Requer Three.js e luzes na cena (HemisphereLight + DirectionalLight). Uso: const modelo = criarMorroSaoPaulo(THREE); cena.add(modelo);
+// No loop de animação: modelo.userData.tick(deltaSegundos);
+// Níveis: modelo.userData.definirNivel(n)
+//   0 terreno (ilha, morro, praias de água turquesa)
+//   1 Fortaleza de Tapirandu e aldeia de pescadores
+//   2 Vila: Portal, igrejinha, Fonte Grande (1746), Praça Aureliano Lima, píer e saveiros
+//   3 Vila turística: Farol do Morro, feirinha de artesanato, pousadas, catamarã, carroça (a ilha não tem carros)
+//   4 Praias badaladas: Toca do Morcego, tirolesa, barracas da Segunda Praia, lanchas de passeio
+//   5 Morro Paradise (resort da Quarta Praia): palafitas, piscina, marina com iates, farol aceso e fogos de réveillon
+// Nível atual: modelo.userData.nivel()
+// Extras: alternarNomes() (placas dos pontos conhecidos), alternarVida() (pausa as animações), base.visible=false (esconde a base de madeira)
+// Tamanho: diâmetro ~22 unidades, centro em (0,0,0), norte = -z (Morro e Farol), praias a leste (+x), baía a oeste (-x).
+
+function criarMorroSaoPaulo(THREE){
+  const T=THREE,PI=Math.PI,g=new T.Group(); g.name='MorroSaoPaulo';
+  let sd=11; const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+  const C={}; const mt=(c,o)=>{const k=c+JSON.stringify(o||0);return C[k]||(C[k]=new T.MeshStandardMaterial(Object.assign({color:c,flatShading:true,roughness:.8},o)))};
+  let cur=g;
+  const put=(o,x,y,z)=>{o.position.set(x,y,z);cur.add(o);return o};
+  const bx=(w,h,d,c,x=0,y=0,z=0)=>{const q=new T.BoxGeometry(w,h,d);q.translate(0,h/2,0);return put(new T.Mesh(q,Array.isArray(c)?c:mt(c)),x,y,z)};
+  const cy=(r1,r2,h,c,x=0,y=0,z=0,s=10)=>{const q=new T.CylinderGeometry(r1,r2,h,s);q.translate(0,h/2,0);return put(new T.Mesh(q,mt(c)),x,y,z)};
+  const co=(r,h,c,x,y,z,s=4)=>cy(0,r,h,c,x,y,z,s);
+  const sp=(r,c,x,y,z,sx=1,sy=1,sz=1)=>{const o=put(new T.Mesh(new T.SphereGeometry(r,10,8),mt(c)),x,y,z);o.scale.set(sx,sy,sz);return o};
+  const dome=(r,sy,c,x,y,z)=>{const o=put(new T.Mesh(new T.SphereGeometry(r,14,8,0,PI*2,0,PI/2),mt(c)),x,y,z);o.scale.y=sy;return o};
+  const rf=(w,h,d,c,x=0,y=0,z=0,ry=0)=>{const q=new T.ExtrudeGeometry(new T.Shape([new T.Vector2(-w/2,0),new T.Vector2(w/2,0),new T.Vector2(0,h)]),{depth:d,bevelEnabled:false});q.translate(0,0,-d/2);const o=put(new T.Mesh(q,mt(c)),x,y,z);o.rotation.y=ry;return o};
+  const cabo=(a,b,r,c)=>{const d=new T.Vector3().subVectors(b,a),L=d.length();const o=new T.Mesh(new T.CylinderGeometry(r,r,L,6),mt(c));o.position.copy(a).addScaledVector(d,.5);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());cur.add(o);return o};
+  const lamp=new T.MeshStandardMaterial({color:0xffe2a0,emissive:0xffc860,emissiveIntensity:.5});
+  const itens=[],an=[],nomes=[],sway=[]; let nivel=0,t=0,vai=true,mostrarNomes=true,noite=0,raio=null;
+
+  /* item = grupo que aparece/some conforme o nível, com mola (como na Feira) */
+  function item(min,max,x,z,fn,ry=0,y=.4){
+    const h=new T.Group(); h.position.set(x,y,z); h.rotation.y=ry; cur=h; fn();
+    h.traverse(o=>{if(o.isMesh)o.castShadow=o.receiveShadow=true});
+    h.scale.setScalar(.001); h.visible=false; g.add(h); cur=g;
+    const it={g:h,y,min,max,s:0,v:0,alvo:0,alvoNovo:0,atraso:0}; itens.push(it); return it;
+  }
+  function placa(txt,y,x=0,z=0){
+    const c=document.createElement('canvas'); c.width=512; c.height=88; const a=c.getContext('2d');
+    a.fillStyle='rgba(15,25,35,.86)'; a.beginPath(); a.roundRect?a.roundRect(0,0,512,88,40):a.rect(0,0,512,88); a.fill();
+    a.fillStyle='#fff'; a.font='600 36px system-ui,sans-serif'; a.textAlign='center'; a.textBaseline='middle'; a.fillText(txt,256,46);
+    const s=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(c),depthTest:false,transparent:true}));
+    s.scale.set(2.5,.43,1); s.position.set(x,y,z); s.renderOrder=9; cur.add(s); nomes.push(s);
+  }
+
+  /* ---------- terreno: base, mar, águas rasas turquesa, areia e a ilha ---------- */
+  const CX=-.3, hw=z=>(3.9+.5*Math.sin(z*.5))*Math.sqrt(Math.max(0,1-Math.pow(Math.abs(z)/10,6)));
+  const ee=z=>CX+hw(z), ww=z=>CX-hw(z);
+  const forma=(oe,ow)=>{const p=[];for(let z=-9.9;z<=9.91;z+=.4){const h=hw(z);p.push(new T.Vector2(CX+h+oe*Math.min(1,h/2),-z))}for(let z=9.9;z>=-9.91;z-=.4){const h=hw(z);p.push(new T.Vector2(CX-h-ow*Math.min(1,h/2),-z))}return new T.Shape(p)};
+  const ext=(sh,d,c)=>{const q=new T.ExtrudeGeometry(sh,{depth:d,bevelEnabled:false});q.rotateX(-PI/2);const o=new T.Mesh(q,mt(c));o.receiveShadow=true;g.add(o)};
+  const base=new T.Group(); g.add(base); g.userData.base=base; cur=base;
+  put(new T.Mesh(new T.CylinderGeometry(11.3,11.6,.5,64),mt(0x3b2a1e)),0,-.25,0);
+  put(new T.Mesh(new T.TorusGeometry(11.35,.12,8,64),mt(0xd4a72c,{metalness:.5,roughness:.4})),0,0,0).rotation.x=PI/2; cur=g;
+  put(new T.Mesh(new T.CylinderGeometry(10.95,10.95,.3,64),mt(0x14608f)),0,.15,0);
+  const mar=put(new T.Mesh(new T.RingGeometry(.01,10.9,64,20),mt(0x1fa3d8,{roughness:.3})),0,.3,0); mar.rotation.x=-PI/2; mar.receiveShadow=true;
+  const pm=mar.geometry.attributes.position,mx=[],my=[]; for(let i=0;i<pm.count;i++){mx.push(pm.getX(i));my.push(pm.getY(i))}
+  ext(forma(2.6,1.4),.33,0x45d6c8); ext(forma(.8,.5),.36,0xf0dfae); ext(forma(0,0),.4,0x6fb256);
+
+  /* ---------- nível 0: o Morro, mata atlântica, ilhotas e golfinhos ---------- */
+  const hh=(dx,dz)=>.6*Math.sqrt(Math.max(0,6.76-dx*dx-dz*dz));
+  item(0,9,-.5,-6.2,()=>dome(2.6,.6,0x3f8f3a,0,-.05,0));
+  [[1.5,.6],[.6,1.7],[1.1,-1.0],[-1.2,-1.3],[0,-1.8],[1.9,-.3],[-.2,.9],[-1.5,-.2]].forEach(([dx,dz],i)=>item(0,9,-.5+dx,-6.2+dz,()=>{cy(.04,.06,.3,0x6b4a2a,0,0,0,6);sp(.34,i%2?0x2f7d32:0x3b9a3c,0,.5,0,1,.9,1)},i,.4+hh(dx,dz)-.15));
+  function palma(){cy(.04,.07,.85,0x8a6a3f,0,0,0,6);const cr=new T.Group();cr.position.y=.85;cur.add(cr);const lg=new T.BoxGeometry(.55,.02,.14);lg.translate(.27,0,0);for(let i=0;i<6;i++){const l=new T.Mesh(lg,mt(0x2f9e44));l.rotation.y=i*1.047;l.rotation.z=-.35;cr.add(l)}cr.add(new T.Mesh(new T.SphereGeometry(.05,6,5),mt(0x6b4a2a)));sway.push(cr)}
+  item(0,9,-8,.8,()=>{dome(.9,.7,0x4f9e44,0,-.1,0);palma();placa('Ilha da Saudade',1.5)},0,.3);
+  item(0,9,-7.6,-6,()=>dome(.55,.7,0x5fae4a,0,-.1,0),0,.3);
+  const del=[]; for(let i=0;i<2;i++){const d=new T.Group();cur=d;sp(.1,0x6d7b8a,0,0,0,2.8,.9,.9);co(.05,.12,0x5a6877,0,.07,0,3);sp(.05,0x6d7b8a,.3,-.01,0,1.6,.6,.6);g.add(d);del.push({d,i});cur=g}
+  [-5,-3,-1,1,3,5,7].forEach(z=>item(0,9,ee(z)+.1,z,palma,z,.33));
+  [-5,-2,2,5].forEach(z=>item(0,9,ww(z)-.05,z,palma,z+1,.33));
+
+  /* ---------- nível 1: Fortaleza de Tapirandu e aldeia de pescadores ---------- */
+  item(1,9,-2.8,-8.3,()=>{const p=0xb9a98a;bx(1.7,.5,1.5,p);for(let i=0;i<6;i++){bx(.16,.14,.16,p,-.72+i*.29,.5,.67);bx(.16,.14,.16,p,-.72+i*.29,.5,-.67)}for(let i=0;i<3;i++){bx(.16,.14,.16,p,-.77,.5,-.35+i*.35);bx(.16,.14,.16,p,.77,.5,-.35+i*.35)}
+    [[-.85,-.75],[.85,-.75],[-.85,.75],[.85,.75]].forEach(([x,z])=>{cy(.2,.22,.75,p,x,0,z,8);co(.24,.2,0x8c4a32,x,.75,z,8)});
+    bx(.34,.38,.03,0x3a2a1a,0,0,.76);[-.4,.4].forEach(x=>cy(.04,.05,.4,0x2b2b2b,x,.5,.5,8).rotation.x=PI/2.6);
+    cy(.015,.015,.8,0x5a3a22,0,.5,0,5);const fl=bx(.3,.18,.01,0xd8332a,.16,1.1,0);an.push(tt=>fl.rotation.y=Math.sin(tt*3)*.35);placa('Fortaleza de Tapirandu',1.9)},PI/6);
+  const choupana=()=>{bx(.5,.3,.5,0xd9c08f);co(.5,.4,0xb89452,0,.3,0,4).rotation.y=PI/4;bx(.12,.2,.02,0x4a3320,0,0,.25)};
+  [[-3.0,.2],[-3.3,1.6],[-2.9,3.1],[-2.9,-1],[-2.9,4.6]].forEach(([x,z],i)=>item(1,2,x,z,choupana,i));
+  const barco=(mn,mx2,x,z,fn)=>item(mn,mx2,x,z,()=>{const q=new T.Group();cur.add(q);cur=q;fn();an.push(tt=>{q.position.y=Math.sin(tt*1.5+x)*.03;q.rotation.z=Math.sin(tt+x)*.04;q.position.x=Math.sin(tt*.2+z)*.7})},0,.28);
+  barco(1,2,-6,-.4,()=>{sp(.3,0x8a5a32,0,.05,0,1.7,.4,.45);sp(.07,0xe8a317,.1,.25,0)});
+  barco(1,2,5.8,-2.5,()=>{sp(.3,0x8a5a32,0,.05,0,1.7,.4,.45);sp(.07,0xd8332a,-.1,.25,0)});
+
+  /* ---------- nível 2: Vila (Portal, igrejinha, Fonte Grande, Praça Aureliano Lima) ---------- */
+  item(2,9,-3.2,-3.4,()=>{const c=0x9a8f7a;bx(.4,1.2,.5,c,-.5);bx(.4,1.2,.5,c,.5);put(new T.Mesh(new T.TorusGeometry(.5,.12,6,14,PI),mt(c)),0,1.2,0);[-.64,.64].forEach(x=>bx(.28,.6,.5,c,x,1.2,0));bx(1.6,.25,.5,c,0,1.82,0);[-.7,.7].forEach(x=>co(.12,.25,c,x,2.07,0,4));co(.1,.28,0x8c4a32,0,2.07,0,4);placa('Portal de Morro de São Paulo',2.7)},PI/2);
+  item(2,9,-1.6,-1.2,()=>{bx(.8,.55,1.1,0xf8f4ea);rf(.86,.3,1.15,0xb5502f,0,.55,0);bx(.35,1,.35,0xf8f4ea,0,0,.7);co(.25,.35,0x2e6fb7,0,1,.7,4).rotation.y=PI/4;bx(.025,.2,.025,0xd4a72c,0,1.33,.7);bx(.16,.26,.02,0x5a3a22,0,0,.88);bx(.1,.12,.02,0x2d4a63,0,.62,.88);placa('Igrejinha de N. Sra. da Luz',1.9)},PI/2);
+  item(2,9,-2.1,-.2,()=>{const p=0xa59b86;bx(1.1,.75,.35,p);bx(.4,.45,.05,0x2a2a2a,0,.12,.18);cy(.2,.2,.04,p,0,.57,.18,12);bx(1.15,.14,.55,p,0,0,.5);bx(1.0,.11,.45,0x3aa0e0,0,.04,.5);cy(.02,.02,.2,0x8fd8ff,0,.25,.22,6);placa('Fonte Grande (1746)',1.35)},PI/2);
+  item(2,9,0,-1.2,()=>{cy(.95,.95,.03,0xc9c2b0,0,0,0,24);placa('Praça Aureliano Lima',1.6)});
+  item(2,9,.45,-1.55,()=>{cy(.06,.08,.5,0x6b4a2a,0,0,0,6);sp(.55,0x2f8f3a,0,.85,0,1.2,.7,1.2);sp(.35,0x3c9f40,.4,.95,.1)});
+  const casa=c=>()=>{bx(.9,.5,.7,c);bx(.93,.04,.73,0xffffff,0,.5);rf(.77,.3,.97,0xb5502f,0,.54,0,PI/2);bx(.16,.28,.02,0x5a3a22,0,0,.35);bx(.14,.14,.02,0x2d4a63,-.3,.22,.35);bx(.14,.14,.02,0x2d4a63,.3,.22,.35)};
+  [[-1.1,.4,0xf4a6a0,PI/2],[-1.1,1.7,0xf2d15c,PI/2],[-1.1,3,0x7fb8d9,PI/2],[1.1,.5,0xe98f4a,-PI/2],[1.1,1.8,0x8fc99a,-PI/2],[1.1,3.1,0xf4a6a0,-PI/2],[.9,-3,0x7fb8d9,0],[-1,-3,0xf2d15c,0]].forEach(([x,z,c,r])=>item(2,9,x,z,casa(c),r));
+  const rua=c=>()=>{bx(.7,.015,12.6,c,0,0,2.8);bx(3.4,.015,.55,c,1.7,0,-1.2)};
+  item(2,2,0,0,rua(0xe8d3a0)); item(3,9,0,0,rua(0x9c968a));
+  item(2,9,-5,-2,()=>{bx(2.6,.2,.5,0x8b5e3c,0,-.15,0);[-1.1,0,1.1].forEach(x=>[-.2,.2].forEach(z=>cy(.04,.04,.5,0x5a3a22,x,-.4,z,6)))});
+  barco(2,3,-6.4,1.6,()=>{bx(1.1,.18,.4,0x7a4a2a);cy(.025,.025,.9,0x5a3a22,.1,.15,0,6);rf(.75,.85,.03,0xf5f0e0,.3,.3,0)});
+  barco(2,3,7.4,3,()=>{bx(1.1,.18,.4,0x2e6fb7);cy(.025,.025,.9,0x5a3a22,.1,.15,0,6);rf(.75,.85,.03,0xffd23f,.3,.3,0)});
+
+  /* ---------- nível 3: Farol, feirinha, pousadas, catamarã, carroça ---------- */
+  raio=new T.MeshBasicMaterial({color:0xffeaa0,transparent:true,opacity:.2,depthWrite:false});
+  item(3,9,-.5,-6.2,()=>{bx(.8,.4,.8,0xf4f0e6);cy(.28,.22,1.5,0xf8f8f4,0,.4,0,16);cy(.265,.255,.2,0xd8332a,0,.9,0,16);cy(.34,.34,.06,0x333333,0,1.9,0,16);cy(.17,.17,.32,0xa8dcec,0,1.96,0,12);co(.2,.2,0x333333,0,2.28,0,12);
+    const b=new T.Group();b.position.y=2.1;cur.add(b);const m=new T.Mesh(new T.BoxGeometry(2.2,.05,.12),raio);m.position.x=1.1;b.add(m);an.push(tt=>b.rotation.y=tt*1.8);placa('Farol do Morro',2.8)},0,1.85);
+  [[0,0xd8332a],[1,0x2e6fb7],[2,0xf2c744],[3,0x3a9d5d],[4,0xe05fa5]].forEach(([i,c])=>{const a=PI*.12+i*PI*.44;item(3,9,Math.cos(a)*1.2,-1.2+Math.sin(a)*1.2,()=>{bx(.4,.18,.28,0x8b5e3c);co(.36,.22,c,0,.5,0,8);cy(.015,.015,.5,0x5a3a22,-.15,0,-.1,5);cy(.015,.015,.5,0x5a3a22,.15,0,.1,5);sp(.05,lamp,0,.42,0);if(!i)placa('Feirinha de artesanato',1.2)},a)});
+  const pousada=(w,fl)=>()=>{bx(w,.45*fl+.1,.8,0xf6efe0);for(let k=1;k<fl;k++)bx(w+.1,.04,.95,0x8b5e3c,0,.45*k,0);co(w*.75,.4,0xc9a24a,0,.45*fl+.1,0,8).scale.set(1,1,.8);bx(.16,.28,.02,0x5a3a22,0,0,.4);bx(.14,.14,.02,0x2e6fb7,-.35,.2,.4);bx(.14,.14,.02,0x2e6fb7,.35,.2,.4)};
+  [[-2.5,1,PI/2],[-2.5,2.6,PI/2],[2.1,-3.1,0]].forEach(([x,z,r])=>item(3,9,x,z,pousada(1.1,2),r));
+  item(3,3,-6,-3.4,()=>{const q=new T.Group();cur.add(q);cur=q;bx(1.7,.16,.5,0xffffff);bx(1.3,.2,.46,0x2e6fb7,0,.16,0);bx(1.1,.07,.47,0x1f2c40,0,.3,0);bx(.5,.18,.3,0xffffff,-.2,.36,0);an.push(tt=>{q.position.y=Math.sin(tt*1.3)*.03;q.rotation.z=Math.sin(tt)*.02});placa('Catamarã de Salvador',1.2)},0,.28);
+  [[-.17,0,3],[.17,1,3]].forEach(([x],i)=>item(3,9,0,0,()=>{const q=new T.Group();q.position.y=.02;cur.add(q);cur=q;bx(.3,.08,.22,0x8b5e3c,0,.12,0);[-.1,.1].forEach(s=>cy(.07,.07,.03,0x222222,0,.07,s*1.5,8).rotation.x=PI/2);bx(.32,.16,.1,0x6b4a2a,.0,.12,.3);sp(.06,0x6b4a2a,0,.32,.34,1,1,1.5);an.push(tt=>{q.position.z=3+Math.sin(tt*.2)*5.5;q.rotation.y=Math.cos(tt*.2)>0?0:PI})}));
+  const guarda=(c)=>()=>{cy(.02,.02,.45,0xffffff);co(.34,.16,c,0,.45,0,8)};
+  [-2.3,-.2,.9,2.4,3.9].forEach((z,i)=>item(3,9,ee(z)+.55,z,guarda(i%2?0xd8332a:0xf2c744),i,.33));
+
+  /* ---------- nível 4: Toca do Morcego, tirolesa, barracas, lanchas ---------- */
+  item(4,9,-2.4,-5,()=>{bx(1,.1,.9,0x8b5e3c);[[-.4,-.35],[.4,-.35],[-.4,.35],[.4,.35]].forEach(([x,z])=>{cy(.04,.05,.5,0x5a3a22,x,-.5,z,6);cy(.03,.03,.7,0x5a3a22,x,.1,z,6)});co(.75,.4,0xc9a24a,0,.8,0,8);[[-.2,0],[.2,.15]].forEach(([x,z])=>{bx(.25,.05,.25,0xffffff,x,.25,z);cy(.02,.02,.2,0x5a3a22,x,.1,z,5)});sp(.05,lamp,0,.78,0);placa('Toca do Morcego · pôr do sol',1.5)},PI/2,1.13);
+  item(4,9,.2,-6,()=>{const a=new T.Vector3(0,.8,0),b=new T.Vector3(3.2,-.85,5.4);bx(.06,.6,.06,0xb9bcc2,0,.1,0);bx(.06,.7,.06,0xb9bcc2,3.2,-1.5,5.4);cabo(a,b,.012,0x333333);
+    const ig=cur,r=new T.Group();ig.add(r);cur=r;bx(.07,.16,.05,0xe0522d,0,-.3,0);sp(.045,0xf0c9a0,0,-.1,0);bx(.01,.12,.01,0x333333,0,-.14,0);cur=ig;
+    an.push(tt=>{const s=(tt*.12)%1.3,p=Math.min(1,s);r.visible=s<1.05;r.position.lerpVectors(a,b,Math.pow(p,1.3))});placa('Tirolesa do Farol',1.3,1.6,2.7)});
+  [0,1.1,2.2,3.3].forEach((z,i)=>item(4,9,ee(z)-.25,z,()=>{[[-.25,-.25],[.25,-.25],[-.25,.25],[.25,.25]].forEach(([x,zz])=>cy(.02,.02,.5,0x5a3a22,x,0,zz,5));co(.5,.3,0xc9a24a,0,.5,0,8);bx(.5,.18,.16,0x8b5e3c,0,0,.3);bx(.4,.1,.12,[0xd8332a,0x2e6fb7,0xf2c744,0x3a9d5d][i],0,.18,.3);if(!i)placa('Segunda Praia',1.2)},-PI/2));
+  [-1.2,.4,1.6,3.1].forEach((z,i)=>item(4,9,ee(z)+.95,z,guarda(i%2?0xffffff:0x2e6fb7),i,.33));
+  item(4,9,2.4,4.3,pousada(1.4,3),PI/2); item(4,9,-2.5,5.4,pousada(1.2,2),PI/2);
+  const lancha=(x,z,c)=>barco(4,9,x,z,()=>{bx(.9,.15,.32,0xffffff);bx(.5,.04,.34,c,0,.1,0);bx(.35,.2,.26,0xdcecf5,.1,.15,0);bx(.4,.03,.3,c,.1,.35,0)});
+  lancha(6.6,-1,0xd8332a); lancha(7.4,.8,0x2e6fb7); lancha(-7,-3.5,0xf2c744);
+
+  /* ---------- nível 5: Morro Paradise (resort da Quarta Praia), marina e fogos ---------- */
+  item(5,9,.4,7.7,()=>{const w=0xf6efe0;bx(2.4,.9,1.1,w);bx(2,.6,.9,w,0,.9,0);bx(2.2,.05,.3,0x8b5e3c,0,.9,.6);co(1.5,.7,0xc9a24a,0,1.5,0,10).scale.set(1.25,1,.7);for(let i=0;i<5;i++)bx(.28,.3,.02,0x2e6fb7,-.9+i*.45,.3,.56);bx(.3,.5,.02,0x5a3a22,0,0,.56);placa('Resort Quarta Praia',2.5)},PI/2);
+  item(5,9,1.9,5.8,()=>{bx(1.7,.05,.9,0xf5f5f5);bx(1.5,.07,.7,0x39c6e8,0,0,0);[-.6,-.2,.2,.6].forEach(x=>bx(.22,.08,.4,0xffffff,x,0,.65));[-.4,.4].forEach(x=>{cy(.02,.02,.5,0xffffff,x,0,-.65,5);co(.3,.12,0xe05fa5,x,.5,-.65,8)})});
+  [[-2,7.2],[-2,8.3]].forEach(([x,z])=>item(5,9,x,z,()=>{bx(.7,.4,.7,0xf1e6cf);co(.65,.45,0xc9a24a,0,.4,0,8);bx(.14,.24,.02,0x5a3a22,0,0,.36)},PI/2));
+  [5,6.4,7.8].forEach((z,i)=>item(5,9,5.6,z,()=>{[[-.3,-.3],[.3,-.3],[-.3,.3],[.3,.3]].forEach(([x,zz])=>cy(.03,.03,.45,0x5a3a22,x,-.3,zz,5));bx(.9,.06,.9,0x8b5e3c,0,.15,0);bx(.6,.35,.6,0xffffff,0,.21,0);co(.55,.3,0xc9a24a,0,.56,0,8);if(!i)placa('Palafitas',1.3)},0,.33));
+  item(5,9,4.7,6.4,()=>{bx(.3,.06,3.6,0x8b5e3c,0,.15,0);[-1.6,0,1.6].forEach(z=>cy(.03,.03,.45,0x5a3a22,0,-.3,z,5))},0,.33);
+  item(5,9,-6,4.2,()=>{bx(2.8,.2,.5,0x8b5e3c,0,-.15,0);[-1.2,0,1.2].forEach(x=>[-.2,.2].forEach(z=>cy(.04,.04,.5,0x5a3a22,x,-.4,z,6)));placa('Marina · Iates',1.2)});
+  [[-6.2,3.3],[-5.8,5.1]].forEach(([x,z],i)=>barco(5,9,x,z,()=>{bx(1.5,.2,.48,0xffffff);bx(1.5,.05,.49,0x1f3a6b,0,.08,0);bx(.8,.2,.38,0xf5f5f5,-.1,.2,0);bx(.5,.16,.3,0xdcecf5,-.1,.4,0);cy(.01,.01,.5,0xffffff,-.2,.56,0,4)}));
+  const fogos=[]; item(5,9,0,0,()=>{[[6.5,6,-4,0xffd23f],[-7,6.5,2,0xff5aa5],[0,7.5,-9,0x5fd0ff]].forEach(([x,y,z,c],k)=>{const N=48,pos=new Float32Array(N*3),dir=[];for(let i=0;i<N;i++){const a=rnd()*PI*2,b=Math.acos(2*rnd()-1);dir.push([Math.sin(b)*Math.cos(a),Math.cos(b),Math.sin(b)*Math.sin(a)])}
+    const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(pos,3));const mat=new T.PointsMaterial({color:c,size:.16,transparent:true,depthWrite:false,blending:T.AdditiveBlending});const P=new T.Points(geo,mat);P.frustumCulled=false;cur.add(P);fogos.push({geo,mat,dir,o:[x,y,z],k,N,pos})})},0,0);
+
+  /* ---------- gaivotas e nuvens (sempre presentes) ---------- */
+  const gaiv=[]; for(let i=0;i<4;i++){const h=new T.Group();cur=h;const l=new T.Mesh(new T.BoxGeometry(.3,.02,.08).translate(.15,0,0),mt(0xffffff)),r=new T.Mesh(new T.BoxGeometry(.3,.02,.08).translate(-.15,0,0),mt(0xffffff));h.add(l,r);sp(.05,0xffffff,0,0,0,1,1,1.8);g.add(h);gaiv.push({h,l,r,i});cur=g}
+  const nuv=[]; for(let i=0;i<5;i++){const h=new T.Group();cur=h;[[0,0,0,1],[.8,-.1,.2,.75],[-.8,-.1,-.1,.7]].forEach(([x,y,z,s])=>sp(s,0xffffff,x,y,z,1.3,.7,1));h.children.forEach(m=>m.material=mt(0xffffff,{transparent:true,opacity:.9,roughness:1}));h.position.set(-16+i*7,7+i%2*1.5,-8+i*4);g.add(h);nuv.push(h);cur=g}
+
+  /* ---------- níveis ---------- */
+  const aplicar=()=>itens.forEach(it=>{it.alvoNovo=nivel>=it.min&&nivel<=it.max?1:0;it.atraso=rnd()*.7});
+  g.userData.definirNivel=n=>{nivel=Math.max(0,Math.min(5,n|0));aplicar();return nivel};
+  g.userData.nivel=()=>nivel;
+  g.userData.alternarVida=()=>(vai=!vai);
+  g.userData.alternarNomes=()=>{mostrarNomes=!mostrarNomes;nomes.forEach(s=>s.visible=mostrarNomes);return mostrarNomes};
+  aplicar(); itens.forEach(it=>{it.alvo=it.alvoNovo;it.s=it.alvo;it.atraso=0;it.g.visible=it.alvo>0;it.g.scale.setScalar(Math.max(.001,it.s))});
+
+  g.userData.tick=dt=>{
+    dt=Math.min(dt,.05);
+    itens.forEach(it=>{
+      if(it.alvoNovo!==it.alvo){it.atraso-=dt;if(it.atraso<=0)it.alvo=it.alvoNovo}
+      it.v+=(it.alvo-it.s)*dt*110;it.v*=Math.exp(-dt*8);it.s+=it.v*dt;const s=Math.max(0,it.s);
+      it.g.visible=s>.01||it.alvo>0;it.g.scale.setScalar(Math.max(.001,s));it.g.position.y=it.y+(1-Math.min(1,s))*1.2;
+    });
+    if(!vai)return; t+=dt;
+    an.forEach(f=>f(t)); sway.forEach((c,i)=>c.rotation.z=Math.sin(t*1.4+i)*.06);
+    for(let i=0;i<pm.count;i++)pm.setZ(i,Math.sin(mx[i]*.9+t*1.5)*.04+Math.cos(my[i]*1.1+t*1.2)*.04); pm.needsUpdate=true;
+    gaiv.forEach(({h,l,r,i})=>{const a=t*(.3+i*.05)+i*1.6;h.position.set(3+Math.cos(a)*(5+i*1.2),3.5+i*.4+Math.sin(t+i)*.2,Math.sin(a)*(5+i*1.2));h.rotation.y=-a;const f=Math.sin(t*8+i)*.5;l.rotation.z=f;r.rotation.z=-f});
+    nuv.forEach((c,i)=>{c.position.x+=dt*(.25+i*.05);if(c.position.x>18)c.position.x=-18});
+    del.forEach(({d,i})=>{const a=(t*.3+i*.5)%1;if(a<.45){const u=a/.45;d.visible=true;d.position.set(6.8+i*1.2+u*1.6,.3+Math.sin(u*PI)*.55-.08,i?3.6:-4.6);d.rotation.z=Math.cos(u*PI)*.8}else d.visible=false});
+    noite+=((nivel===5?1:0)-noite)*Math.min(1,dt*1.5); lamp.emissiveIntensity=.5+1.1*noite; if(raio)raio.opacity=.18+.45*noite;
+    if(nivel>=5)fogos.forEach(f=>{const u=((t+f.k*1.3)%3.6)/3.6,e=Math.min(1,u/.45),R=2*(1-(1-e)*(1-e));for(let i=0;i<f.N;i++){const d=f.dir[i];f.pos[i*3]=f.o[0]+d[0]*R;f.pos[i*3+1]=f.o[1]+d[1]*R-u*u*1.2;f.pos[i*3+2]=f.o[2]+d[2]*R}f.geo.attributes.position.needsUpdate=true;f.mat.opacity=u<.45?1:Math.max(0,1-(u-.45)/.55);f.mat.size=u<.05?.05:.16});
+  };
+  return g;
+}
