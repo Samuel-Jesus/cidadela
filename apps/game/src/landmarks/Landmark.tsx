@@ -19,6 +19,7 @@ import { ParipeLandmark } from "./ParipeLandmark";
 import { FeiraSaoJoaquimLandmark } from "./FeiraSaoJoaquimLandmark";
 import { FitinhaDoBonfimLandmark } from "./FitinhaDoBonfimLandmark";
 import { IlheusLandmark } from "./IlheusLandmark";
+import { CachoeiraLandmark } from "./CachoeiraLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -38,6 +39,7 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     index === 5 ||
     index === 6 ||
     index === 7 ||
+    index === 8 ||
     index === 10 ||
     index === 11 ||
     index === 22 ||
@@ -104,6 +106,15 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   if (index === 7 || index === 22 || index === 36) {
     return (
       <FitinhaDoBonfimLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
+  }
+  if (index === 8) {
+    return (
+      <CachoeiraLandmark
         accent={accent}
         fitWidth={fitWidth}
         fitDepth={fitDepth}
@@ -185,8 +196,6 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
 
 function LandmarkMesh({ index }: { index: number }): ReactNode {
   switch (index) {
-    case 8:
-      return <Cachoeira />;
     case 9:
       return <Valenca />;
     case 13:
@@ -222,17 +231,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
     default:
       return <Box args={[0.4, 0.4, 0.4]} position={[0, 0.2, 0]} color="#aaaaaa" />;
   }
-}
-
-function Cachoeira() {
-  return (
-    <Group>
-      <Box args={[0.7, 0.55, 0.35]} position={[0, 0.3, -0.1]} color="#7f8c8d" />
-      <Box args={[0.2, 0.5, 0.12]} position={[0, 0.28, 0.15]} color="#5dade2" />
-      <Box args={[0.55, 0.08, 0.4]} position={[0, 0.05, 0.25]} color="#3498db" />
-      <Cone args={[0.18, 0.3, 6]} position={[-0.35, 0.55, -0.15]} color="#1e8449" />
-    </Group>
-  );
 }
 
 function Valenca() {
