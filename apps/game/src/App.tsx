@@ -55,6 +55,7 @@ import {
   LobbyScreen,
   type LobbyStartMeta,
 } from "./ui/LobbyScreen";
+import { SfxAdminScreen } from "./ui/SfxAdminScreen";
 import { TradeOverlay } from "./ui/TradeOverlay";
 import { VictoryOverlay } from "./ui/VictoryOverlay";
 import { WalletPanel } from "./ui/WalletPanel";
@@ -86,7 +87,12 @@ import {
   OnlineStatusBanner,
   type OnlineSyncStatus,
 } from "./ui/OnlineStatusBanner";
-import { playCarnavalMusic, playGameSfx, stopCarnavalMusic } from "./audio/sfx";
+import {
+  ensureSfxOverridesReady,
+  playCarnavalMusic,
+  playGameSfx,
+  stopCarnavalMusic,
+} from "./audio/sfx";
 
 const UNLUCKY_CARD_EFFECTS = new Set([
   "go_to_jail",
@@ -165,7 +171,7 @@ function isUnownedBuyable(
 const LOADING_MIN_MS = 2200;
 const LOADING_LAND_MS = 700;
 
-type AppScreen = "loading" | "lobby" | "game";
+type AppScreen = "loading" | "lobby" | "game" | "sfx-admin";
 
 export function App() {
   const { t } = useTranslation();
@@ -244,9 +250,15 @@ export function App() {
     : null;
 
   useEffect(() => {
+    void ensureSfxOverridesReady();
+  }, []);
+
+  useEffect(() => {
     if (screen !== "loading") return;
     let cancelled = false;
     const started = performance.now();
+    const wantSfxAdmin =
+      new URLSearchParams(window.location.search).get("admin") === "sfx";
 
     void preloadGameAssets((p) => {
       if (!cancelled) setLoadProgress(p);
@@ -263,7 +275,7 @@ export function App() {
         const elapsed = performance.now() - started;
         const wait = Math.max(LOADING_LAND_MS, LOADING_MIN_MS - elapsed);
         window.setTimeout(() => {
-          if (!cancelled) setScreen("lobby");
+          if (!cancelled) setScreen(wantSfxAdmin ? "sfx-admin" : "lobby");
         }, wait);
       });
 
@@ -1892,7 +1904,16 @@ export function App() {
   }
 
   if (screen === "lobby") {
-    return <LobbyScreen onStart={startFromLobby} />;
+    return (
+      <LobbyScreen
+        onStart={startFromLobby}
+        onOpenSfxAdmin={() => setScreen("sfx-admin")}
+      />
+    );
+  }
+
+  if (screen === "sfx-admin") {
+    return <SfxAdminScreen onBack={() => setScreen("lobby")} />;
   }
 
   return (

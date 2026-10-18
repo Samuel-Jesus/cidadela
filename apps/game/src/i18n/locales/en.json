@@ -177,6 +177,33 @@
     "action": "Buy or end turn",
     "debt": "Debt ${{amount}} — settle or go bankrupt"
   },
+  "sfxAdmin": {
+    "kicker": "Tools",
+    "title": "Sounds",
+    "blurb": "See which actions already have SFX, preview them, and replace with a local upload (this device only).",
+    "back": "Back to Lobby",
+    "play": "Play",
+    "stop": "Stop",
+    "upload": "Replace",
+    "reset": "Default",
+    "resetAll": "Clear all",
+    "default": "Default",
+    "custom": "Custom",
+    "loading": "Loading overrides…",
+    "hintLocal": "Uploads stay in this browser’s IndexedDB — they don’t overwrite project files.",
+    "customCount": "{{n}} replaced",
+    "uploadFail": "Upload failed.",
+    "resetFail": "Could not restore default.",
+    "plannedKicker": "Roadmap",
+    "plannedTitle": "Not wired in code yet",
+    "open": "Sounds / Admin",
+    "cat": {
+      "ui": "Interface",
+      "dice": "Dice",
+      "game": "Gameplay",
+      "carnaval": "Carnival"
+    }
+  },
   "online": {
     "syncing": "Syncing game…",
     "reconnecting": "Reconnecting…",

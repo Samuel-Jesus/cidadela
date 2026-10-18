@@ -92,12 +92,12 @@ cidadela/
         sounds/      # ui/ · carnaval/ · dice/ · game/ (grana, aluguel, leilão, vez, sem_sorte)
         flags/       # br · us · sa (LanguagePicker)
       src/
-        audio/       # sfx.ts · SfxMuteButton · playCarnavalMusic
+        audio/       # sfx.ts · sfxCatalog · sfxOverrides (IndexedDB) · mute
         i18n/        # pt-BR · en · ar + tCard
         landmarks/   # modelos 3D por casa
         scene/       # BoardCanvas, tiles, peões, dados
         session/     # room · gameSync · onlinePersist · gameSnapshot
-        ui/          # BoardHud · Wallet · OnlineStatusBanner · overlays
+        ui/          # BoardHud · Wallet · SfxAdminScreen · overlays
   supabase/
     migrations/      # 001_rooms_games.sql
 ```

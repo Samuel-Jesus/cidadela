@@ -177,6 +177,33 @@
     "action": "Comprar ou passar a vez",
     "debt": "Dívida ${{amount}} — liquide ou falência"
   },
+  "sfxAdmin": {
+    "kicker": "Ferramentas",
+    "title": "Sons",
+    "blurb": "Veja o que já tem efeito sonoro, ouça e substitua com upload local (fica só neste aparelho).",
+    "back": "Voltar ao Lobby",
+    "play": "Ouvir",
+    "stop": "Parar",
+    "upload": "Substituir",
+    "reset": "Padrão",
+    "resetAll": "Limpar tudo",
+    "default": "Padrão",
+    "custom": "Custom",
+    "loading": "Carregando overrides…",
+    "hintLocal": "Uploads ficam no IndexedDB deste navegador — não sobrescrevem os arquivos do projeto.",
+    "customCount": "{{n}} substituído(s)",
+    "uploadFail": "Falha no upload.",
+    "resetFail": "Falha ao restaurar.",
+    "plannedKicker": "Roadmap",
+    "plannedTitle": "Ainda sem slot no código",
+    "open": "Sons / Admin",
+    "cat": {
+      "ui": "Interface",
+      "dice": "Dados",
+      "game": "Partida",
+      "carnaval": "Carnaval"
+    }
+  },
   "online": {
     "syncing": "Sincronizando partida…",
     "reconnecting": "Reconectando…",

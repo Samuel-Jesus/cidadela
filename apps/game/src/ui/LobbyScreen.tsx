@@ -61,6 +61,7 @@ export type LobbyStartMeta = {
 
 type Props = {
   onStart: (setup: LobbySetup, meta?: LobbyStartMeta) => void;
+  onOpenSfxAdmin?: () => void;
 };
 
 type Phase = "home" | "local" | "host" | "guest";
@@ -82,7 +83,7 @@ function resizeSeats(seats: LobbySeat[], count: number): LobbySeat[] {
   return next;
 }
 
-export function LobbyScreen({ onStart }: Props) {
+export function LobbyScreen({ onStart, onOpenSfxAdmin }: Props) {
   const { t } = useTranslation();
   const online = isSupabaseConfigured();
   const allowLocalHotSeat = import.meta.env.DEV;
@@ -500,6 +501,19 @@ export function LobbyScreen({ onStart }: Props) {
           <div className="mx-auto flex items-center gap-2 sm:mx-0 sm:mt-1">
             <LanguagePicker compact />
             <SfxMuteButton />
+            {onOpenSfxAdmin ? (
+              <button
+                type="button"
+                className="sfx-mute"
+                onClick={() => {
+                  unlockAudio();
+                  playSfx("click");
+                  onOpenSfxAdmin();
+                }}
+              >
+                {t("sfxAdmin.open")}
+              </button>
+            ) : null}
           </div>
         </header>
 
