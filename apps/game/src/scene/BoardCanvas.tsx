@@ -1,8 +1,8 @@
 import { Canvas } from "@react-three/fiber";
-import { Html, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { Suspense, useMemo } from "react";
 import type { DiceRoll } from "@cidadela/engine";
-import { BOARD, type PlayerState } from "@cidadela/shared";
+import type { PlayerState } from "@cidadela/shared";
 import { BoardReadySignal } from "./BoardReadySignal";
 import { BoardTable } from "./BoardTable";
 import { DiceTray } from "./DiceTray";
@@ -124,14 +124,6 @@ export function BoardCanvas({
         maxDistance={42}
         enablePan={false}
       />
-
-      {selectedIndex !== null ? (
-        <Html position={[0, 8.5, 0]} center style={{ pointerEvents: "none" }}>
-          <div className="rounded-full bg-[#1a120c]/75 px-3 py-1 text-xs text-[#f5f0e8] backdrop-blur">
-            {BOARD[selectedIndex]?.name}
-          </div>
-        </Html>
-      ) : null}
     </Canvas>
   );
 }

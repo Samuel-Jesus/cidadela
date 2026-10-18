@@ -134,6 +134,123 @@ canvas {
   color: #0f766e;
 }
 
+.space-marker {
+  animation: space-marker-in 0.28s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+@keyframes space-marker-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.space-marker__card {
+  display: flex;
+  width: min(22rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 3px solid #5c3d2e;
+  border-radius: 1rem;
+  background:
+    linear-gradient(165deg, #fff8ef 0%, #ffe8c8 55%, #ffd9a8 100%);
+  box-shadow:
+    4px 4px 0 #3d2818,
+    0 10px 22px rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+
+.space-marker__stripe {
+  width: 0.55rem;
+  flex-shrink: 0;
+  background: var(--space-accent, #c2410c);
+  box-shadow: inset -2px 0 0 rgba(0, 0, 0, 0.12);
+}
+
+.space-marker__body {
+  min-width: 0;
+  flex: 1;
+  padding: 0.45rem 0.85rem 0.55rem;
+}
+
+.space-marker__kicker {
+  margin: 0;
+  font-family: var(--font-game);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+.space-marker__dot {
+  margin: 0 0.3rem;
+  opacity: 0.55;
+}
+
+.space-marker__kind {
+  letter-spacing: 0.03em;
+  color: #6b5344;
+  text-transform: none;
+  font-weight: 700;
+}
+
+.space-marker__name {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-game);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #9a3412;
+  text-shadow: 1px 1px 0 #ffe08a;
+}
+
+.space-marker__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.55rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.space-marker__price {
+  color: #1f6b45;
+  font-variant-numeric: tabular-nums;
+}
+
+.space-marker__group,
+.space-marker__tax,
+.space-marker__owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #6b5344;
+}
+
+.space-marker__owner-dot {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 1.5px solid #5c3d2e;
+  border-radius: 999px;
+}
+
+@media (max-width: 767px) {
+  .space-marker__card {
+    width: min(18rem, calc(100vw - 1.5rem));
+  }
+
+  .space-marker__name {
+    font-size: 0.95rem;
+  }
+}
+
 .hud-section-title {
   font-family: var(--font-game);
   font-size: 0.95rem;

@@ -4,10 +4,8 @@ import { useTranslation } from "react-i18next";
 import {
   BANK_POUSADAS_MAX,
   BANK_RESORTS_MAX,
-  COLOR_GROUP_LABELS,
   JAIL_FINE,
   JAIL_MAX_ATTEMPTS,
-  KIND_LABELS,
   bankStockFromPlayers,
   deckIdFromSpaceKind,
   findPropertyOwner,
@@ -16,9 +14,7 @@ import {
   getPlayerLabel,
   getSpace,
   isBuyableKind,
-  type BoardSpace,
   type DebtInfo,
-  type DeckId,
   type DecksState,
   type PendingRentClaim,
   type PlayerState,
@@ -510,21 +506,6 @@ export function BoardHud({
                     </p>
                   ) : null}
                 </section>
-                {space ? (
-                  <section className="hud-card p-2.5">
-                    <SpaceDetails
-                      space={space}
-                      owner={owner}
-                      canBuy={false}
-                      buyDisabled
-                      onBuy={onBuySelected}
-                      canDrawCard={false}
-                      drawDisabled
-                      onDrawCard={onDrawCard}
-                      cardDeck={cardDeck}
-                    />
-                  </section>
-                ) : null}
                 {!isOnline ? (
                   <div className="flex flex-wrap gap-1.5">
                     <button
@@ -942,22 +923,6 @@ export function BoardHud({
         )}
       </section>
 
-      {space ? (
-        <section className="hud-card p-2.5">
-          <SpaceDetails
-            space={space}
-            owner={owner}
-            canBuy={false}
-            buyDisabled
-            onBuy={onBuySelected}
-            canDrawCard={false}
-            drawDisabled
-            onDrawCard={onDrawCard}
-            cardDeck={cardDeck}
-          />
-        </section>
-      ) : null}
-
       <section className="hud-card space-y-2 p-2.5">
         <button
           type="button"
@@ -1012,100 +977,3 @@ export function BoardHud({
   );
 }
 
-function SpaceDetails({
-  space,
-  owner,
-  canBuy,
-  buyDisabled,
-  onBuy,
-  canDrawCard,
-  drawDisabled,
-  onDrawCard,
-  cardDeck,
-}: {
-  space: BoardSpace;
-  owner: PlayerState | null;
-  canBuy: boolean;
-  buyDisabled: boolean;
-  onBuy: () => void;
-  canDrawCard: boolean;
-  drawDisabled: boolean;
-  onDrawCard: () => void;
-  cardDeck: DeckId | null;
-}) {
-  const { t } = useTranslation();
-  const ownerDef = owner ? getPawnDef(owner.pawnId) : null;
-
-  return (
-    <div className="space-y-2 text-sm">
-      <p className="hud-kicker">{t("hud.houseN", { n: space.index })}</p>
-      <h2 className="font-[family-name:var(--font-game)] text-lg font-bold leading-snug text-[#9a3412]">
-        {space.name}
-      </h2>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs font-semibold">
-        <dt className="text-[#8a6a4e]">{t("hud.type")}</dt>
-        <dd>{KIND_LABELS[space.kind]}</dd>
-        {space.colorGroup ? (
-          <>
-            <dt className="text-[#8a6a4e]">{t("hud.group")}</dt>
-            <dd>{COLOR_GROUP_LABELS[space.colorGroup]}</dd>
-          </>
-        ) : null}
-        {space.price !== undefined ? (
-          <>
-            <dt className="text-[#8a6a4e]">{t("hud.price")}</dt>
-            <dd className="tabular-nums text-[#1f6b45]">
-              {formatCash(space.price)}
-            </dd>
-          </>
-        ) : null}
-        {space.taxAmount !== undefined ? (
-          <>
-            <dt className="text-[#8a6a4e]">{t("hud.tax")}</dt>
-            <dd>{t("hud.taxPay", { amount: formatCash(space.taxAmount) })}</dd>
-          </>
-        ) : null}
-        {space.price !== undefined && isBuyableKind(space.kind) ? (
-          <>
-            <dt className="text-[#8a6a4e]">{t("hud.owner")}</dt>
-            <dd className="flex items-center gap-1.5">
-              {ownerDef ? (
-                <>
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full border border-[#5c3d2e]"
-                    style={{ backgroundColor: ownerDef.color }}
-                  />
-                  {owner ? getPlayerLabel(owner) : ownerDef.label}
-                </>
-              ) : (
-                <span className="text-[#8a6a4e]">{t("hud.bankOwner")}</span>
-              )}
-            </dd>
-          </>
-        ) : null}
-      </dl>
-
-      {canBuy ? (
-        <button
-          type="button"
-          disabled={buyDisabled}
-          onClick={onBuy}
-          className="hud-btn hud-btn--mint mt-1 w-full px-3 py-2 text-sm"
-        >
-          {t("hud.buyFor", { price: formatCash(space.price!) })}
-        </button>
-      ) : null}
-
-      {canDrawCard && cardDeck ? (
-        <button
-          type="button"
-          disabled={drawDisabled}
-          onClick={onDrawCard}
-          className="hud-btn hud-btn--pink mt-1 w-full px-3 py-2 text-sm"
-        >
-          {t("hud.drawCard", { deck: tDeckLabel(t, cardDeck) })}
-        </button>
-      ) : null}
-    </div>
-  );
-}

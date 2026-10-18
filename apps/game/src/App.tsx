@@ -53,6 +53,7 @@ import { GameSfxHud } from "./audio/GameSfxHud";
 import { BoardHud } from "./ui/BoardHud";
 import { DrawnCardModal } from "./ui/DrawnCardModal";
 import { LoadingScreen } from "./ui/LoadingScreen";
+import { SpaceSelectMarker } from "./ui/SpaceSelectMarker";
 import {
   LobbyScreen,
   type LobbyStartMeta,
@@ -2041,6 +2042,9 @@ export function App() {
         onBoardReady={() => setBoardReady(true)}
       />
       <GameSfxHud />
+      {boardReady ? (
+        <SpaceSelectMarker spaceIndex={selectedIndex} players={players} />
+      ) : null}
       <WalletPanel
         player={walletPlayer}
         players={players}
