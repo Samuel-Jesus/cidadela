@@ -18,6 +18,7 @@ import { IgrejaUniversalLandmark } from "./IgrejaUniversalLandmark";
 import { ParipeLandmark } from "./ParipeLandmark";
 import { FeiraSaoJoaquimLandmark } from "./FeiraSaoJoaquimLandmark";
 import { FitinhaDoBonfimLandmark } from "./FitinhaDoBonfimLandmark";
+import { IlheusLandmark } from "./IlheusLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -38,6 +39,7 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     index === 6 ||
     index === 7 ||
     index === 10 ||
+    index === 11 ||
     index === 22 ||
     index === 36 ||
     index === 12 ||
@@ -118,6 +120,15 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
       />
     );
   }
+  if (index === 11) {
+    return (
+      <IlheusLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
+  }
   if (index === 12) {
     return <CoelbaLandmark accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
@@ -178,8 +189,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
       return <Cachoeira />;
     case 9:
       return <Valenca />;
-    case 11:
-      return <Ilheus />;
     case 13:
       return <Itacare />;
     case 14:
@@ -233,19 +242,6 @@ function Valenca() {
       <Box args={[0.75, 0.08, 0.55]} position={[0, 0.46, 0]} color="#922b21" />
       <Cyl args={[0.08, 0.08, 0.35, 8]} position={[0.35, 0.65, 0]} color="#f5cba7" />
       <Cone args={[0.12, 0.18, 6]} position={[0.35, 0.9, 0]} color="#922b21" />
-    </Group>
-  );
-}
-
-function Ilheus() {
-  return (
-    <Group>
-      {/* Catedral / cacau */}
-      <Box args={[0.55, 0.5, 0.4]} position={[0, 0.28, 0]} color="#fad7a0" />
-      <Cone args={[0.28, 0.4, 4]} position={[0, 0.7, 0]} color="#6c3483" />
-      <Box args={[0.06, 0.25, 0.06]} position={[0, 0.95, 0]} color="#f7f9f9" />
-      <Box args={[0.18, 0.18, 0.18]} position={[0.4, 0.12, 0.25]} color="#6e2c00" />
-      <Sphere args={[0.1]} position={[0.4, 0.28, 0.25]} color="#1e8449" />
     </Group>
   );
 }
