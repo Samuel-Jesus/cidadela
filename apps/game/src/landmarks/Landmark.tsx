@@ -22,6 +22,7 @@ import { IlheusLandmark } from "./IlheusLandmark";
 import { CachoeiraLandmark } from "./CachoeiraLandmark";
 import { ValencaLandmark } from "./ValencaLandmark";
 import { MorroSaoPauloLandmark } from "./MorroSaoPauloLandmark";
+import { LencoisLandmark } from "./LencoisLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -46,6 +47,7 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     index === 10 ||
     index === 11 ||
     index === 14 ||
+    index === 16 ||
     index === 22 ||
     index === 36 ||
     index === 12 ||
@@ -165,6 +167,15 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
       />
     );
   }
+  if (index === 16) {
+    return (
+      <LencoisLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
+  }
   if (index === 15) {
     return <ElevadorLacerda accent={accent} fitWidth={fitWidth} fitDepth={fitDepth} />;
   }
@@ -220,8 +231,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
   switch (index) {
     case 13:
       return <Itacare />;
-    case 16:
-      return <Lencois />;
     case 18:
       return <Mucuge />;
     case 19:
@@ -279,17 +288,6 @@ function ElevadorLacerda({
       polish
       accent={accent}
     />
-  );
-}
-
-function Lencois() {
-  return (
-    <Group>
-      <Box args={[0.35, 0.55, 0.3]} position={[-0.25, 0.3, 0]} color="#d5d8dc" />
-      <Box args={[0.4, 0.75, 0.35]} position={[0.2, 0.4, -0.05]} color="#aeb6bf" />
-      <Box args={[0.25, 0.4, 0.25]} position={[0, 0.22, 0.25]} color="#cacfd2" />
-      <Cone args={[0.15, 0.25, 5]} position={[-0.4, 0.55, 0.2]} color="#1e8449" />
-    </Group>
   );
 }
 
