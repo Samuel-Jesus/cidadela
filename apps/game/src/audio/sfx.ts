@@ -366,6 +366,9 @@ export function getSfxVolume(): number {
 
 export function setSfxVolume(next: number): void {
   volume = Math.min(1, Math.max(0, next));
+  if (mixLoop) mixLoop.volume = Math.min(1, volume * 0.7);
+  if (carnavalTrack) carnavalTrack.volume = Math.min(1, volume * 0.8);
+  if (tirosLoop) tirosLoop.volume = Math.min(1, volume * 0.85);
   try {
     localStorage.setItem(VOLUME_KEY, String(volume));
   } catch {

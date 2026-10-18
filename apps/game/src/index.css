@@ -1581,6 +1581,39 @@ canvas {
   color: #134e4a;
 }
 
+.game-sfx-hud {
+  font-family: var(--font-ui);
+  padding: 0.35rem 0.45rem;
+  border: 3px solid #5c3d2e;
+  border-radius: 999px;
+  background:
+    linear-gradient(165deg, rgba(255, 248, 239, 0.94) 0%, rgba(255, 232, 200, 0.92) 100%);
+  box-shadow: 3px 3px 0 #3d2818;
+}
+
+.game-sfx-hud .sfx-mute {
+  box-shadow: 2px 2px 0 #5c3d2e;
+  padding: 0.3rem 0.7rem;
+}
+
+.game-sfx-hud__slider {
+  width: 5.5rem;
+  height: 0.45rem;
+  accent-color: #c2410c;
+  cursor: pointer;
+}
+
+.game-sfx-hud__slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 767px) {
+  .game-sfx-hud__slider {
+    width: 4.25rem;
+  }
+}
+
 .sfx-mute {
   flex-shrink: 0;
   border: 3px solid #5c3d2e;

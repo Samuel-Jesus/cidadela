@@ -49,6 +49,7 @@ import {
 } from "./boot/preloadAssets";
 import { AuctionOverlay } from "./ui/AuctionOverlay";
 import { BoardCanvas } from "./scene/BoardCanvas";
+import { GameSfxHud } from "./audio/GameSfxHud";
 import { BoardHud } from "./ui/BoardHud";
 import { DrawnCardModal } from "./ui/DrawnCardModal";
 import { LoadingScreen } from "./ui/LoadingScreen";
@@ -2022,6 +2023,7 @@ export function App() {
         onPawnArrive={onPawnArrive}
         onJailEscortComplete={onJailEscortComplete}
       />
+      <GameSfxHud />
       <WalletPanel
         player={walletPlayer}
         players={players}
