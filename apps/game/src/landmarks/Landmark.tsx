@@ -20,6 +20,7 @@ import { FeiraSaoJoaquimLandmark } from "./FeiraSaoJoaquimLandmark";
 import { FitinhaDoBonfimLandmark } from "./FitinhaDoBonfimLandmark";
 import { IlheusLandmark } from "./IlheusLandmark";
 import { CachoeiraLandmark } from "./CachoeiraLandmark";
+import { ValencaLandmark } from "./ValencaLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -40,6 +41,7 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     index === 6 ||
     index === 7 ||
     index === 8 ||
+    index === 9 ||
     index === 10 ||
     index === 11 ||
     index === 22 ||
@@ -121,6 +123,15 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
       />
     );
   }
+  if (index === 9) {
+    return (
+      <ValencaLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
+  }
   if (index === 10) {
     const forteFit = Math.min(slotWidth ?? 1.2, slotDepth ?? 1.2) * 0.85;
     return (
@@ -196,8 +207,6 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
 
 function LandmarkMesh({ index }: { index: number }): ReactNode {
   switch (index) {
-    case 9:
-      return <Valenca />;
     case 13:
       return <Itacare />;
     case 14:
@@ -231,17 +240,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
     default:
       return <Box args={[0.4, 0.4, 0.4]} position={[0, 0.2, 0]} color="#aaaaaa" />;
   }
-}
-
-function Valenca() {
-  return (
-    <Group>
-      <Box args={[0.7, 0.4, 0.5]} position={[0, 0.22, 0]} color="#f5cba7" />
-      <Box args={[0.75, 0.08, 0.55]} position={[0, 0.46, 0]} color="#922b21" />
-      <Cyl args={[0.08, 0.08, 0.35, 8]} position={[0.35, 0.65, 0]} color="#f5cba7" />
-      <Cone args={[0.12, 0.18, 6]} position={[0.35, 0.9, 0]} color="#922b21" />
-    </Group>
-  );
 }
 
 function Itacare() {
