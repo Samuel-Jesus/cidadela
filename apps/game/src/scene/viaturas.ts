@@ -2,10 +2,13 @@ import * as THREE from "three";
 
 export type ViaturaEstilo = "azul" | "bege";
 
+export type RaidOpts = {
+  aimOnly?: boolean;
+};
+
 export type ViaturaGroup = THREE.Group & {
   userData: {
-    tickRaid: (dt: number, tc: number) => void;
-    /** Cavalo de pau: s em [0,1], leanSign ±1 */
+    tickRaid: (dt: number, tc: number, opts?: RaidOpts) => void;
     tickDrift: (dt: number, s: number, leanSign: number) => void;
     resetRaid: () => void;
     clearFx: () => void;
@@ -402,6 +405,8 @@ export function criarViatura(estilo: ViaturaEstilo): ViaturaGroup {
     return { a, yaw, lev, aim, mov, tiro };
   };
 
+  let aimOnly = false;
+
   const aplicar = (of: Oficial, r: ReturnType<typeof pontoOf>, tt: number) => {
     of.o.position.copy(r.a);
     of.o.rotation.y = r.yaw;
@@ -414,10 +419,11 @@ export function criarViatura(estilo: ViaturaEstilo): ViaturaGroup {
       (r.mov ? Math.sin(tt * 16) * 0.5 : 0) * (1 - r.aim);
     of.aE.rotation.x = ar;
     of.aD.rotation.x = r.aim > 0 ? ar : -ar;
-    of.fl.visible = r.tiro && Math.sin(tt * 70 + of.i) > -0.2;
+    const canShoot = r.tiro && !aimOnly;
+    of.fl.visible = canShoot && Math.sin(tt * 70 + of.i) > -0.2;
     of.arma.position.z = of.ap - (of.fl.visible ? 0.05 : 0);
     of.prox -= 1 / 60;
-    if (r.tiro && of.prox <= 0) {
+    if (canShoot && of.prox <= 0) {
       disparar(of);
       of.prox = 0.1 + Math.random() * 0.06;
     }
@@ -503,7 +509,8 @@ export function criarViatura(estilo: ViaturaEstilo): ViaturaGroup {
     });
   };
 
-  g.userData.tickRaid = (dt, tc) => {
+  g.userData.tickRaid = (dt, tc, opts) => {
+    aimOnly = Boolean(opts?.aimOnly);
     const ab =
       tc < 0.4
         ? 0

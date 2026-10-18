@@ -5,6 +5,8 @@ import type { DiceRoll } from "@cidadela/engine";
 import { BOARD, type PlayerState } from "@cidadela/shared";
 import { BoardTable } from "./BoardTable";
 import { DiceTray } from "./DiceTray";
+import { JailEscort } from "./JailEscort";
+import type { JailEscortMission } from "./jailEscortState";
 import { computeSpaceLayouts } from "./layout";
 import { PawnsLayer } from "./PawnsLayer";
 import { SpaceTile } from "./SpaceTile";
@@ -21,6 +23,7 @@ type Props = {
   onRollRequest: () => void;
   onRollComplete: (roll: DiceRoll) => void;
   onPawnArrive?: (playerId: string, spaceIndex: number) => void;
+  onJailEscortComplete?: (mission: JailEscortMission) => void;
 };
 
 export function BoardCanvas({
@@ -35,6 +38,7 @@ export function BoardCanvas({
   onRollRequest,
   onRollComplete,
   onPawnArrive,
+  onJailEscortComplete,
 }: Props) {
   const layouts = useMemo(() => computeSpaceLayouts(), []);
 
@@ -89,6 +93,8 @@ export function BoardCanvas({
         onSelectPlayer={onSelectPlayer}
         onPawnArrive={onPawnArrive}
       />
+
+      <JailEscort onComplete={onJailEscortComplete} />
 
       <ContactShadows position={[0, 0.03, 0]} opacity={0.45} scale={32} blur={2.5} far={12} />
 

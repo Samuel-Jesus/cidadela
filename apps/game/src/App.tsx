@@ -39,6 +39,10 @@ import {
 } from "@cidadela/shared";
 import { setPawnPathDir } from "./scene/pawnPathIntent";
 import {
+  beginJailEscort,
+  type JailEscortMission,
+} from "./scene/jailEscortState";
+import {
   preloadGameAssets,
   type PreloadProgress,
 } from "./boot/preloadAssets";
@@ -215,6 +219,14 @@ export function App() {
   const pendingLandingRef = useRef<PendingLanding | null>(null);
   const pendingNotesRef = useRef<string[]>([]);
   const resolvingRef = useRef(false);
+  const pendingEscortEventRef = useRef<{
+    notes: string[];
+    cards: CardDef[];
+    playerId: string;
+    landIndex: number;
+    pendingDebt: DebtInfo | null;
+    pendingRent: PendingRentClaim | null;
+  } | null>(null);
   const gameVersionRef = useRef(0);
   gameVersionRef.current = gameVersion;
   const onlineRef = useRef(onlineSession);
@@ -1283,6 +1295,7 @@ export function App() {
         setConsecutiveDoubles(0);
         extraRollRef.current = false;
         forceEndTurnRef.current = true;
+        const caught = playersRef.current.find((p) => p.id === playerId);
         setPlayers((prev) => {
           const next = prev.map((p) =>
             p.id === playerId
@@ -1298,6 +1311,23 @@ export function App() {
         });
         setSelectedIndex(10);
         pendingLandingRef.current = null;
+        if (caught) {
+          beginJailEscort({
+            playerId,
+            pawnId: caught.pawnId,
+            fromIndex: caught.position,
+          });
+          pendingEscortEventRef.current = {
+            notes: [t("msg.tripleDoubles")],
+            cards: [],
+            playerId,
+            landIndex: 10,
+            pendingDebt: null,
+            pendingRent: null,
+          };
+          setTurnPhase("busy");
+          return;
+        }
         const shown = presentEvent(
           [t("msg.tripleDoubles")],
           [],
@@ -1398,6 +1428,7 @@ export function App() {
       resolvingRef.current = true;
 
       setPlayers((prevPlayers) => {
+        const before = prevPlayers.find((p) => p.id === playerId);
         const resolved = resolveSpaceLanding(
           prevPlayers,
           decksRef.current,
@@ -1443,10 +1474,30 @@ export function App() {
 
         const prefix = pendingNotesRef.current;
         pendingNotesRef.current = [];
-        const shown = presentEvent(
-          [...prefix, ...resolved.notes],
-          resolved.followUpCards,
-        );
+        const notes = [...prefix, ...resolved.notes];
+        const justJailed =
+          Boolean(moved?.inJail) && Boolean(before) && !before!.inJail;
+
+        if (justJailed && before && moved) {
+          beginJailEscort({
+            playerId,
+            pawnId: moved.pawnId,
+            fromIndex: before.position,
+          });
+          pendingEscortEventRef.current = {
+            notes,
+            cards: resolved.followUpCards,
+            playerId,
+            landIndex,
+            pendingDebt: resolved.pendingDebt,
+            pendingRent: resolved.pendingRent ?? null,
+          };
+          resolvingRef.current = false;
+          setTurnPhase("busy");
+          return resolved.players;
+        }
+
+        const shown = presentEvent(notes, resolved.followUpCards);
         resolvingRef.current = false;
         if (!shown) {
           applyDebtOutcome(
@@ -1460,6 +1511,27 @@ export function App() {
       });
     },
     [presentEvent, applyDebtOutcome, enqueueAuctions],
+  );
+
+  const onJailEscortComplete = useCallback(
+    (escort: JailEscortMission) => {
+      const pending = pendingEscortEventRef.current;
+      if (!pending || pending.playerId !== escort.playerId) {
+        return;
+      }
+      pendingEscortEventRef.current = null;
+      setSelectedIndex(10);
+      const shown = presentEvent(pending.notes, pending.cards);
+      if (!shown) {
+        applyDebtOutcome(
+          pending.pendingDebt,
+          undefined,
+          pending.playerId,
+          pending.landIndex,
+        );
+      }
+    },
+    [presentEvent, applyDebtOutcome],
   );
 
   const auctionPassesNeeded = players.filter((p) => !p.bankrupt).length;
@@ -1848,6 +1920,7 @@ export function App() {
         onRollRequest={onRollDice}
         onRollComplete={onRollComplete}
         onPawnArrive={onPawnArrive}
+        onJailEscortComplete={onJailEscortComplete}
       />
       <WalletPanel
         player={walletPlayer}

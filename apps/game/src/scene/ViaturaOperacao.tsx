@@ -1,7 +1,11 @@
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
 import { startTirosSfx, stopTirosSfx } from "../audio/sfx";
+import {
+  getJailEscort,
+  subscribeJailEscort,
+} from "./jailEscortState";
 import {
   JAIL_ROAD_Y,
   jailRoadParipeStop,
@@ -132,6 +136,11 @@ export function ViaturaOperacao() {
   const waitT = useRef(8);
   const shooting = useRef(false);
   const driftFrom = useRef<{ x: number; z: number; yaw: number }[]>([]);
+  const jailBusy = useSyncExternalStore(
+    subscribeJailEscort,
+    getJailEscort,
+    getJailEscort,
+  );
 
   const paths = useMemo(() => {
     const all = jailRoadWaypoints();
@@ -185,6 +194,15 @@ export function ViaturaOperacao() {
     if (!list.length) return;
     const d = Math.min(dt, 0.05);
 
+    if (jailBusy) {
+      for (const u of list) u.v.visible = false;
+      if (shooting.current) {
+        shooting.current = false;
+        stopTirosSfx();
+      }
+      return;
+    }
+
     if (phase.current === "idle") {
       waitT.current -= d;
       for (const u of list) u.v.visible = false;
@@ -216,7 +234,6 @@ export function ViaturaOperacao() {
         unit.v.visible = true;
         const raw = Math.min(1, t / unit.driveIn);
         const u = unit.lead ? easeOutCubic(raw) : easeInOut(raw);
-        // Mantém a de trás um pouco atrás na pista até a chegada
         const distAlong = unit.lead
           ? u * paths.to.total
           : Math.max(0, u * paths.to.total - GAP * (1 - u * 0.35));

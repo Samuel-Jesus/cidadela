@@ -1,5 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import type { PlayerState } from "@cidadela/shared";
+import {
+  getJailEscort,
+  isPlayerInJailEscort,
+  subscribeJailEscort,
+} from "./jailEscortState";
 import type { SpaceLayout } from "./layout";
 import { Pawn } from "./Pawn";
 
@@ -18,6 +23,8 @@ export function PawnsLayer({
   onSelectPlayer,
   onPawnArrive,
 }: Props) {
+  useSyncExternalStore(subscribeJailEscort, getJailEscort, getJailEscort);
+
   const layoutsByIndex = useMemo(() => {
     const map = new Map<number, SpaceLayout>();
     for (const l of layouts) map.set(l.index, l);
@@ -27,6 +34,7 @@ export function PawnsLayer({
   const slotsBySpace = useMemo(() => {
     const map = new Map<number, PlayerState[]>();
     for (const p of players) {
+      if (isPlayerInJailEscort(p.id)) continue;
       const list = map.get(p.position) ?? [];
       list.push(p);
       map.set(p.position, list);
@@ -37,6 +45,7 @@ export function PawnsLayer({
   return (
     <group>
       {players.map((player) => {
+        if (isPlayerInJailEscort(player.id)) return null;
         if (!layoutsByIndex.has(player.position)) return null;
         const onSpace = slotsBySpace.get(player.position) ?? [player];
         const slotIndex = onSpace.findIndex((p) => p.id === player.id);
