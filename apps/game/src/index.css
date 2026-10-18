@@ -36,6 +36,16 @@ canvas {
     0 14px 28px rgba(0, 0, 0, 0.28);
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  transition:
+    max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.hud-panel--collapsed {
+  max-height: none;
+  overflow: hidden;
 }
 
 
