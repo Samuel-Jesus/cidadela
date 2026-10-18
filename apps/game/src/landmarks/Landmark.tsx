@@ -17,6 +17,7 @@ import { IlhaDeMareLandmark } from "./IlhaDeMareLandmark";
 import { IgrejaUniversalLandmark } from "./IgrejaUniversalLandmark";
 import { ParipeLandmark } from "./ParipeLandmark";
 import { FeiraSaoJoaquimLandmark } from "./FeiraSaoJoaquimLandmark";
+import { FitinhaDoBonfimLandmark } from "./FitinhaDoBonfimLandmark";
 import { Box, Cone, Cyl, Group, Sphere } from "./primitives";
 
 type Props = {
@@ -35,7 +36,10 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
     index === 4 ||
     index === 5 ||
     index === 6 ||
+    index === 7 ||
     index === 10 ||
+    index === 22 ||
+    index === 36 ||
     index === 12 ||
     index === 15 ||
     index === 17 ||
@@ -89,6 +93,15 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
   if (index === 6) {
     return (
       <FeiraSaoJoaquimLandmark
+        accent={accent}
+        fitWidth={fitWidth}
+        fitDepth={fitDepth}
+      />
+    );
+  }
+  if (index === 7 || index === 22 || index === 36) {
+    return (
+      <FitinhaDoBonfimLandmark
         accent={accent}
         fitWidth={fitWidth}
         fitDepth={fitDepth}
@@ -161,10 +174,6 @@ export function Landmark({ index, accent = false, slotWidth, slotDepth }: Props)
 
 function LandmarkMesh({ index }: { index: number }): ReactNode {
   switch (index) {
-    case 7:
-    case 22:
-    case 36:
-      return <Fitinha />;
     case 8:
       return <Cachoeira />;
     case 9:
@@ -204,19 +213,6 @@ function LandmarkMesh({ index }: { index: number }): ReactNode {
     default:
       return <Box args={[0.4, 0.4, 0.4]} position={[0, 0.2, 0]} color="#aaaaaa" />;
   }
-}
-
-function Fitinha() {
-  return (
-    <Group>
-      <Box args={[0.55, 0.45, 0.4]} position={[0, 0.25, 0]} color="#fdfefe" />
-      <Cone args={[0.35, 0.35, 4]} position={[0, 0.65, 0]} color="#1abc9c" />
-      <Cyl args={[0.04, 0.04, 0.5, 6]} position={[0.35, 0.35, 0]} color="#e74c3c" />
-      <Box args={[0.02, 0.25, 0.12]} position={[0.35, 0.55, 0]} color="#e74c3c" />
-      <Box args={[0.02, 0.2, 0.1]} position={[0.42, 0.5, 0.05]} color="#3498db" />
-      <Box args={[0.02, 0.22, 0.1]} position={[0.28, 0.52, -0.05]} color="#f1c40f" />
-    </Group>
-  );
 }
 
 function Cachoeira() {

@@ -1,0 +1,114 @@
+// Requer Three.js. Uso: const modelo = criarFitinhaDoBonfim(THREE); cena.add(modelo);
+// No loop de animação: modelo.userData.tick(deltaSegundos);
+// Fazer os 3 pedidos (faíscas e novas fitinhas): modelo.userData.pedidos();
+// Mais/menos fitinhas: modelo.userData.encher(); modelo.userData.limpar(); modelo.userData.amarrar(n);
+// Pausar/retomar: modelo.userData.alternarVida();
+
+function criarFitinhaDoBonfim(THREE){
+  const g=new THREE.Group(); g.name='FitinhaDoBonfim'; const PI=Math.PI;
+  let sd=37; const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+  const M=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.85},o||{}));
+  const m={pedra:M(0xcdc5ae),pedraE:M(0xb7ae94),branco:M(0xf2efe6),torre:M(0xe2dcc8),ferro:M(0x1d1d20,{metalness:.4,roughness:.6}),madeira:M(0x5a3a22),vidro:M(0x233046,{roughness:.25}),
+    telha:M(0x8a8a84,{flatShading:true}),cinza:M(0xa9a7a0),pele:M(0x7a5238),dark:M(0x23262b),branca:M(0xffffff),tronco:M(0x7a6a52),folha:M(0x2f8a2e),folha2:M(0x3f9d36),verde:M(0x2f8a3a)};
+  const bx=(w,h,d,mt,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const cyl=(rt,rb,h,mt,x,y,z,p,seg)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||12),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+  const ball=(r,mt,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(r,10,8),mt);o.position.set(x,y,z);(p||g).add(o);return o};
+
+  /* praça, terraço de pedra e degraus */
+  bx(18,.6,16,m.pedra,0,-.3,.5).material=[m.pedraE,m.pedraE,m.pedra,m.pedraE,m.pedraE,m.pedraE];
+  bx(14,.6,5.2,m.pedra,0,.3,-.9); bx(14.2,.1,.2,m.pedraE,0,.62,1.62);
+  bx(14,.4,.6,m.pedra,0,.2,1.95); bx(14,.2,.6,m.pedra,0,.1,2.55); bx(14,.12,.6,m.pedra,0,.06,3.15);
+
+  /* igreja: fachada branca com cantaria, duas torres com relógio, frontão barroco e cruz */
+  bx(9,4.5,3.2,m.branco,0,2.85,-3.4); bx(9.3,.2,3.4,m.pedraE,0,5.2,-3.4);
+  [-4.3,-2.1,2.1,4.3].forEach(x=>bx(.35,4.5,.2,m.pedraE,x,2.85,-1.75));
+  [-1,1].forEach(s=>{ const x=s*3.6; bx(1.7,6.8,1.9,m.torre,x,4,-3); bx(1.85,.2,2.05,m.pedraE,x,5.2,-3); bx(1.85,.2,2.05,m.pedraE,x,7.45,-3);
+    cyl(0,1.05,.9,m.telha,x,7.9,-3,g,4).rotation.y=PI/4; bx(.5,.8,.06,m.vidro,x,6.4,-2.02); const a=new THREE.Mesh(new THREE.CircleGeometry(.25,12,0,PI),m.vidro); a.position.set(x,6.8,-2.01); g.add(a); });
+  const rel=new THREE.Mesh(new THREE.CircleGeometry(.45,24),M(0xf6f4ea)); rel.position.set(-3.6,5.6,-2.03); g.add(rel);
+  const pont=new THREE.Group(); pont.position.set(-3.6,5.6,-2.02); g.add(pont); bx(.04,.32,.02,m.dark,0,.14,0,pont); const ph=new THREE.Group(); ph.position.set(-3.6,5.6,-2.02); g.add(ph); bx(.05,.22,.02,m.dark,0,.1,0,ph).rotation.z=0;
+  const rd=new THREE.Mesh(new THREE.CircleGeometry(.22,16),m.vidro); rd.position.set(3.6,5.6,-2.03); g.add(rd);
+  const ps=new THREE.Shape(); [[-2.2,0],[2.2,0],[1.6,.6],[.9,1],[.5,1.5],[.2,1.7],[0,2.05],[-.2,1.7],[-.5,1.5],[-.9,1],[-1.6,.6]].forEach((p,i)=>i?ps.lineTo(p[0],p[1]):ps.moveTo(p[0],p[1])); ps.closePath();
+  const fro=new THREE.Mesh(new THREE.ExtrudeGeometry(ps,{depth:.5,bevelEnabled:false}),m.pedraE); fro.position.set(0,5.3,-2.2); g.add(fro);
+  bx(.14,.8,.12,m.pedraE,0,8,-2); bx(.45,.14,.12,m.pedraE,0,8.1,-2); const med=new THREE.Mesh(new THREE.CircleGeometry(.35,16),m.vidro); med.position.set(0,6.3,-1.69); g.add(med);
+  bx(1.3,2,.1,m.madeira,0,1.6,-1.8); const pa=new THREE.Mesh(new THREE.CircleGeometry(.65,14,0,PI),m.madeira); pa.position.set(0,2.6,-1.79); g.add(pa);
+  [-2.9,2.9].forEach(x=>[1.5,3.4].forEach(y=>{ bx(.5,.9,.06,m.vidro,x,y+.4,-1.78); const aa=new THREE.Mesh(new THREE.CircleGeometry(.25,12,0,PI),m.vidro); aa.position.set(x,y+.85,-1.77); g.add(aa); }));
+  bx(9.4,.18,3.6,M(0x6f6a62,{flatShading:true}),0,5.4,-3.5);
+
+  /* gradil de ferro com abacaxis no topo e travessas */
+  const FY=.62, FZ=1.5;
+  [1.3,.65,.1].forEach(y=>bx(13.6,.08,.08,m.ferro,0,FY+y,FZ));
+  for(let x=-6.8;x<=6.81;x+=.3){ bx(.04,1.3,.04,m.ferro,x,FY+.65,FZ); cyl(0,.08,.2,m.ferro,x,FY+1.42,FZ,g,6); ball(.04,m.ferro,x,FY+1.54,FZ); }
+  for(let x=-6.8;x<=6.81;x+=2.27){ bx(.14,1.5,.14,m.ferro,x,FY+.75,FZ); cyl(.0,.12,.3,m.ferro,x,FY+1.65,FZ,g,6); }
+  [-6.8,6.8].forEach(x=>{ bx(.08,.08,3,m.ferro,x,FY+1.3,FZ-1.5); bx(.08,.08,3,m.ferro,x,FY+.3,FZ-1.5); });
+
+  /* fitinhas: ~1500 tiras coloridas numa só malha (vértices animados pelo vento) */
+  const cores=[0xe63946,0xf4a300,0xffd60a,0x06d6a0,0x118ab2,0x9b5de5,0xf15bb5,0xffffff,0x00bbf9,0x8ac926,0xff7b00,0x3a86ff].map(c=>new THREE.Color(c));
+  const NF=1500, fx=new Float32Array(NF), fz=new Float32Array(NF), fL=new Float32Array(NF), fph=new Float32Array(NF), fg=new Float32Array(NF), fa=new Float32Array(NF);
+  const pos=new Float32Array(NF*18), col=new Float32Array(NF*18), idx=new Uint32Array(NF*12);
+  for(let i=0;i<NF;i++){ fx[i]=-6.7+rnd()*13.4; fz[i]=FZ+(rnd()-.5)*.26; fL[i]=.5+rnd()*.85; fph[i]=rnd()*6.28; fg[i]=rnd()<.5?1:0; fa[i]=fg[i];
+    const c=cores[Math.floor(rnd()*12)]; for(let k=0;k<6;k++){ col[i*18+k*3]=c.r; col[i*18+k*3+1]=c.g; col[i*18+k*3+2]=c.b; }
+    const b=i*6; idx.set([b,b+1,b+2,b+1,b+3,b+2,b+2,b+3,b+4,b+3,b+5,b+4],i*12); }
+  const fgm=new THREE.BufferGeometry(); fgm.setAttribute('position',new THREE.BufferAttribute(pos,3)); fgm.setAttribute('color',new THREE.BufferAttribute(col,3)); fgm.setIndex(new THREE.BufferAttribute(idx,1));
+  const fita=new THREE.Mesh(fgm,new THREE.MeshStandardMaterial({vertexColors:true,side:THREE.DoubleSide,roughness:.7})); fita.frustumCulled=false; g.add(fita);
+  const atualizarFitas=(t)=>{
+    const top=FY+1.32;
+    for(let i=0;i<NF;i++){ fg[i]+=(fa[i]-fg[i])*.08; const len=fL[i]*fg[i], w=.016; const wind=Math.sin(t*1.7+fx[i]*.4)*.5+.5;
+      for(let r=0;r<3;r++){ const tt=r/2, sw=tt*tt*(Math.sin(t*2.6+fph[i]+tt*2)*.06+wind*.07), zs=tt*(Math.sin(t*2.1+fph[i]*1.3)*.05+.04), y=top-tt*len;
+        const o=i*18+r*6; pos[o]=fx[i]-w+sw; pos[o+1]=y; pos[o+2]=fz[i]+zs; pos[o+3]=fx[i]+w+sw; pos[o+4]=y; pos[o+5]=fz[i]+zs; } }
+    fgm.attributes.position.needsUpdate=true;
+  };
+  const acender=(x,k)=>{ const c=[]; for(let i=0;i<NF;i++) if(!fa[i]&&Math.abs(fx[i]-x)<1.3) c.push(i); for(let n=0;n<k&&c.length;n++){ const j=Math.floor(rnd()*c.length); fa[c[j]]=1; c.splice(j,1); } };
+
+  /* gente: pessoas amarrando, fazendo pedidos e passeando; barraca de fitas */
+  const peles=[0x6b4a36,0x8a5a3c,0xc08a60,0xf0c9a0,0x5a3a28], camisas=[0xe03030,0x2e6ee0,0xf2c230,0x35b85a,0xffffff,0xe58aa5,0x1a2a4a,0xff8a1e];
+  const pessoa=(camisa,pele,calca)=>{
+    const o=new THREE.Group(), corpo=new THREE.Group(); corpo.position.y=.55; o.add(corpo); const pv=(x,y,p)=>{const q=new THREE.Group();q.position.set(x,y,0);p.add(q);return q};
+    const lE=pv(-.08,.55,o), lD=pv(.08,.55,o); [lE,lD].forEach(l=>bx(.12,.52,.12,M(calca),0,-.26,0,l));
+    bx(.32,.42,.2,M(camisa),0,.21,0,corpo); const aE=pv(-.2,.4,corpo), aD=pv(.2,.4,corpo); [aE,aD].forEach(a=>{ bx(.09,.4,.09,M(camisa),0,-.2,0,a); ball(.05,M(pele),0,-.42,0,a); });
+    ball(.095,M(pele),0,.55,0,corpo); const cab=ball(.1,M(0x1a1410),0,.58,-.01,corpo); cab.scale.y=.6; o.scale.setScalar(.95);
+    return {o,corpo,lE,lD,aE,aD,prev:0};
+  };
+  const spots=[-5.2,-3.3,-1.3,.9,2.9,4.9], amarra=[];
+  spots.forEach((x,i)=>{ const p=pessoa(camisas[i%8],peles[i%5],[0x2e4a7a,0xc9b27a,0x23262b][i%3]); p.o.position.set(x,.4,2.0); p.o.rotation.y=PI; g.add(p.o); p.x=x; p.off=i*1.7; p.fez=false; amarra.push(p); });
+  const passeio=[0,1,2].map(i=>{ const p=pessoa(camisas[(i+3)%8],peles[(i+2)%5],0x23262b); g.add(p.o); p.x=-6+i*4; p.dir=i%2?1:-1; p.v=.4+i*.12; return p; });
+  const barraca=new THREE.Group(); barraca.position.set(7.2,0,3.9); g.add(barraca);
+  bx(1.8,.6,.8,m.madeira,0,.3,0,barraca); [-.85,.85].forEach(x=>bx(.06,2,.06,m.madeira,x,1,-.3,barraca)); bx(2,.05,1.1,M(0x2f66b8),0,2.05,-.1,barraca).rotation.x=.12;
+  for(let i=0;i<46;i++){ const c=cores[i%12]; bx(.035,.5+rnd()*.35,.01,M(c.getHex()),-.8+i*.035,1.6,-.28,barraca); }
+  const vend=pessoa(0xffffff,0x6b4a36,0xffffff); vend.o.position.set(0,0,-.7); barraca.add(vend.o); const tb=ball(.12,m.branca,0,1.1,-.7,barraca); tb.scale.y=.7;
+
+  /* pedidos: faíscas coloridas que sobem, 3 por pessoa */
+  const fmat=[0xffd60a,0xff7bd0,0x7be0ff,0xa0ff7b].map(c=>new THREE.MeshBasicMaterial({color:c,transparent:true}));
+  const fq=[]; for(let i=0;i<36;i++){ const s=new THREE.Mesh(new THREE.SphereGeometry(.05,8,6),fmat[i%4].clone()); s.visible=false; g.add(s); fq.push({s,l:0,vy:0}); }
+  const faisca=(x,y,z)=>{ const f=fq.find(q=>!q.s.visible); if(!f) return; f.s.position.set(x+(rnd()-.5)*.2,y,z+(rnd()-.5)*.2); f.l=2; f.vy=.5+rnd()*.5; f.s.visible=true; };
+
+  let t=0, vai=true, forca=0;
+  g.userData.alternarVida=()=>(vai=!vai);
+  g.userData.amarrar=(n)=>{ acender(-6+rnd()*12,n||8); };
+  g.userData.pedidos=()=>{ forca=3.2; amarra.forEach(p=>{ acender(p.x,6); for(let k=0;k<3;k++) faisca(p.x,1.65,2.0); }); };
+  g.userData.limpar=()=>{ for(let i=0;i<NF;i++) fa[i]=i%5===0?1:0; };
+  g.userData.encher=()=>{ for(let i=0;i<NF;i++) fa[i]=1; };
+  g.userData.tick=dt=>{
+    t+=dt; atualizarFitas(t);
+    if(!vai) return; forca=Math.max(0,forca-dt);
+    pont.rotation.z=-t*.3; ph.rotation.z=-t*.03;
+    amarra.forEach(p=>{
+      const T=9, c=((t+p.off)%T);
+      let tie=0, wish=0;
+      if(forca>0){ wish=1; }
+      else if(c<4.5){ tie=sm(Math.min(1,c/.5)); p.fez=false; }
+      else if(c<5.2){ tie=1-sm((c-4.5)/.7); if(!p.fez){ p.fez=true; acender(p.x,4); } }
+      else if(c<8.2){ wish=sm(Math.min(1,(c-5.2)/.5)); if(Math.random()<dt*2.4) faisca(p.x,1.6,2.0); }
+      else { wish=1-sm((c-8.2)/.8); tie=0; }
+      const wig=Math.sin(t*14+p.off)*.12*tie;
+      p.corpo.rotation.x=.95*tie-.12*wish;
+      p.aE.rotation.x=-1.25*tie-1.0*wish+wig; p.aD.rotation.x=-1.25*tie-1.0*wish-wig; p.aE.rotation.z=.6*wish; p.aD.rotation.z=-.6*wish;
+      p.lE.rotation.x=-.15*tie; p.lD.rotation.x=-.15*tie;
+    });
+    passeio.forEach(p=>{ p.x+=p.dir*p.v*dt; if(p.x>7){p.dir=-1} if(p.x<-7){p.dir=1} p.o.position.set(p.x,.06,3.9+Math.sin(p.x)*.15); p.o.rotation.y=p.dir>0?PI/2:-PI/2;
+      const sw=Math.sin(t*8+p.x)*.6; p.lE.rotation.x=sw; p.lD.rotation.x=-sw; p.aE.rotation.x=-sw*.6; p.aD.rotation.x=sw*.6; p.o.position.y+=Math.abs(sw)*.015; });
+    fq.forEach(f=>{ if(!f.s.visible) return; f.l-=dt; f.s.position.y+=f.vy*dt; f.s.material.opacity=Math.max(0,f.l/2); f.s.scale.setScalar(.6+.6*Math.sin(f.l*6)); if(f.l<=0) f.s.visible=false; });
+  };
+  function sm(x){ return x*x*(3-2*x); }
+  atualizarFitas(0);
+  return g;
+}
