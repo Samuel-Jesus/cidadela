@@ -250,10 +250,9 @@ export function Pawn({
       }
     } else {
       movingRef.current = false;
-      yawVelRef.current *= 1 - dt * 4;
-
       const baseY = fromRef.current?.y ?? g.position.y;
       if (kind === "ship") {
+        yawVelRef.current *= 1 - dt * 4;
         const wave =
           Math.sin(tNow * 1.5) * 0.022 + Math.sin(tNow * 2.3 + 0.7) * 0.012;
         g.position.y = baseY + wave;
@@ -262,13 +261,18 @@ export function Pawn({
         pitchRef.current +=
           (Math.sin(tNow * 1.7 + 0.4) * 0.03 - pitchRef.current) *
           Math.min(1, dt * 3);
-      } else {
-        const idleBob = active ? Math.sin(tNow * 3.2) * 0.008 : 0;
-        g.position.y = baseY + idleBob;
+      } else if (active) {
+        yawVelRef.current *= 1 - dt * 4;
+        g.position.y = baseY + Math.sin(tNow * 3.2) * 0.008;
         leanRef.current += (0 - leanRef.current) * Math.min(1, dt * 4);
         pitchRef.current +=
-          ((active ? Math.sin(tNow * 2.8) * 0.012 : 0) - pitchRef.current) *
+          (Math.sin(tNow * 2.8) * 0.012 - pitchRef.current) *
           Math.min(1, dt * 4);
+      } else {
+        if (Math.abs(g.position.y - baseY) > 0.0005) g.position.y = baseY;
+        if (Math.abs(leanRef.current) > 0.0005) leanRef.current = 0;
+        if (Math.abs(pitchRef.current) > 0.0005) pitchRef.current = 0;
+        yawVelRef.current = 0;
       }
     }
 
@@ -279,8 +283,12 @@ export function Pawn({
     }
 
     const scaleTarget = active ? 1.04 : 1;
-    const s = g.scale.x + (scaleTarget - g.scale.x) * Math.min(1, dt * 4);
-    g.scale.setScalar(s);
+    if (Math.abs(g.scale.x - scaleTarget) > 0.001) {
+      const s = g.scale.x + (scaleTarget - g.scale.x) * Math.min(1, dt * 4);
+      g.scale.setScalar(s);
+    } else if (g.scale.x !== scaleTarget) {
+      g.scale.setScalar(scaleTarget);
+    }
   });
 
   return (

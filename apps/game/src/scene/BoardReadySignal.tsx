@@ -1,7 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 
-const SETTLE_FRAMES = 12;
+const SETTLE_FRAMES = 6;
 const FORCE_READY_MS = 18000;
 
 type Props = {

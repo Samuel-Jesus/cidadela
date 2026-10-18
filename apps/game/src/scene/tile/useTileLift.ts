@@ -12,7 +12,12 @@ export function useTileLift(
   useFrame((_, dt) => {
     const g = groupRef.current;
     if (!g) return;
-    const target = selected ? 0.12 : hovered ? 0.06 : 0;
-    g.position.y += (baseY + target - g.position.y) * Math.min(1, dt * 8);
+    const target = baseY + (selected ? 0.12 : hovered ? 0.06 : 0);
+    const dy = target - g.position.y;
+    if (Math.abs(dy) < 0.0004) {
+      if (g.position.y !== target) g.position.y = target;
+      return;
+    }
+    g.position.y += dy * Math.min(1, dt * 8);
   });
 }

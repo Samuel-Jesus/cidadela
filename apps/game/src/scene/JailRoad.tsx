@@ -123,7 +123,7 @@ function RoadMesh({
   const { scene } = useGLTF(url);
   return (
     <group position={position} rotation={[0, rotationY, 0]} scale={scale}>
-      <Clone object={scene} castShadow receiveShadow />
+      <Clone object={scene} />
     </group>
   );
 }

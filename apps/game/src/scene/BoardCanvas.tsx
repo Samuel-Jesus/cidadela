@@ -1,5 +1,5 @@
 import { Canvas } from "@react-three/fiber";
-import { ContactShadows, Html, OrbitControls } from "@react-three/drei";
+import { Html, OrbitControls } from "@react-three/drei";
 import { Suspense, useMemo } from "react";
 import type { DiceRoll } from "@cidadela/engine";
 import { BOARD, type PlayerState } from "@cidadela/shared";
@@ -50,28 +50,33 @@ export function BoardCanvas({
   return (
     <Canvas
       shadows
+      dpr={[1, 1.5]}
       camera={{ position: [18, 16, 18], fov: 42, near: 0.1, far: 200 }}
-      gl={{ antialias: true }}
+      gl={{
+        antialias: true,
+        powerPreference: "high-performance",
+        stencil: false,
+      }}
       style={{ width: "100%", height: "100%" }}
     >
       <color attach="background" args={["#120c08"]} />
       <fog attach="fog" args={["#120c08", 35, 70]} />
 
-      <ambientLight intensity={0.5} />
+      <ambientLight intensity={0.55} />
       <directionalLight
         castShadow
         position={[12, 22, 10]}
-        intensity={1.45}
-        shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.0002}
-        shadow-camera-far={60}
-        shadow-camera-left={-20}
-        shadow-camera-right={20}
-        shadow-camera-top={20}
-        shadow-camera-bottom={-20}
+        intensity={1.35}
+        shadow-mapSize={[1024, 1024]}
+        shadow-bias={-0.0003}
+        shadow-camera-far={50}
+        shadow-camera-left={-16}
+        shadow-camera-right={16}
+        shadow-camera-top={16}
+        shadow-camera-bottom={-16}
       />
-      <hemisphereLight args={["#ffe8c8", "#2a1810", 0.42]} />
-      <directionalLight position={[-8, 10, -6]} intensity={0.35} color="#b8d4ff" />
+      <hemisphereLight args={["#ffe8c8", "#2a1810", 0.4]} />
+      <directionalLight position={[-8, 10, -6]} intensity={0.3} color="#b8d4ff" />
 
       <Suspense fallback={null}>
         <BoardTable />
@@ -101,14 +106,6 @@ export function BoardCanvas({
         />
 
         <JailEscort onComplete={onJailEscortComplete} />
-
-        <ContactShadows
-          position={[0, 0.03, 0]}
-          opacity={0.45}
-          scale={32}
-          blur={2.5}
-          far={12}
-        />
 
         {onBoardReady ? (
           <BoardReadySignal

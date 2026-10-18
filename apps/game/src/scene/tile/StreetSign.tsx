@@ -1,13 +1,119 @@
-import { Text } from "@react-three/drei";
+import { useMemo } from "react";
+import { CanvasTexture, LinearFilter, SRGBColorSpace } from "three";
 import type { SpaceLayout } from "../layout";
 import { inkOn } from "./inkOn";
 import { isSideTile } from "./tileLayout";
 
+/** Usado no preload do boot (cache HTTP da fonte das placas). */
 export const STREET_SIGN_FONT =
   "https://cdn.jsdelivr.net/fontsource/fonts/fredoka@5.2.5/latin-700-normal.woff";
 
 const WHITE = "#f4f6f8";
 const TILT = -0.32;
+const TEX_W = 512;
+const TEX_H = 288;
+
+const textureCache = new Map<string, CanvasTexture>();
+
+type FaceCopy = {
+  title: string;
+  subtitle: string;
+  footerLeft: string;
+  footerRight: string;
+  accent: string;
+};
+
+function wrapLines(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [""];
+  const lines: string[] = [];
+  let line = words[0]!;
+  for (let i = 1; i < words.length; i++) {
+    const next = `${line} ${words[i]!}`;
+    if (ctx.measureText(next).width <= maxWidth) {
+      line = next;
+    } else {
+      lines.push(line);
+      line = words[i]!;
+      if (lines.length >= maxLines) break;
+    }
+  }
+  if (lines.length < maxLines) lines.push(line);
+  if (lines.length > maxLines) {
+    const last = lines[maxLines - 1]!;
+    lines.length = maxLines;
+    lines[maxLines - 1] =
+      last.length > 2 ? `${last.slice(0, Math.max(1, last.length - 1))}…` : last;
+  }
+  return lines;
+}
+
+function bakeSignTexture(copy: FaceCopy): CanvasTexture {
+  const key = [
+    copy.title,
+    copy.subtitle,
+    copy.footerLeft,
+    copy.footerRight,
+    copy.accent,
+  ].join("\0");
+  const hit = textureCache.get(key);
+  if (hit) return hit;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = TEX_W;
+  canvas.height = TEX_H;
+  const ctx = canvas.getContext("2d")!;
+  const blueH = Math.round(TEX_H * 0.7);
+  const whiteH = TEX_H - blueH;
+  const titleColor = inkOn(copy.accent);
+  const subtitleColor =
+    titleColor === "#fffef8" ? "#e8eef8" : "#3d2918";
+
+  ctx.fillStyle = copy.accent;
+  ctx.fillRect(0, 0, TEX_W, blueH);
+  ctx.fillStyle = WHITE;
+  ctx.fillRect(0, blueH, TEX_W, whiteH);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = titleColor;
+  ctx.font = '700 42px "Fredoka", "Nunito", system-ui, sans-serif';
+  const titleLines = wrapLines(ctx, copy.title, TEX_W * 0.9, 2);
+  const titleY = blueH * 0.38;
+  const titleStep = 44;
+  titleLines.forEach((line, i) => {
+    const y =
+      titleY - ((titleLines.length - 1) * titleStep) / 2 + i * titleStep;
+    ctx.fillText(line, TEX_W / 2, y);
+  });
+
+  ctx.fillStyle = subtitleColor;
+  ctx.font = '600 20px "Fredoka", "Nunito", system-ui, sans-serif';
+  const sub = wrapLines(ctx, copy.subtitle, TEX_W * 0.92, 1)[0]!;
+  ctx.fillText(sub, TEX_W / 2, blueH * 0.78);
+
+  ctx.fillStyle = "#1a1a1a";
+  ctx.font = '700 22px "Fredoka", "Nunito", system-ui, sans-serif';
+  ctx.textAlign = "left";
+  ctx.fillText(copy.footerLeft, TEX_W * 0.06, blueH + whiteH * 0.52);
+  ctx.textAlign = "right";
+  ctx.font = '600 18px "Fredoka", "Nunito", system-ui, sans-serif';
+  ctx.fillText(copy.footerRight, TEX_W * 0.94, blueH + whiteH * 0.52);
+
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.minFilter = LinearFilter;
+  tex.magFilter = LinearFilter;
+  tex.anisotropy = 4;
+  tex.needsUpdate = true;
+  textureCache.set(key, tex);
+  return tex;
+}
 
 type Props = {
   layout: SpaceLayout;
@@ -17,80 +123,6 @@ type Props = {
   footerLeft?: string;
   footerRight?: string;
 };
-
-function SignFace({
-  title,
-  subtitle,
-  footerLeft,
-  footerRight,
-  plateW,
-  blueH,
-  titleColor,
-  subtitleColor,
-  z,
-}: {
-  title: string;
-  subtitle: string;
-  footerLeft: string;
-  footerRight: string;
-  plateW: number;
-  blueH: number;
-  titleColor: string;
-  subtitleColor: string;
-  z: number;
-}) {
-  const whiteH = 0.13;
-  return (
-    <group position={[0, 0, z]}>
-      <Text
-        position={[0, whiteH / 2 + 0.035, 0]}
-        font={STREET_SIGN_FONT}
-        fontSize={0.13}
-        maxWidth={plateW * 0.94}
-        textAlign="center"
-        anchorX="center"
-        anchorY="middle"
-        color={titleColor}
-        overflowWrap="break-word"
-        whiteSpace="normal"
-      >
-        {title}
-      </Text>
-      <Text
-        position={[0, whiteH / 2 - 0.08, 0]}
-        font={STREET_SIGN_FONT}
-        fontSize={0.052}
-        maxWidth={plateW * 0.95}
-        textAlign="center"
-        anchorX="center"
-        anchorY="middle"
-        color={subtitleColor}
-      >
-        {subtitle}
-      </Text>
-      <Text
-        position={[-plateW * 0.4, -blueH / 2, 0]}
-        font={STREET_SIGN_FONT}
-        fontSize={0.048}
-        anchorX="left"
-        anchorY="middle"
-        color="#1a1a1a"
-      >
-        {footerLeft}
-      </Text>
-      <Text
-        position={[plateW * 0.4, -blueH / 2, 0]}
-        font={STREET_SIGN_FONT}
-        fontSize={0.045}
-        anchorX="right"
-        anchorY="middle"
-        color="#1a1a1a"
-      >
-        {footerRight}
-      </Text>
-    </group>
-  );
-}
 
 export function StreetSign({
   layout,
@@ -112,44 +144,37 @@ export function StreetSign({
     : [0, 0.2, -oz * front];
 
   const plateW = Math.min(1.65, along * 0.98);
-  const blueH = 0.3;
-  const whiteH = 0.13;
-  const plateH = blueH + whiteH;
-  const faceZ = 0.014;
+  const plateH = 0.43;
+  const faceZ = 0.012;
 
-  const titleColor = inkOn(accent);
-  const subtitleColor =
-    titleColor === "#fffef8" ? "#e8eef8" : "#3d2918";
-
-  const faceProps = {
-    title,
-    subtitle,
-    footerLeft,
-    footerRight,
-    plateW,
-    blueH,
-    titleColor,
-    subtitleColor,
-  };
+  const map = useMemo(
+    () =>
+      bakeSignTexture({
+        title,
+        subtitle,
+        footerLeft,
+        footerRight,
+        accent,
+      }),
+    [title, subtitle, footerLeft, footerRight, accent],
+  );
 
   return (
     <group position={position} rotation={[0, layout.yaw, 0]}>
       <group rotation={[TILT, 0, 0]}>
-        <mesh position={[0, whiteH / 2, 0]} castShadow>
-          <boxGeometry args={[plateW, blueH, 0.022]} />
-          <meshStandardMaterial color={accent} roughness={0.5} />
+        <mesh position={[0, 0, 0]}>
+          <boxGeometry args={[plateW, plateH, 0.02]} />
+          <meshStandardMaterial color="#4a3426" roughness={0.85} />
         </mesh>
-        <mesh position={[0, -blueH / 2, 0]} castShadow>
-          <boxGeometry args={[plateW, whiteH, 0.022]} />
-          <meshStandardMaterial color={WHITE} roughness={0.65} />
+        <mesh position={[0, 0, faceZ]}>
+          <planeGeometry args={[plateW, plateH]} />
+          <meshBasicMaterial map={map} toneMapped={false} />
         </mesh>
-
-        <SignFace {...faceProps} z={faceZ} />
-        <group rotation={[0, Math.PI, 0]}>
-          <SignFace {...faceProps} z={faceZ} />
-        </group>
-
-        <mesh position={[0, -plateH / 2 - 0.025, -0.05]} castShadow>
+        <mesh position={[0, 0, -faceZ]} rotation={[0, Math.PI, 0]}>
+          <planeGeometry args={[plateW, plateH]} />
+          <meshBasicMaterial map={map} toneMapped={false} />
+        </mesh>
+        <mesh position={[0, -plateH / 2 - 0.025, -0.05]}>
           <boxGeometry args={[plateW * 0.4, 0.035, 0.07]} />
           <meshStandardMaterial
             color="#6b6b6b"
