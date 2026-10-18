@@ -165,7 +165,10 @@
     "backToLobbyTitle": "العودة إلى الردهة",
     "more": "المزيد",
     "less": "أقل",
-    "bankStockShort": "البنك · {{pousadas}}ن · {{resorts}}م"
+    "bankStockShort": "البنك · {{pousadas}}ن · {{resorts}}م",
+    "forfeit": "انسحاب",
+    "forfeitTitle": "انسحب من اللعبة — كل شيء يعود للبنك",
+    "forfeitConfirm": "الانسحاب من اللعبة؟ النقود والبطاقات والسندات تذهب إلى البنك (العقارات تدخل المزاد). لا يمكن التراجع."
   },
   "turn": {
     "winner": "انتهت اللعبة — الفائز",
@@ -226,7 +229,8 @@
     "noBidsProperty": "لا عروض — العقار يبقى مع البنك.",
     "noBidsPiece": "لا عروض — القطعة تبقى مع البنك.",
     "payJailFail": "تعذر الدفع.",
-    "noProtection": "لا بطاقة حماية."
+    "noProtection": "لا بطاقة حماية.",
+    "forfeit": "{{name}} انسحب — كل شيء يبقى مع البنك."
   },
   "card": {
     "resolution": "حلّ الخانة",

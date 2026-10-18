@@ -15,6 +15,7 @@ import {
   findPropertyOwner,
   findWinner,
   forceLeaveJailAfterFailedAttempts,
+  getPlayerLabel,
   getSpace,
   isBuyableKind,
   liquidateAll,
@@ -1152,6 +1153,75 @@ export function App() {
     presentEvent(broke.notes, []);
   }, [pendingDebt, turnPhase, presentEvent, enqueueAuctions, endGameIfWon, t]);
 
+  const onForfeitToBank = useCallback(
+    (forfeitPlayerId?: string) => {
+      if (
+        winnerId ||
+        turnPhase === "ended" ||
+        turnPhase === "auction" ||
+        turnPhase === "busy"
+      ) {
+        return;
+      }
+      const session = onlineRef.current;
+      const playerId =
+        forfeitPlayerId ?? session?.localPlayerId ?? activeRef.current;
+      if (!playerId) return;
+      if (playerId !== activeRef.current) {
+        if (!(turnPhase === "debt" && pendingDebt?.debtorId === playerId)) {
+          return;
+        }
+      }
+      const player = playersRef.current.find((p) => p.id === playerId);
+      if (!player || player.bankrupt) return;
+      if (playersRef.current.filter((p) => !p.bankrupt).length <= 1) return;
+
+      const broke = declareBankruptcy(
+        playersRef.current,
+        decksRef.current,
+        playerId,
+        { type: "bank" },
+      );
+      const notes = [
+        t("msg.forfeit", { name: getPlayerLabel(player) }),
+        ...broke.notes,
+      ];
+      playersRef.current = broke.players;
+      setPlayers(broke.players);
+      decksRef.current = broke.decks;
+      setDecks(broke.decks);
+
+      if (pendingDebt?.debtorId === playerId) setPendingDebt(null);
+      if (
+        pendingRent &&
+        (pendingRent.visitorId === playerId ||
+          pendingRent.ownerId === playerId)
+      ) {
+        setPendingRent(null);
+      }
+      setShowTrade(false);
+
+      if (endGameIfWon(broke.players)) {
+        presentEvent([...notes, t("msg.gameOver")], []);
+        return;
+      }
+      if (broke.auctionQueue.length) {
+        enqueueAuctions(broke.auctionQueue);
+      }
+      presentEvent(notes, []);
+    },
+    [
+      winnerId,
+      turnPhase,
+      pendingDebt,
+      pendingRent,
+      presentEvent,
+      enqueueAuctions,
+      endGameIfWon,
+      t,
+    ],
+  );
+
   const onClaimRent = useCallback(() => {
     if (!pendingRent) return;
     const claim = pendingRent;
@@ -1782,6 +1852,12 @@ export function App() {
         case "liquidateForDebt":
         case "declareBankruptcy":
           return pendingDebt?.debtorId === actorId;
+        case "forfeitToBank":
+          return (
+            playersRef.current.some((p) => p.id === actorId && !p.bankrupt) &&
+            (actorId === active ||
+              (turnPhase === "debt" && pendingDebt?.debtorId === actorId))
+          );
         case "auctionBid":
         case "auctionPass":
           return (
@@ -1836,6 +1912,9 @@ export function App() {
         break;
       case "declareBankruptcy":
         onDeclareBankruptcy();
+        break;
+      case "forfeitToBank":
+        onForfeitToBank(actorId);
         break;
       case "payJailFine":
         onPayJailFine();
@@ -2002,6 +2081,9 @@ export function App() {
         }
         onDeclareBankruptcy={() =>
           sendIntent({ type: "declareBankruptcy" }, onDeclareBankruptcy)
+        }
+        onForfeitToBank={() =>
+          sendIntent({ type: "forfeitToBank" }, () => onForfeitToBank())
         }
         onOpenTrade={() =>
           sendIntent({ type: "openTrade" }, () => setShowTrade(true))

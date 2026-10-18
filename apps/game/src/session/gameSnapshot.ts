@@ -103,6 +103,7 @@ export type GameIntent =
   | { type: "payDebt" }
   | { type: "liquidateForDebt" }
   | { type: "declareBankruptcy" }
+  | { type: "forfeitToBank" }
   | { type: "payJailFine" }
   | { type: "useJailProtection" }
   | { type: "auctionBid"; amount: number }

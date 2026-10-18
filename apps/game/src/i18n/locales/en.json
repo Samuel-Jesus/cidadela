@@ -165,7 +165,10 @@
     "backToLobbyTitle": "Back to Lobby",
     "more": "More",
     "less": "Less",
-    "bankStockShort": "Bank · {{pousadas}}i · {{resorts}}r"
+    "bankStockShort": "Bank · {{pousadas}}i · {{resorts}}r",
+    "forfeit": "Forfeit",
+    "forfeitTitle": "Quit the game — everything returns to the bank",
+    "forfeitConfirm": "Quit the game? Cash, cards, and deeds go to the bank (properties go to auction). This cannot be undone."
   },
   "turn": {
     "winner": "Game over — winner",
@@ -226,7 +229,8 @@
     "noBidsProperty": "No bids — property stays with the bank.",
     "noBidsPiece": "No bids — piece stays with the bank.",
     "payJailFail": "Could not pay.",
-    "noProtection": "No Protection card."
+    "noProtection": "No Protection card.",
+    "forfeit": "{{name}} quit — everything goes to the bank."
   },
   "card": {
     "resolution": "Space resolution",

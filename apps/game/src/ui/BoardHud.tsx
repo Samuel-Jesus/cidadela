@@ -60,6 +60,7 @@ type Props = {
   onPayDebt: () => void;
   onLiquidateForDebt: () => void;
   onDeclareBankruptcy: () => void;
+  onForfeitToBank: () => void;
   onOpenTrade: () => void;
   onClaimRent: () => void;
 };
@@ -95,6 +96,7 @@ export function BoardHud({
   onPayDebt,
   onLiquidateForDebt,
   onDeclareBankruptcy,
+  onForfeitToBank,
   onOpenTrade,
   onClaimRent,
 }: Props) {
@@ -117,6 +119,22 @@ export function BoardHud({
   const space = selectedIndex === null ? null : getSpace(selectedIndex);
   const active = players.find((p) => p.id === activePlayerId) ?? null;
   const activeDef = active ? getPawnDef(active.pawnId) : null;
+  const forfeitPlayer = isOnline
+    ? (players.find((p) => p.id === localPlayerId) ?? null)
+    : active;
+  const canForfeit =
+    Boolean(forfeitPlayer) &&
+    !forfeitPlayer!.bankrupt &&
+    turnPhase !== "ended" &&
+    turnPhase !== "auction" &&
+    turnPhase !== "busy" &&
+    players.filter((p) => !p.bankrupt).length > 1 &&
+    (controlsTurn ||
+      (turnPhase === "debt" && pendingDebt?.debtorId === forfeitPlayer!.id));
+  const confirmForfeit = () => {
+    if (!window.confirm(t("hud.forfeitConfirm"))) return;
+    onForfeitToBank();
+  };
   const owner =
     selectedIndex === null ? null : findPropertyOwner(players, selectedIndex);
 
@@ -414,6 +432,16 @@ export function BoardHud({
                           className="hud-btn hud-btn--amber px-2 py-0.5 text-[11px]"
                         >
                           {t("hud.trade")}
+                        </button>
+                      ) : null}
+                      {canForfeit ? (
+                        <button
+                          type="button"
+                          onClick={confirmForfeit}
+                          className="hud-btn hud-btn--pink px-2 py-0.5 text-[11px]"
+                          title={t("hud.forfeitTitle")}
+                        >
+                          {t("hud.forfeit")}
                         </button>
                       ) : null}
                       <button
@@ -815,6 +843,17 @@ export function BoardHud({
             className="hud-btn hud-btn--amber w-full px-2.5 py-2 text-sm"
           >
             {t("hud.trade")}
+          </button>
+        ) : null}
+
+        {canForfeit ? (
+          <button
+            type="button"
+            onClick={confirmForfeit}
+            className="hud-btn hud-btn--pink w-full px-2.5 py-2 text-sm"
+            title={t("hud.forfeitTitle")}
+          >
+            {t("hud.forfeit")}
           </button>
         ) : null}
 

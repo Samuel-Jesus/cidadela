@@ -165,7 +165,10 @@
     "backToLobbyTitle": "Voltar ao Lobby",
     "more": "Mais",
     "less": "Menos",
-    "bankStockShort": "Banco · {{pousadas}}p · {{resorts}}r"
+    "bankStockShort": "Banco · {{pousadas}}p · {{resorts}}r",
+    "forfeit": "Desistir",
+    "forfeitTitle": "Desistir da partida — tudo volta ao banco",
+    "forfeitConfirm": "Desistir da partida? Dinheiro, cartas e escrituras vão para o banco (propriedades entram em leilão). Esta ação não pode ser desfeita."
   },
   "turn": {
     "winner": "Fim de jogo — vencedor",
@@ -226,7 +229,8 @@
     "noBidsProperty": "Sem lances — propriedade continua com o banco.",
     "noBidsPiece": "Sem lances — peça continua no banco.",
     "payJailFail": "Não foi possível pagar.",
-    "noProtection": "Sem Proteção."
+    "noProtection": "Sem Proteção.",
+    "forfeit": "{{name}} desistiu — tudo fica com o banco."
   },
   "card": {
     "resolution": "Resolução da casa",
