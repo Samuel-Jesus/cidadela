@@ -1,5 +1,6 @@
 import { getSfxSlot, type SfxSlot } from "./sfxCatalog";
 import {
+  getOverrideUrl,
   initSfxOverrides,
   resolveSlotUrl,
   subscribeSfxOverrides,
@@ -13,7 +14,16 @@ export type GameSfx =
   | "auctionStart"
   | "yourTurn"
   | "payRent"
-  | "tiros";
+  | "tiros"
+  | "pawnStep"
+  | "pawnLand"
+  | "payTax"
+  | "buyDeed"
+  | "mortgage"
+  | "build"
+  | "victory"
+  | "siren"
+  | "towTruck";
 
 const FILES: Record<UiSfx, string> = {
   click: "click_004.ogg",
@@ -29,13 +39,23 @@ const DICE_FILES: Record<DiceSfx, string> = {
   fall: "fall_dices.ogg",
 };
 
-const GAME_FILES: Record<GameSfx, string> = {
+/** Arquivo padrão em /sounds/game; null = só toca após upload no admin. */
+const GAME_FILES: Record<GameSfx, string | null> = {
   cashGain: "ganhar_grana.ogg",
   badLuck: "sem_sorte.ogg",
   auctionStart: "start_leilao.ogg",
   yourTurn: "vez_de_jogar.ogg",
   payRent: "pagar_aluguel_perder_grana.ogg",
   tiros: "magiaz_tiros.mp3",
+  pawnStep: null,
+  pawnLand: null,
+  payTax: null,
+  buyDeed: null,
+  mortgage: null,
+  build: null,
+  victory: null,
+  siren: null,
+  towTruck: null,
 };
 
 const BASE = "/sounds/ui";
@@ -120,12 +140,7 @@ subscribeSfxOverrides(() => {
   }
 });
 
-function getAudioResolved(
-  slotId: string,
-  file: string,
-  base: string,
-): HTMLAudioElement {
-  const url = resolveSlotUrl(slotId, defaultUrl(file, base));
+function getAudioFromUrl(slotId: string, url: string): HTMLAudioElement {
   const key = `${slotId}|${url}`;
   let a = cache.get(key);
   if (!a) {
@@ -134,6 +149,22 @@ function getAudioResolved(
     cache.set(key, a);
   }
   return a;
+}
+
+function getAudioResolved(
+  slotId: string,
+  file: string,
+  base: string,
+): HTMLAudioElement {
+  return getAudioFromUrl(slotId, resolveSlotUrl(slotId, defaultUrl(file, base)));
+}
+
+function resolveGameUrl(id: GameSfx): string | null {
+  const slotId = gameSlot(id);
+  const file = GAME_FILES[id];
+  const fallback = file ? defaultUrl(file, GAME_BASE) : "";
+  const url = resolveSlotUrl(slotId, fallback);
+  return url.trim() ? url : null;
 }
 
 export async function ensureSfxOverridesReady(): Promise<void> {
@@ -186,8 +217,10 @@ export function playDiceSfx(id: DiceSfx, opts?: { volume?: number }): void {
 
 export function playGameSfx(id: GameSfx, opts?: { volume?: number }): void {
   if (muted || volume <= 0) return;
+  const url = resolveGameUrl(id);
+  if (!url) return;
   try {
-    const src = getAudioResolved(gameSlot(id), GAME_FILES[id], GAME_BASE);
+    const src = getAudioFromUrl(gameSlot(id), url);
     const node = src.cloneNode(true) as HTMLAudioElement;
     node.volume = Math.min(1, Math.max(0, opts?.volume ?? volume * 0.9));
     void node.play().catch(() => undefined);
@@ -199,8 +232,10 @@ export function playGameSfx(id: GameSfx, opts?: { volume?: number }): void {
 export function startTirosSfx(opts?: { volume?: number }): void {
   stopTirosSfx();
   if (muted || volume <= 0) return;
+  const url = resolveGameUrl("tiros");
+  if (!url) return;
   try {
-    const a = getAudioResolved(gameSlot("tiros"), GAME_FILES.tiros, GAME_BASE);
+    const a = getAudioFromUrl(gameSlot("tiros"), url);
     a.loop = true;
     a.currentTime = 0;
     a.volume = Math.min(1, Math.max(0, opts?.volume ?? volume * 0.85));
@@ -348,10 +383,12 @@ export function stopSfxPreview(): void {
   previewNode = null;
 }
 
-export function playSfxSlotPreview(slot: SfxSlot): void {
+/** @returns false se não houver arquivo padrão nem upload. */
+export function playSfxSlotPreview(slot: SfxSlot): boolean {
   stopSfxPreview();
+  const url = resolveSlotUrl(slot.id, slot.defaultUrl).trim();
+  if (!url) return false;
   unlockAudio();
-  const url = resolveSlotUrl(slot.id, slot.defaultUrl);
   try {
     const a = new Audio(url);
     a.volume = Math.min(1, Math.max(0.15, volume || 0.55));
@@ -367,9 +404,16 @@ export function playSfxSlotPreview(slot: SfxSlot): void {
         { once: true },
       );
     }
+    return true;
   } catch {
-    return;
+    return false;
   }
+}
+
+export function slotHasPlayableAudio(slot: SfxSlot): boolean {
+  return Boolean(
+    getOverrideUrl(slot.id) || slot.defaultUrl.trim(),
+  );
 }
 
 export function isSfxPreviewPlaying(): boolean {
@@ -385,7 +429,8 @@ export function preloadUiSfx(): void {
       getAudioResolved(diceSlot(id), DICE_FILES[id], DICE_BASE);
     }
     for (const id of Object.keys(GAME_FILES) as GameSfx[]) {
-      getAudioResolved(gameSlot(id), GAME_FILES[id], GAME_BASE);
+      const url = resolveGameUrl(id);
+      if (url) getAudioFromUrl(gameSlot(id), url);
     }
     CARNAVAL_TRACKS.forEach((file, i) => {
       getAudioResolved(carnavalSlot(i), file, CARNAVAL_BASE);

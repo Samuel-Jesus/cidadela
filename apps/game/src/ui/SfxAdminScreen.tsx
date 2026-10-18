@@ -1,14 +1,13 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ensureSfxOverridesReady,
   playSfxSlotPreview,
+  slotHasPlayableAudio,
   stopSfxPreview,
   unlockAudio,
 } from "../audio/sfx";
 import {
-  SFX_CATEGORY_LABELS,
-  SFX_PLANNED,
   SFX_SLOTS,
   type SfxCategory,
   type SfxSlot,
@@ -46,10 +45,23 @@ function SlotRow({
 }) {
   const { t } = useTranslation();
   const inputId = useId();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const customized = Boolean(meta);
+  const hasDefault = Boolean(slot.defaultUrl.trim());
+  const playable = slotHasPlayableAudio(slot);
+
+  const statusKey = customized
+    ? "custom"
+    : hasDefault
+      ? "default"
+      : "empty";
+  const statusClass =
+    statusKey === "custom"
+      ? "bg-[#86efac] text-[#14532d]"
+      : statusKey === "default"
+        ? "bg-[#fef08a] text-[#854d0e]"
+        : "bg-[#e7e5e4] text-[#57534e]";
 
   const onUpload = (file: File | undefined) => {
     if (!file) return;
@@ -87,13 +99,9 @@ function SlotRow({
               {slot.label}
             </h3>
             <span
-              className={`rounded-md border border-[#5c3d2e] px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${
-                customized
-                  ? "bg-[#86efac] text-[#14532d]"
-                  : "bg-[#fef08a] text-[#854d0e]"
-              }`}
+              className={`rounded-md border border-[#5c3d2e] px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${statusClass}`}
             >
-              {customized ? t("sfxAdmin.custom") : t("sfxAdmin.default")}
+              {t(`sfxAdmin.${statusKey}`)}
             </span>
           </div>
           <p className="mt-0.5 text-xs font-semibold text-[#6b5344]">
@@ -102,17 +110,22 @@ function SlotRow({
           <p className="mt-1 truncate font-mono text-[10px] text-[#8a6a4e]">
             {customized && meta
               ? `${meta.fileName} · ${formatBytes(meta.size)}`
-              : slot.defaultUrl}
+              : hasDefault
+                ? slot.defaultUrl
+                : t("sfxAdmin.noFileYet")}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           <button
             type="button"
             className="deed-btn deed-btn--amber px-2.5 py-1.5 text-xs"
-            disabled={busy}
+            disabled={busy || !playable}
+            title={!playable ? t("sfxAdmin.needUpload") : undefined}
             onClick={() => {
               unlockAudio();
-              playSfxSlotPreview(slot);
+              if (!playSfxSlotPreview(slot)) {
+                setError(t("sfxAdmin.needUpload"));
+              }
             }}
           >
             {t("sfxAdmin.play")}
@@ -134,7 +147,6 @@ function SlotRow({
             {t("sfxAdmin.upload")}
             <input
               id={inputId}
-              ref={inputRef}
               type="file"
               accept="audio/*,.ogg,.mp3,.wav,.aiff,.aif,.webm,.m4a"
               className="sr-only"
@@ -245,7 +257,7 @@ export function SfxAdminScreen({ onBack }: Props) {
                   style={{ backgroundColor: "#e9a46c" }}
                 >
                   <p className="deed-sheet__kicker deed-sheet__kicker--dark">
-                    {SFX_CATEGORY_LABELS[cat]}
+                    {t(`sfxAdmin.cat.${cat}`)}
                   </p>
                   <h2 className="deed-sheet__title deed-sheet__title--dark text-lg">
                     {t(`sfxAdmin.cat.${cat}`)}
@@ -265,33 +277,6 @@ export function SfxAdminScreen({ onBack }: Props) {
             );
           })
         )}
-
-        <section className="deed-sheet overflow-hidden opacity-90">
-          <header
-            className="deed-sheet__band"
-            style={{ backgroundColor: "#c4b5a0" }}
-          >
-            <p className="deed-sheet__kicker deed-sheet__kicker--dark">
-              {t("sfxAdmin.plannedKicker")}
-            </p>
-            <h2 className="deed-sheet__title deed-sheet__title--dark text-lg">
-              {t("sfxAdmin.plannedTitle")}
-            </h2>
-          </header>
-          <ul className="m-0 list-none space-y-1.5 p-3">
-            {SFX_PLANNED.map((item) => (
-              <li
-                key={item.label}
-                className="rounded-lg border-2 border-dashed border-[#5c3d2e]/50 bg-white/50 px-3 py-2"
-              >
-                <p className="text-sm font-bold text-[#6b5344]">{item.label}</p>
-                <p className="text-[11px] font-semibold text-[#8a6a4e]">
-                  {item.description}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
       </div>
     </div>
   );

@@ -148,6 +148,87 @@ export const SFX_SLOTS: readonly SfxSlot[] = [
     playMode: "loop",
   },
   {
+    id: "game:pawnStep",
+    category: "game",
+    key: "pawnStep",
+    label: "Passo do peão",
+    description: "Som a cada casa no caminho",
+    defaultUrl: "",
+    playMode: "oneshot",
+  },
+  {
+    id: "game:pawnLand",
+    category: "game",
+    key: "pawnLand",
+    label: "Peão aterrissa",
+    description: "Chegou na casa final do movimento",
+    defaultUrl: "",
+    playMode: "oneshot",
+  },
+  {
+    id: "game:payTax",
+    category: "game",
+    key: "payTax",
+    label: "Pagar / imposto",
+    description: "Débito genérico / Pedágio / Abadá",
+    defaultUrl: "",
+    playMode: "oneshot",
+  },
+  {
+    id: "game:buyDeed",
+    category: "game",
+    key: "buyDeed",
+    label: "Comprar escritura",
+    description: "Confirmação de compra",
+    defaultUrl: "",
+    playMode: "oneshot",
+  },
+  {
+    id: "game:mortgage",
+    category: "game",
+    key: "mortgage",
+    label: "Hipotecar",
+    description: "Ao hipotecar uma escritura",
+    defaultUrl: "",
+    playMode: "oneshot",
+  },
+  {
+    id: "game:build",
+    category: "game",
+    key: "build",
+    label: "Construir",
+    description: "Ao construir pousada ou resort",
+    defaultUrl: "",
+    playMode: "oneshot",
+  },
+  {
+    id: "game:victory",
+    category: "game",
+    key: "victory",
+    label: "Vitória",
+    description: "Fim de jogo — vencedor",
+    defaultUrl: "",
+    playMode: "oneshot",
+  },
+  {
+    id: "game:siren",
+    category: "game",
+    key: "siren",
+    label: "Sirene da viatura",
+    description: "Stinger ao ir para o Forte",
+    defaultUrl: "",
+    playMode: "oneshot",
+  },
+  {
+    id: "game:towTruck",
+    category: "game",
+    key: "towTruck",
+    label: "Guincho",
+    description: "Venda de pousada/resort ao banco",
+    defaultUrl: "",
+    playMode: "oneshot",
+  },
+  {
     id: "carnaval:0",
     category: "carnaval",
     key: "igor_kanario01",
@@ -167,26 +248,14 @@ export const SFX_SLOTS: readonly SfxSlot[] = [
   },
 ] as const;
 
-export const SFX_PLANNED: readonly {
-  label: string;
-  description: string;
-}[] = [
-    { label: "Passo do peão", description: "Som a cada casa no caminho" },
-    { label: "Peão aterrissa", description: "Chegou na casa final do movimento" },
-    { label: "Pagar / imposto", description: "Débito genérico / Pedágio / Abadá" },
-    { label: "Comprar escritura", description: "Confirmação de compra" },
-    { label: "Hipotecar / construir", description: "Ações na escritura" },
-    { label: "Vitória", description: "Fim de jogo" },
-    { label: "Sirene da viatura", description: "Stinger além do loop de tiros" },
-    { label: "Guincho", description: "Venda de pousada/resort" },
-  ];
-
 export function getSfxSlot(id: string): SfxSlot | undefined {
   return SFX_SLOTS.find((s) => s.id === id);
 }
 
-export function slotsByCategory(
-  category: SfxCategory,
-): readonly SfxSlot[] {
+export function slotsByCategory(category: SfxCategory): readonly SfxSlot[] {
   return SFX_SLOTS.filter((s) => s.category === category);
+}
+
+export function slotHasDefaultFile(slot: SfxSlot): boolean {
+  return Boolean(slot.defaultUrl.trim());
 }
