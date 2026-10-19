@@ -239,7 +239,8 @@
     "noBidsPiece": "Sem lances — peça continua no banco.",
     "payJailFail": "Não foi possível pagar.",
     "noProtection": "Sem Proteção.",
-    "forfeit": "{{name}} desistiu — tudo fica com o banco."
+    "forfeit": "{{name}} desistiu — tudo fica com o banco.",
+    "tradeRejected": "{{name}} recusou a proposta de troca."
   },
   "card": {
     "resolution": "Resolução da casa",
@@ -276,6 +277,16 @@
     "blockedBuildings": "{{count}} com construção — venda ao banco antes.",
     "noPartner": "Não há outro jogador ativo para negociar.",
     "confirmTrade": "Confirmar troca",
+    "sendProposal": "Enviar proposta",
+    "accept": "Aceitar",
+    "reject": "Recusar",
+    "cancelProposal": "Cancelar proposta",
+    "reviewHeading": "Proposta recebida",
+    "reviewSubtitle": "{{name}} quer negociar com você — aceite ou recuse",
+    "waitingHeading": "Aguardando resposta",
+    "waitingSubtitle": "Esperando {{name}} aprovar a troca",
+    "offerFrom": "{{name}} oferece",
+    "emptySide": "Nada nesta parte",
     "noneNegotiable": "Nenhuma negociável",
     "noCards": "Nenhuma carta",
     "youGive": "Você oferece",

@@ -5,6 +5,7 @@ import {
   GO_BONUS,
   JAIL_FINE,
   JAIL_MAX_ATTEMPTS,
+  applyTrade,
   awardAuctionLot,
   buyProperty,
   createDecks,
@@ -67,6 +68,7 @@ import {
   type GameIntent,
   type GameSnapshot,
   type PendingLanding,
+  type PendingTradeProposal,
   type TurnPhase,
 } from "./session/gameSnapshot";
 import {
@@ -210,6 +212,8 @@ export function App() {
   const [auction, setAuction] = useState<AuctionSession | null>(null);
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [showTrade, setShowTrade] = useState(false);
+  const [pendingTrade, setPendingTrade] =
+    useState<PendingTradeProposal | null>(null);
   const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(
     null,
   );
@@ -328,6 +332,7 @@ export function App() {
     setFollowUpCards(snap.followUpCards);
     setShowEventModal(snap.showEventModal);
     setShowTrade(snap.showTrade);
+    setPendingTrade(snap.pendingTrade ?? null);
     setJailError(snap.jailError);
     pendingLandingRef.current = snap.pendingLanding;
     extraRollRef.current = snap.extraRoll;
@@ -359,6 +364,7 @@ export function App() {
       followUpCards,
       showEventModal,
       showTrade,
+      pendingTrade,
       jailError,
       pendingLanding: pendingLandingRef.current,
       extraRoll: extraRollRef.current,
@@ -379,6 +385,7 @@ export function App() {
     followUpCards,
     showEventModal,
     showTrade,
+    pendingTrade,
     jailError,
   ]);
 
@@ -480,6 +487,8 @@ export function App() {
       setConsecutiveDoubles(0);
       setDiceRoll(null);
       setJailError(null);
+      setShowTrade(false);
+      setPendingTrade(null);
       setActivePlayerId(nextId);
       setTurnPhase("roll");
       const next = playersRef.current.find((p) => p.id === nextId);
@@ -679,6 +688,7 @@ export function App() {
     pendingAuctionsRef.current = [];
     auctionAdvanceAfterModalRef.current = null;
     setShowTrade(false);
+    setPendingTrade(null);
     resumePhaseAfterModalRef.current = null;
     setJailError(null);
     setSelectedIndex(0);
@@ -848,6 +858,7 @@ export function App() {
     followUpCards,
     showEventModal,
     showTrade,
+    pendingTrade,
     jailError,
   ]);
 
@@ -1216,6 +1227,9 @@ export function App() {
         setPendingRent(null);
       }
       setShowTrade(false);
+      setPendingTrade((pt) =>
+        pt && (pt.fromId === playerId || pt.toId === playerId) ? null : pt,
+      );
 
       if (endGameIfWon(broke.players)) {
         presentEvent([...notes, t("msg.gameOver")], []);
@@ -1831,9 +1845,89 @@ export function App() {
       ? pendingDebt
       : null;
 
-  const showTradeToLocal =
+  const tradeOnTurn =
+    turnPhase === "roll" || turnPhase === "action" || turnPhase === "debt";
+
+  const onOpenTradeLocal = useCallback(() => {
+    if (!tradeOnTurn || pendingTrade) return;
+    setShowTrade(true);
+  }, [tradeOnTurn, pendingTrade]);
+
+  const onProposeTradeLocal = useCallback((proposal: PendingTradeProposal) => {
+    if (proposal.fromId !== activeRef.current) return;
+    setPendingTrade((current) => current ?? proposal);
+    setShowTrade(false);
+  }, []);
+
+  const onCancelTradeLocal = useCallback(() => {
+    setPendingTrade(null);
+  }, []);
+
+  const onRespondTradeLocal = useCallback(
+    (accept: boolean) => {
+      const pt = pendingTrade;
+      if (!pt) return;
+      if (!accept) {
+        setPendingTrade(null);
+        const rejector = playersRef.current.find((p) => p.id === pt.toId);
+        presentEvent(
+          [
+            t("msg.tradeRejected", {
+              name: rejector ? getPlayerLabel(rejector) : pt.toId,
+            }),
+          ],
+          [],
+        );
+        return;
+      }
+      const offer = {
+        fromId: pt.fromId,
+        toId: pt.toId,
+        give: pt.give,
+        receive: pt.receive,
+      };
+      const resolutions: Record<number, "redeem" | "interest"> = {};
+      for (const r of pt.resolutions) {
+        resolutions[r.spaceIndex] = r.choice;
+      }
+      const result = applyTrade(playersRef.current, offer, resolutions);
+      setPendingTrade(null);
+      if (!result.ok) {
+        presentEvent([result.error], []);
+        return;
+      }
+      playersRef.current = result.players;
+      setPlayers(result.players);
+      const resume =
+        turnPhase === "debt"
+          ? "debt"
+          : turnPhase === "action"
+            ? "action"
+            : "roll";
+      if (presentEvent(result.notes, [])) {
+        resumePhaseAfterModalRef.current = resume;
+      }
+    },
+    [pendingTrade, presentEvent, turnPhase, t],
+  );
+
+  const showTradeCompose =
     showTrade &&
+    !pendingTrade &&
+    tradeOnTurn &&
+    Boolean(activePlayerId) &&
     (!localPlayerId || localPlayerId === activePlayerId);
+
+  const showTradeReview =
+    Boolean(pendingTrade) &&
+    !winnerId &&
+    (!localPlayerId || localPlayerId === pendingTrade!.toId);
+
+  const showTradeWaiting =
+    Boolean(pendingTrade) &&
+    !winnerId &&
+    (!localPlayerId || localPlayerId === pendingTrade!.fromId) &&
+    !showTradeReview;
 
   const walletPlayer =
     onlineSession != null
@@ -1854,7 +1948,21 @@ export function App() {
         case "useJailProtection":
         case "openTrade":
         case "closeTrade":
-        case "applyTrade":
+        case "proposeTrade":
+          return (
+            actorId === active &&
+            (turnPhase === "roll" ||
+              turnPhase === "action" ||
+              turnPhase === "debt")
+          );
+        case "cancelTrade":
+          return (
+            Boolean(pendingTrade) && pendingTrade!.fromId === actorId
+          );
+        case "respondTrade":
+          return (
+            Boolean(pendingTrade) && pendingTrade!.toId === actorId
+          );
         case "requestPieceAuction":
         case "auctionSell":
         case "auctionNoBids":
@@ -1957,16 +2065,19 @@ export function App() {
         onResolveTieDice();
         break;
       case "openTrade":
-        setShowTrade(true);
+        onOpenTradeLocal();
         break;
       case "closeTrade":
         setShowTrade(false);
         break;
-      case "applyTrade":
-        playersRef.current = intent.players;
-        setPlayers(intent.players);
-        setShowTrade(false);
-        if (intent.notes.length) presentEvent(intent.notes, []);
+      case "proposeTrade":
+        onProposeTradeLocal(intent.proposal);
+        break;
+      case "cancelTrade":
+        onCancelTradeLocal();
+        break;
+      case "respondTrade":
+        onRespondTradeLocal(intent.accept);
         break;
       case "setPlayers":
         playersRef.current = intent.players;
@@ -2108,9 +2219,11 @@ export function App() {
         onForfeitToBank={() =>
           sendIntent({ type: "forfeitToBank" }, () => onForfeitToBank())
         }
-        onOpenTrade={() =>
-          sendIntent({ type: "openTrade" }, () => setShowTrade(true))
-        }
+        tradeBlocked={Boolean(pendingTrade)}
+        onOpenTrade={() => {
+          if (!tradeOnTurn || pendingTrade) return;
+          sendIntent({ type: "openTrade" }, () => setShowTrade(true));
+        }}
         onClaimRent={() => sendIntent({ type: "claimRent" }, onClaimRent)}
       />
       {showEventToLocal ? (
@@ -2124,36 +2237,47 @@ export function App() {
           }}
         />
       ) : null}
-      {showTradeToLocal &&
-        activePlayerId &&
-        !winnerId &&
-        !showEventToLocal ? (
+      {showTradeCompose && activePlayerId && !winnerId && !showEventToLocal ? (
         <TradeOverlay
-          initiatorId={
-            onlineSession?.localPlayerId ?? activePlayerId
-          }
+          mode="compose"
+          initiatorId={activePlayerId}
           players={players}
           onClose={() =>
             sendIntent({ type: "closeTrade" }, () => setShowTrade(false))
           }
-          onApplied={(next, notes) => {
-            sendIntent({ type: "applyTrade", players: next, notes }, () => {
-              playersRef.current = next;
-              setPlayers(next);
-              setShowTrade(false);
-              const resume =
-                turnPhase === "debt"
-                  ? "debt"
-                  : turnPhase === "action"
-                    ? "action"
-                    : turnPhase === "roll"
-                      ? "roll"
-                      : "roll";
-              if (presentEvent(notes, [])) {
-                resumePhaseAfterModalRef.current = resume;
-              }
-            });
-          }}
+          onPropose={(proposal) =>
+            sendIntent({ type: "proposeTrade", proposal }, () =>
+              onProposeTradeLocal(proposal),
+            )
+          }
+        />
+      ) : null}
+      {showTradeReview && pendingTrade && !showEventToLocal ? (
+        <TradeOverlay
+          mode="review"
+          initiatorId={pendingTrade.fromId}
+          players={players}
+          proposal={pendingTrade}
+          onClose={() => undefined}
+          onPropose={() => undefined}
+          onRespond={(accept) =>
+            sendIntent({ type: "respondTrade", accept }, () =>
+              onRespondTradeLocal(accept),
+            )
+          }
+        />
+      ) : null}
+      {showTradeWaiting && pendingTrade && !showEventToLocal ? (
+        <TradeOverlay
+          mode="waiting"
+          initiatorId={pendingTrade.fromId}
+          players={players}
+          proposal={pendingTrade}
+          onClose={() => undefined}
+          onPropose={() => undefined}
+          onCancelProposal={() =>
+            sendIntent({ type: "cancelTrade" }, onCancelTradeLocal)
+          }
         />
       ) : null}
       {auction &&

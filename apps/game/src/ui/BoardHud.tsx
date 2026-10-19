@@ -59,6 +59,8 @@ type Props = {
   onForfeitToBank: () => void;
   onOpenTrade: () => void;
   onClaimRent: () => void;
+  /** Proposta já enviada — esconde o botão Negociar. */
+  tradeBlocked?: boolean;
 };
 
 export function BoardHud({
@@ -95,6 +97,7 @@ export function BoardHud({
   onForfeitToBank,
   onOpenTrade,
   onClaimRent,
+  tradeBlocked = false,
 }: Props) {
   const { t } = useTranslation();
   const [isNarrow, setIsNarrow] = useState(false);
@@ -161,10 +164,12 @@ export function BoardHud({
   const hasJailChoice = Boolean(active?.inJail) && turnPhase === "roll";
   const canTrade = Boolean(
     controlsTurn &&
+      !tradeBlocked &&
       active &&
       !active.bankrupt &&
-      turnPhase !== "ended" &&
-      turnPhase !== "auction" &&
+      (turnPhase === "roll" ||
+        turnPhase === "action" ||
+        turnPhase === "debt") &&
       players.some((p) => !p.bankrupt && p.id !== active.id),
   );
   if (isNarrow) {
@@ -429,12 +434,7 @@ export function BoardHud({
                   <div className="flex items-center justify-between gap-2">
                     <h2 className="hud-section-title">{t("hud.pawns")}</h2>
                     <div className="flex gap-1.5">
-                      {controlsTurn &&
-                        active &&
-                        !active.bankrupt &&
-                        turnPhase !== "ended" &&
-                        turnPhase !== "auction" &&
-                        players.some((p) => !p.bankrupt && p.id !== active.id) ? (
+                      {canTrade ? (
                         <button
                           type="button"
                           onClick={onOpenTrade}

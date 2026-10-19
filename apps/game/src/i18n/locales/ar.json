@@ -239,7 +239,8 @@
     "noBidsPiece": "لا عروض — القطعة تبقى مع البنك.",
     "payJailFail": "تعذر الدفع.",
     "noProtection": "لا بطاقة حماية.",
-    "forfeit": "{{name}} انسحب — كل شيء يبقى مع البنك."
+    "forfeit": "{{name}} انسحب — كل شيء يبقى مع البنك.",
+    "tradeRejected": "{{name}} رفض عرض التبادل."
   },
   "card": {
     "resolution": "حلّ الخانة",
@@ -276,6 +277,16 @@
     "blockedBuildings": "{{count}} بها بناء — بِع للبنك أولاً.",
     "noPartner": "لا لاعب نشط آخر للتفاوض.",
     "confirmTrade": "تأكيد الصفقة",
+    "sendProposal": "إرسال العرض",
+    "accept": "قبول",
+    "reject": "رفض",
+    "cancelProposal": "إلغاء العرض",
+    "reviewHeading": "عرض مستلم",
+    "reviewSubtitle": "{{name}} يريد التفاوض معك — اقبل أو ارفض",
+    "waitingHeading": "بانتظار الرد",
+    "waitingSubtitle": "بانتظار موافقة {{name}} على الصفقة",
+    "offerFrom": "{{name}} يقدّم",
+    "emptySide": "لا شيء في هذا الجانب",
     "noneNegotiable": "لا شيء للتفاوض",
     "noCards": "لا بطاقات",
     "youGive": "أنت تقدّم",

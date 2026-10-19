@@ -239,7 +239,8 @@
     "noBidsPiece": "No bids — piece stays with the bank.",
     "payJailFail": "Could not pay.",
     "noProtection": "No Protection card.",
-    "forfeit": "{{name}} quit — everything goes to the bank."
+    "forfeit": "{{name}} quit — everything goes to the bank.",
+    "tradeRejected": "{{name}} declined the trade proposal."
   },
   "card": {
     "resolution": "Space resolution",
@@ -276,6 +277,16 @@
     "blockedBuildings": "{{count}} with buildings — sell to the bank first.",
     "noPartner": "No other active player to trade with.",
     "confirmTrade": "Confirm trade",
+    "sendProposal": "Send proposal",
+    "accept": "Accept",
+    "reject": "Decline",
+    "cancelProposal": "Cancel proposal",
+    "reviewHeading": "Proposal received",
+    "reviewSubtitle": "{{name}} wants to trade with you — accept or decline",
+    "waitingHeading": "Waiting for reply",
+    "waitingSubtitle": "Waiting for {{name}} to approve the trade",
+    "offerFrom": "{{name}} offers",
+    "emptySide": "Nothing on this side",
     "noneNegotiable": "Nothing to trade",
     "noCards": "No cards",
     "youGive": "You offer",

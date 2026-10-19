@@ -7,9 +7,19 @@ import {
   type DebtInfo,
   type DecksState,
   type LobbySetup,
+  type MortgageChoice,
   type PendingRentClaim,
   type PlayerState,
+  type TradeSide,
 } from "@cidadela/shared";
+
+export type PendingTradeProposal = {
+  fromId: string;
+  toId: string;
+  give: TradeSide;
+  receive: TradeSide;
+  resolutions: { spaceIndex: number; choice: MortgageChoice }[];
+};
 
 export type TurnPhase =
   | "roll"
@@ -55,6 +65,7 @@ export type GameSnapshot = {
   followUpCards: CardDef[];
   showEventModal: boolean;
   showTrade: boolean;
+  pendingTrade: PendingTradeProposal | null;
   jailError: string | null;
   pendingLanding: PendingLanding | null;
   extraRoll: boolean;
@@ -84,6 +95,7 @@ export function createInitialSnapshot(setup: LobbySetup): GameSnapshot {
     followUpCards: [],
     showEventModal: false,
     showTrade: false,
+    pendingTrade: null,
     jailError: null,
     pendingLanding: null,
     extraRoll: false,
@@ -114,19 +126,20 @@ export type GameIntent =
   | { type: "openTrade" }
   | { type: "closeTrade" }
   | {
-      type: "applyTrade";
-      players: PlayerState[];
-      notes: string[];
-    }
+    type: "proposeTrade";
+    proposal: PendingTradeProposal;
+  }
+  | { type: "respondTrade"; accept: boolean }
+  | { type: "cancelTrade" }
   | {
-      type: "setPlayers";
-      players: PlayerState[];
-    }
+    type: "setPlayers";
+    players: PlayerState[];
+  }
   | {
-      type: "requestPieceAuction";
-      kind: "pousada" | "resort";
-      spaceIndex: number;
-    }
+    type: "requestPieceAuction";
+    kind: "pousada" | "resort";
+    spaceIndex: number;
+  }
   | { type: "advanceActive"; steps: number }
   | { type: "moveActiveTo"; spaceIndex: number }
   | { type: "selectSpace"; spaceIndex: number | null };
