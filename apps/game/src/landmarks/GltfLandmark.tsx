@@ -2,10 +2,8 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Clone, useGLTF } from "@react-three/drei";
 import {
-  Box3,
   Color,
   MeshStandardMaterial,
-  Vector3,
   type Group,
   type Material,
   type Mesh,
@@ -122,34 +120,8 @@ export function GltfLandmark({
 }
 
 function fitOnTile(object: Object3D, targetHeight: number, maxFootprint: number) {
-  object.updateMatrixWorld(true);
-  const box = new Box3().setFromObject(object);
-  if (box.isEmpty()) return;
-
-  const size = new Vector3();
-  box.getSize(size);
-  const height = Math.max(size.y, 1e-3);
-
-  let scale = targetHeight / height;
-  object.scale.setScalar(scale);
-  object.updateMatrixWorld(true);
-
-  const after = new Box3().setFromObject(object);
-  after.getSize(size);
-  const footprint = Math.max(size.x, size.z, 1e-3);
-  if (footprint > maxFootprint) {
-    scale *= maxFootprint / footprint;
-    object.scale.setScalar(scale);
-    object.updateMatrixWorld(true);
-  }
-
-  const fitted = new Box3().setFromObject(object);
-  const center = new Vector3();
-  fitted.getCenter(center);
-  object.position.x -= center.x;
-  object.position.z -= center.z;
-  object.position.y -= fitted.min.y;
-  object.updateMatrixWorld(true);
+  void targetHeight;
+  fitToSlot(object, maxFootprint, maxFootprint);
 }
 
 function polishMaterials(object: Object3D) {

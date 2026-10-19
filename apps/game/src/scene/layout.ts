@@ -1,6 +1,9 @@
 export const BOARD_SIZE = 20;
 export const TILE_THICKNESS = 0.35;
 export const BOARD_Y = 0.4;
+export const FLOOR_LIFT = 0.04;
+export const PIECE_CLEARANCE = 0.03;
+export const PAWN_Y = BOARD_Y + FLOOR_LIFT + PIECE_CLEARANCE;
 
 export type SpaceLayout = {
   index: number;

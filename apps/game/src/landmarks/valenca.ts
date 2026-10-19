@@ -213,7 +213,7 @@ export function criarValenca(): ValencaGroup {
     nivel: number,
   ) => pontos.push({ nome, pos: [x, y, z], nivel });
 
-  bx(16, 0.4, 13.9, m.grass, 0, 0, -1.35);
+  bx(16, 0.4, 13.9, m.grass, 0, -0.2, -1.35);
   (
     [
       [-6.5, 2.2],

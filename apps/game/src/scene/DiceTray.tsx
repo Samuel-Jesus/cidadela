@@ -16,7 +16,7 @@ type Props = {
 function TableFloor() {
   const [ref] = usePlane(() => ({
     type: "Static",
-    position: [0, BOARD_Y + 0.08, 0],
+    position: [0, BOARD_Y + 0.02, 0],
     rotation: [-Math.PI / 2, 0, 0],
     material: { friction: 0.45, restitution: 0.35 },
   }));

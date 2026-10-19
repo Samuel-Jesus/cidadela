@@ -131,7 +131,7 @@ export function criarIlhaDeMare(): IlhaDeMareGroup {
   rasa.scale.y = 0.75;
   rasa.position.set(0, 0.012, 2.8);
   g.add(rasa);
-  const land = bx(15, 0.9, 5.5, m.grass, 0, -0.15, -2.25);
+  const land = bx(15, 0.9, 5.5, m.grass, 0, -0.45, -2.25);
   land.material = [m.dirt, m.dirt, m.grass, m.dirt, m.dirt, m.dirt];
   const cs = new THREE.Shape();
   cs.moveTo(-7.5, -0.5);
@@ -144,6 +144,7 @@ export function criarIlhaDeMare(): IlhaDeMareGroup {
     m.sand,
   );
   praia.rotation.x = -PI / 2;
+  praia.position.y = -0.3;
   g.add(praia);
 
   const morros: [number, number, number, number, number, number][] = [
@@ -155,7 +156,7 @@ export function criarIlhaDeMare(): IlhaDeMareGroup {
   morros.forEach((q) => {
     const s = new THREE.Mesh(new THREE.SphereGeometry(q[2], 20, 12), m.morro);
     s.scale.set(q[3], q[4], q[5]);
-    s.position.set(q[0], 0.1, q[1]);
+    s.position.set(q[0], -0.2, q[1]);
     g.add(s);
     for (let i = 0; i < 9; i++) {
       const a = (rnd() - 0.5) * 1.6 * q[2] * q[3];

@@ -9,7 +9,7 @@ import {
   stepDurationFor,
   yawFollowFor,
 } from "../pawns/pawnKind";
-import { BOARD_Y, type SpaceLayout } from "./layout";
+import { PAWN_Y, type SpaceLayout } from "./layout";
 import {
   clearPawnCameraPose,
   setPawnCameraPose,
@@ -43,7 +43,7 @@ function spacePoint(
   const [ox, oz] = pawnSlotOffset(slotIndex, slotCount, layout);
   return {
     x: layout.x + ox,
-    y: BOARD_Y + 0.08,
+    y: PAWN_Y,
     z: layout.z + oz,
   };
 }

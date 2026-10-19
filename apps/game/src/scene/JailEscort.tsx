@@ -3,7 +3,8 @@ import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
 import type { PawnId } from "@cidadela/shared";
 import { PawnVisual } from "../pawns/PawnVisual";
-import { BOARD_Y, computeSpaceLayouts, type SpaceLayout } from "./layout";
+import { PAWN_Y, computeSpaceLayouts, type SpaceLayout } from "./layout";
+import { JAIL_ROAD_Y } from "./JailRoad";
 import {
   endJailEscort,
   getJailEscort,
@@ -18,7 +19,7 @@ import {
 } from "./viaturas";
 
 const CAR_SCALE = 0.16;
-const CAR_Y = BOARD_Y + 0.04;
+const CAR_Y = JAIL_ROAD_Y + 0.02;
 const GAP = 0.85;
 const APPROACH_S = 4.2;
 const ARREST_S = 3.2;
@@ -312,12 +313,12 @@ export function JailEscort({ onComplete }: Props) {
         const sz = paths.pickup[1];
         pris.position.set(
           sx + (frontX - sx) * u,
-          BOARD_Y + 0.08,
+          PAWN_Y,
           sz + (frontZ - sz) * u,
         );
         pris.rotation.y = lyaw;
         const shake = Math.sin(t * 14) * 0.012 * u;
-        pris.position.y = BOARD_Y + 0.08 + shake;
+        pris.position.y = PAWN_Y + shake;
         pris.scale.setScalar(1 + Math.sin(t * 9) * 0.02);
       }
       if (t >= ARREST_S) {
@@ -337,9 +338,9 @@ export function JailEscort({ onComplete }: Props) {
       const head = sampleByDist(paths.escort, headDist);
       if (pris) {
         pris.visible = true;
-        pris.position.set(head.x, BOARD_Y + 0.08, head.z);
+        pris.position.set(head.x, PAWN_Y, head.z);
         pris.rotation.y = head.yaw;
-        pris.position.y = BOARD_Y + 0.08 + Math.abs(Math.sin(t * 10)) * 0.03;
+        pris.position.y = PAWN_Y + Math.abs(Math.sin(t * 10)) * 0.03;
       }
       for (const unit of list) {
         const along = Math.max(0, headDist - (unit.index + 1) * GAP);
@@ -378,7 +379,7 @@ export function JailEscort({ onComplete }: Props) {
         pris.visible = true;
         pris.position.set(
           fromX + (jail[0] - fromX) * u,
-          BOARD_Y + 0.08,
+          PAWN_Y,
           fromZ + (jail[1] - fromZ) * u,
         );
         pris.rotation.y = Math.atan2(jail[0] - fromX, jail[1] - fromZ);

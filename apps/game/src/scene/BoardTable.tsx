@@ -4,6 +4,7 @@ import { ViaturaOperacao } from "./ViaturaOperacao";
 
 export function BoardTable() {
   const size = BOARD_SIZE + 1.2;
+  const feltH = 0.05;
 
   return (
     <group>
@@ -16,13 +17,16 @@ export function BoardTable() {
         <meshStandardMaterial color="#4a2f1c" roughness={0.8} />
       </mesh>
 
-      <mesh position={[0, BOARD_Y * 0.45, 0]} castShadow receiveShadow>
-        <boxGeometry args={[size, BOARD_Y * 0.85, size]} />
+      <mesh position={[0, BOARD_Y / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[size, BOARD_Y, size]} />
         <meshStandardMaterial color="#5c3d2e" roughness={0.75} />
       </mesh>
 
-      <mesh position={[0, BOARD_Y + 0.02, 0]} receiveShadow>
-        <boxGeometry args={[BOARD_SIZE * 0.72, 0.08, BOARD_SIZE * 0.72]} />
+      <mesh
+        position={[0, BOARD_Y - feltH / 2 + 0.002, 0]}
+        receiveShadow
+      >
+        <boxGeometry args={[BOARD_SIZE * 0.72, feltH, BOARD_SIZE * 0.72]} />
         <meshStandardMaterial color="#e8d5b5" roughness={0.7} />
       </mesh>
 

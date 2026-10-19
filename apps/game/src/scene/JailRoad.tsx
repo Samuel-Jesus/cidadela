@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import { Clone, useGLTF } from "@react-three/drei";
-import { BOARD_Y } from "./layout";
+import { BOARD_Y, FLOOR_LIFT } from "./layout";
 
 export const JAIL_ROAD_SCALE = 0.72;
-export const JAIL_ROAD_Y = BOARD_Y + 0.08;
+export const JAIL_ROAD_Y = BOARD_Y + FLOOR_LIFT;
 
 const SCALE = JAIL_ROAD_SCALE;
 const ROAD_Y = JAIL_ROAD_Y;

@@ -5,12 +5,10 @@ import { getSpace } from "@cidadela/shared";
 import { Landmark } from "../landmarks/Landmark";
 import { stripeColor, tileColor } from "./colors";
 import type { SpaceLayout } from "./layout";
-import { BOARD_Y } from "./layout";
+import { BOARD_Y, FLOOR_LIFT, PIECE_CLEARANCE } from "./layout";
 import { StreetSign, streetSignCopy } from "./tile/StreetSign";
-import { computeLandmarkSlot, LANDMARK_Y } from "./tile/tileLayout";
+import { computeLandmarkSlot } from "./tile/tileLayout";
 import { useTileLift } from "./tile/useTileLift";
-
-const SURFACE_Y = BOARD_Y + 0.06;
 
 type Props = {
   layout: SpaceLayout;
@@ -31,7 +29,7 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
     [layout],
   );
 
-  useTileLift(groupRef, selected, hovered, SURFACE_Y);
+  useTileLift(groupRef, selected, hovered, BOARD_Y);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -41,7 +39,7 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
   return (
     <group
       ref={groupRef}
-      position={[layout.x, SURFACE_Y, layout.z]}
+      position={[layout.x, BOARD_Y, layout.z]}
       onClick={handleClick}
       onPointerOver={(e) => {
         e.stopPropagation();
@@ -53,7 +51,7 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
         document.body.style.cursor = "default";
       }}
     >
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, PIECE_CLEARANCE * 0.5, 0]}>
         <planeGeometry args={[layout.width * 0.96, layout.depth * 0.96]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
@@ -64,7 +62,7 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
         {...streetSignCopy(space)}
       />
 
-      <group position={[landmarkPos[0], LANDMARK_Y, landmarkPos[2]]}>
+      <group position={[landmarkPos[0], 0, landmarkPos[2]]}>
         <group rotation={[0, layout.yaw, 0]}>
           <Landmark
             index={layout.index}
@@ -76,7 +74,7 @@ export function SpaceTile({ layout, selected, onSelect }: Props) {
       </group>
 
       {selected ? (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, FLOOR_LIFT, 0]}>
           <ringGeometry
             args={[
               Math.min(layout.width, layout.depth) * 0.35,

@@ -311,7 +311,7 @@ export function criarMorroSaoPaulo(): MorroSaoPauloGroup {
     0,
   ).rotation.x = PI / 2;
   cur = g;
-  put(new THREE.Mesh(new THREE.CylinderGeometry(10.95, 10.95, 0.3, 64), mt(0x14608f)), 0, 0.15, 0);
+  put(new THREE.Mesh(new THREE.CylinderGeometry(10.95, 10.95, 0.3, 64), mt(0x14608f)), 0, -0.15, 0);
   const mar = put(
     new THREE.Mesh(
       new THREE.RingGeometry(0.01, 10.9, 64, 20),

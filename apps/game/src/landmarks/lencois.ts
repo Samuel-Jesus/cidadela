@@ -280,7 +280,7 @@ export function criarLencois(): LencoisGroup {
   const chao = put(
     new THREE.Mesh(new THREE.CylinderGeometry(10.9, 10.9, 0.4, 64), mt(0xa8b060)),
     0,
-    0.2,
+    -0.2,
     0,
   );
   chao.receiveShadow = true;

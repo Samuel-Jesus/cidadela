@@ -38,7 +38,7 @@ function handBase(index: number): { x: number; z: number } {
 
 function restPosition(index: number): [number, number, number] {
   const { x, z } = handBase(index);
-  return [x, BOARD_Y + 0.32, z];
+  return [x, BOARD_Y + SIZE * 0.5 + 0.02, z];
 }
 
 export function PhysicsDie({ index, rolling, rollId, onFace }: Props) {

@@ -1,13 +1,13 @@
 import { useFrame } from "@react-three/fiber";
 import type { RefObject } from "react";
 import type { Group } from "three";
-import { BOARD_Y, TILE_THICKNESS } from "../layout";
+import { BOARD_Y } from "../layout";
 
 export function useTileLift(
   groupRef: RefObject<Group | null>,
   selected: boolean,
   hovered: boolean,
-  baseY = BOARD_Y + TILE_THICKNESS / 2,
+  baseY = BOARD_Y,
 ) {
   useFrame((_, dt) => {
     const g = groupRef.current;

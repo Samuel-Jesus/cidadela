@@ -39,12 +39,17 @@ export function BlockyPawnMesh({
     g.updateMatrixWorld(true);
 
     const fitted = new Box3().setFromObject(g);
-    g.position.y -= fitted.min.y;
     g.position.x -= (fitted.min.x + fitted.max.x) / 2;
     g.position.z -= (fitted.min.z + fitted.max.z) / 2;
+    g.position.y -= fitted.min.y;
+    g.updateMatrixWorld(true);
+    const grounded = new Box3().setFromObject(g);
+    if (Math.abs(grounded.min.y) > 1e-4) {
+      g.position.y -= grounded.min.y;
+    }
 
     g.traverse((child) => {
-      child.frustumCulled = false;
+      child.frustumCulled = true;
       const mesh = child as Mesh;
       if (mesh.isMesh) {
         mesh.castShadow = true;
