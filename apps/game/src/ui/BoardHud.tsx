@@ -217,13 +217,13 @@ export function BoardHud({
   const hasJailChoice = Boolean(active?.inJail) && turnPhase === "roll";
   const canTrade = Boolean(
     controlsTurn &&
-      !tradeBlocked &&
-      active &&
-      !active.bankrupt &&
-      (turnPhase === "roll" ||
-        turnPhase === "action" ||
-        turnPhase === "debt") &&
-      players.some((p) => !p.bankrupt && p.id !== active.id),
+    !tradeBlocked &&
+    active &&
+    !active.bankrupt &&
+    (turnPhase === "roll" ||
+      turnPhase === "action" ||
+      turnPhase === "debt") &&
+    players.some((p) => !p.bankrupt && p.id !== active.id),
   );
   if (isNarrow) {
     return wrapHud(
@@ -605,8 +605,8 @@ export function BoardHud({
             <p className="truncate font-[family-name:var(--font-game)] text-xs font-bold text-[#9a3412]">
               {activeDef
                 ? t("hud.turnOf", {
-                    name: active ? getPlayerLabel(active) : activeDef.label,
-                  })
+                  name: active ? getPlayerLabel(active) : activeDef.label,
+                })
                 : t("brand.name")}
             </p>
             {waitingOnline ? (

@@ -64,6 +64,7 @@ export type GameSnapshot = {
   cardNotes: string[];
   followUpCards: CardDef[];
   showEventModal: boolean;
+  eventAudience: string[] | null;
   showTrade: boolean;
   pendingTrade: PendingTradeProposal | null;
   jailError: string | null;
@@ -94,6 +95,7 @@ export function createInitialSnapshot(setup: LobbySetup): GameSnapshot {
     cardNotes: [],
     followUpCards: [],
     showEventModal: false,
+    eventAudience: null,
     showTrade: false,
     pendingTrade: null,
     jailError: null,

@@ -7,6 +7,7 @@ type Props = {
   notes?: string[];
   followUpCards?: CardDef[];
   title?: string;
+  canDismiss?: boolean;
   onDismiss: () => void;
 };
 
@@ -15,6 +16,7 @@ export function DrawnCardModal({
   notes = [],
   followUpCards = [],
   title,
+  canDismiss = true,
   onDismiss,
 }: Props) {
   const { t } = useTranslation();
@@ -97,13 +99,19 @@ export function DrawnCardModal({
         </div>
 
         <footer className="deed-sheet__footer">
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="deed-btn deed-btn--amber w-full"
-          >
-            {t("card.dismiss")}
-          </button>
+          {canDismiss ? (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="deed-btn deed-btn--amber w-full"
+            >
+              {t("card.dismiss")}
+            </button>
+          ) : (
+            <p className="m-0 text-center text-sm font-bold text-[#6b5344]">
+              {t("card.waitDismiss")}
+            </p>
+          )}
         </footer>
       </div>
     </div>

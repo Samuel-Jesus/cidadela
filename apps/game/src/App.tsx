@@ -109,6 +109,9 @@ const UNLUCKY_CARD_EFFECTS = new Set([
   "move_back",
 ]);
 
+const onlineRefForSfx: { current: OnlineSession | null } = { current: null };
+type EventAudience = "all" | readonly string[];
+
 function applyMove(
   player: PlayerState,
   steps: number,
@@ -129,7 +132,7 @@ function applyMove(
   const position = nextPosition(from, steps);
   const bonus =
     opts.grantGoBonus && crossesGo(from, steps) ? GO_BONUS : 0;
-  if (bonus > 0) playGameSfx("cashGain");
+  if (bonus > 0 && sfxForLocalPlayer(player.id)) playGameSfx("cashGain");
 
   return {
     ...player,
@@ -138,17 +141,62 @@ function applyMove(
   };
 }
 
+/** Em online, SFX de dinheiro/efeitos só para o peão local; hotseat ouve tudo. */
+function sfxForLocalPlayer(playerId: string | null | undefined): boolean {
+  const session = onlineRefForSfx.current;
+  if (!session) return true;
+  if (!playerId) return false;
+  return session.localPlayerId === playerId;
+}
+
+function sfxForAnyLocal(...playerIds: (string | null | undefined)[]): boolean {
+  const session = onlineRefForSfx.current;
+  if (!session) return true;
+  return playerIds.some((id) => id && id === session.localPlayerId);
+}
+
 function playCashGains(
   before: readonly PlayerState[],
   after: readonly PlayerState[],
 ): void {
   for (const p of after) {
+    if (!sfxForLocalPlayer(p.id)) continue;
     const prev = before.find((x) => x.id === p.id);
     if (prev && p.cash > prev.cash) {
       playGameSfx("cashGain");
       return;
     }
   }
+}
+
+function uniqPlayerIds(
+  ...ids: (string | null | undefined)[]
+): string[] {
+  const out: string[] = [];
+  for (const id of ids) {
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+function audienceForDebt(
+  debt: DebtInfo | null | undefined,
+  ...extra: (string | null | undefined)[]
+): string[] {
+  if (!debt) return uniqPlayerIds(...extra);
+  return uniqPlayerIds(
+    debt.debtorId,
+    debt.creditor.type === "player" ? debt.creditor.playerId : null,
+    ...extra,
+  );
+}
+
+function audienceForRent(
+  rent: PendingRentClaim | null | undefined,
+  ...extra: (string | null | undefined)[]
+): string[] {
+  if (!rent) return uniqPlayerIds(...extra);
+  return uniqPlayerIds(rent.visitorId, rent.ownerId, ...extra);
 }
 
 function nextPlayerId(
@@ -209,6 +257,7 @@ export function App() {
   const [cardNotes, setCardNotes] = useState<string[]>([]);
   const [followUpCards, setFollowUpCards] = useState<CardDef[]>([]);
   const [showEventModal, setShowEventModal] = useState(false);
+  const [eventAudience, setEventAudience] = useState<string[] | null>(null);
 
   const [diceRoll, setDiceRoll] = useState<DiceRoll | null>(null);
   const [diceRolling, setDiceRolling] = useState(false);
@@ -244,6 +293,7 @@ export function App() {
   playersRef.current = players;
   const pendingLandingRef = useRef<PendingLanding | null>(null);
   const pendingNotesRef = useRef<string[]>([]);
+  const pendingAudienceRef = useRef<string[]>([]);
   const resolvingRef = useRef(false);
   const pendingEscortEventRef = useRef<{
     notes: string[];
@@ -252,11 +302,13 @@ export function App() {
     landIndex: number;
     pendingDebt: DebtInfo | null;
     pendingRent: PendingRentClaim | null;
+    audience: string[];
   } | null>(null);
   const gameVersionRef = useRef(0);
   gameVersionRef.current = gameVersion;
   const onlineRef = useRef(onlineSession);
   onlineRef.current = onlineSession;
+  onlineRefForSfx.current = onlineSession;
   const applyingRemoteRef = useRef(false);
   const applyRemoteIntentRef = useRef<
     (actorId: string, intent: GameIntent) => void
@@ -341,6 +393,13 @@ export function App() {
     setCardNotes(snap.cardNotes);
     setFollowUpCards(snap.followUpCards);
     setShowEventModal(snap.showEventModal);
+    setEventAudience(
+      Array.isArray(snap.eventAudience)
+        ? snap.eventAudience
+        : snap.showEventModal && snap.activePlayerId
+          ? [snap.activePlayerId]
+          : null,
+    );
     setShowTrade(snap.showTrade);
     setPendingTrade(snap.pendingTrade ?? null);
     setJailError(snap.jailError);
@@ -373,6 +432,7 @@ export function App() {
       cardNotes,
       followUpCards,
       showEventModal,
+      eventAudience,
       showTrade,
       pendingTrade,
       jailError,
@@ -394,6 +454,7 @@ export function App() {
     cardNotes,
     followUpCards,
     showEventModal,
+    eventAudience,
     showTrade,
     pendingTrade,
     jailError,
@@ -450,27 +511,48 @@ export function App() {
 
   const dismissEventUi = useCallback(() => {
     setShowEventModal(false);
+    setEventAudience(null);
     setDrawnCard(null);
     setCardNotes([]);
     setFollowUpCards([]);
   }, []);
 
-  const presentEvent = useCallback((notes: string[], cards: CardDef[]) => {
-    const primary = cards[0] ?? null;
-    const rest = primary ? cards.slice(1) : cards;
-    if (cards.some((c) => UNLUCKY_CARD_EFFECTS.has(c.effect.type))) {
-      playGameSfx("badLuck");
-    }
-    setDrawnCard(primary);
-    setCardNotes(notes);
-    setFollowUpCards(rest);
-    if (notes.length > 0 || cards.length > 0) {
-      setShowEventModal(true);
-      setTurnPhase("busy");
-      return true;
-    }
-    return false;
-  }, []);
+  const presentEvent = useCallback(
+    (notes: string[], cards: CardDef[], audience?: EventAudience) => {
+      const primary = cards[0] ?? null;
+      const rest = primary ? cards.slice(1) : cards;
+      const audienceIds =
+        audience === "all"
+          ? null
+          : audience
+            ? uniqPlayerIds(...audience)
+            : activeRef.current
+              ? [activeRef.current]
+              : null;
+      const localId = onlineRef.current?.localPlayerId ?? null;
+      const localHears =
+        !localId ||
+        audienceIds == null ||
+        audienceIds.includes(localId);
+      if (
+        localHears &&
+        cards.some((c) => UNLUCKY_CARD_EFFECTS.has(c.effect.type))
+      ) {
+        playGameSfx("badLuck");
+      }
+      setDrawnCard(primary);
+      setCardNotes(notes);
+      setFollowUpCards(rest);
+      setEventAudience(audienceIds);
+      if (notes.length > 0 || cards.length > 0) {
+        setShowEventModal(true);
+        setTurnPhase("busy");
+        return true;
+      }
+      return false;
+    },
+    [],
+  );
 
   const endGameIfWon = useCallback((list: readonly PlayerState[]) => {
     const w = findWinner(list);
@@ -867,6 +949,7 @@ export function App() {
     cardNotes,
     followUpCards,
     showEventModal,
+    eventAudience,
     showTrade,
     pendingTrade,
     jailError,
@@ -1113,11 +1196,8 @@ export function App() {
     if (settled.status === "paid") {
       const debt = pendingDebt;
       setPendingDebt(null);
-      presentEvent(settled.notes, []);
-      // After dismiss, continue turn — clear debt first so dismiss doesn't loop
+      presentEvent(settled.notes, [], audienceForDebt(debt));
       const player = settled.players.find((p) => p.id === debt.debtorId);
-      // Use a microtask: presentEvent shows modal; on dismiss pendingDebt is null
-      // Store space for after dismiss via player position
       if (!settled.notes.length) {
         advanceAfterResolve(
           debt.debtorId,
@@ -1133,18 +1213,18 @@ export function App() {
         presentEvent(
           [...settled.notes, t("msg.gameOver")],
           [],
+          "all",
         );
         return;
       }
       if (settled.auctionQueue.length) {
         enqueueAuctions(settled.auctionQueue);
       }
-      presentEvent(settled.notes, []);
+      presentEvent(settled.notes, [], "all");
       return;
     }
 
-    // still shortfall
-    presentEvent(settled.notes, []);
+    presentEvent(settled.notes, [], audienceForDebt(pendingDebt));
     setTurnPhase("debt");
   }, [
     pendingDebt,
@@ -1181,13 +1261,14 @@ export function App() {
       presentEvent(
         [...broke.notes, t("msg.gameOver")],
         [],
+        "all",
       );
       return;
     }
     if (broke.auctionQueue.length) {
       enqueueAuctions(broke.auctionQueue);
     }
-    presentEvent(broke.notes, []);
+    presentEvent(broke.notes, [], "all");
   }, [pendingDebt, turnPhase, presentEvent, enqueueAuctions, endGameIfWon, t]);
 
   const onForfeitToBank = useCallback(
@@ -1242,13 +1323,13 @@ export function App() {
       );
 
       if (endGameIfWon(broke.players)) {
-        presentEvent([...notes, t("msg.gameOver")], []);
+        presentEvent([...notes, t("msg.gameOver")], [], "all");
         return;
       }
       if (broke.auctionQueue.length) {
         enqueueAuctions(broke.auctionQueue);
       }
-      presentEvent(notes, []);
+      presentEvent(notes, [], "all");
     },
     [
       winnerId,
@@ -1266,6 +1347,7 @@ export function App() {
     if (!pendingRent) return;
     const claim = pendingRent;
     setPendingRent(null);
+    const parties = audienceForRent(claim);
     const beforeClaim = playersRef.current;
     const settled = settleDebt(
       beforeClaim,
@@ -1284,7 +1366,7 @@ export function App() {
     setDecks(settled.decks);
     if (settled.status === "shortfall") {
       setPendingDebt(settled.debt);
-      presentEvent(settled.notes, []);
+      presentEvent(settled.notes, [], audienceForDebt(settled.debt, ...parties));
       return;
     }
     if (settled.status === "bankrupt") {
@@ -1292,16 +1374,17 @@ export function App() {
         presentEvent(
           [...settled.notes, t("msg.gameOver")],
           [],
+          "all",
         );
         return;
       }
       if (settled.auctionQueue.length) {
         enqueueAuctions(settled.auctionQueue);
       }
-      presentEvent(settled.notes, []);
+      presentEvent(settled.notes, [], "all");
       return;
     }
-    presentEvent(settled.notes, []);
+    presentEvent(settled.notes, [], parties);
   }, [pendingRent, presentEvent, endGameIfWon, enqueueAuctions, t]);
 
   const onRollDiceLocal = useCallback(() => {
@@ -1315,6 +1398,10 @@ export function App() {
           amount: pendingRent.amount,
         }),
       ];
+      pendingAudienceRef.current = uniqPlayerIds(
+        ...pendingAudienceRef.current,
+        ...audienceForRent(pendingRent),
+      );
       setPendingRent(null);
     }
     setTurnPhase("busy");
@@ -1337,7 +1424,6 @@ export function App() {
 
       const current = playersRef.current.find((p) => p.id === playerId);
 
-      // ——— Preso: tenta dupla (até 3) ———
       if (current?.inJail) {
         if (roll.isDouble) {
           extraRollRef.current = false;
@@ -1446,6 +1532,7 @@ export function App() {
             landIndex: 10,
             pendingDebt: null,
             pendingRent: null,
+            audience: [playerId],
           };
           setTurnPhase("busy");
           return;
@@ -1473,13 +1560,20 @@ export function App() {
     [queueLanding, presentEvent, startNextTurn],
   );
 
-  // Para a música do Carnaval quando ninguém mais está na casa.
   useEffect(() => {
+    const localId = onlineSession?.localPlayerId ?? null;
+    if (localId) {
+      const me = players.find((p) => p.id === localId);
+      if (!me || me.bankrupt || getSpace(me.position).kind !== "carnaval") {
+        stopCarnavalMusic();
+      }
+      return;
+    }
     const someoneOnCarnaval = players.some(
       (p) => !p.bankrupt && getSpace(p.position).kind === "carnaval",
     );
     if (!someoneOnCarnaval) stopCarnavalMusic();
-  }, [players]);
+  }, [players, onlineSession?.localPlayerId]);
 
   const gameSfxReadyRef = useRef(false);
   const prevActiveSfxRef = useRef<string | null>(null);
@@ -1509,7 +1603,8 @@ export function App() {
     if (
       activePlayerId &&
       activePlayerId !== prevActiveSfxRef.current &&
-      turnPhase === "roll"
+      turnPhase === "roll" &&
+      sfxForLocalPlayer(activePlayerId)
     ) {
       playGameSfx("yourTurn");
     }
@@ -1526,7 +1621,12 @@ export function App() {
     const rentKey = pendingRent
       ? `${pendingRent.visitorId}:${pendingRent.spaceIndex}`
       : null;
-    if (rentKey && rentKey !== prevRentSfxRef.current) {
+    if (
+      rentKey &&
+      rentKey !== prevRentSfxRef.current &&
+      pendingRent &&
+      sfxForAnyLocal(pendingRent.visitorId, pendingRent.ownerId)
+    ) {
       playGameSfx("payRent");
     }
     prevRentSfxRef.current = rentKey;
@@ -1537,7 +1637,10 @@ export function App() {
       if (playerId !== activeRef.current) return;
       setSelectedIndex(spaceIndex);
 
-      if (getSpace(spaceIndex).kind === "carnaval") {
+      if (
+        getSpace(spaceIndex).kind === "carnaval" &&
+        sfxForLocalPlayer(playerId)
+      ) {
         playCarnavalMusic();
       }
 
@@ -1613,13 +1716,31 @@ export function App() {
             landIndex,
             pendingDebt: resolved.pendingDebt,
             pendingRent: resolved.pendingRent ?? null,
+            audience: uniqPlayerIds(
+              playerId,
+              ...pendingAudienceRef.current,
+              ...audienceForRent(resolved.pendingRent),
+              ...audienceForDebt(resolved.pendingDebt),
+            ),
           };
+          pendingAudienceRef.current = [];
           resolvingRef.current = false;
           setTurnPhase("busy");
           return resolved.players;
         }
 
-        const shown = presentEvent(notes, resolved.followUpCards);
+        const landAudience = uniqPlayerIds(
+          playerId,
+          ...pendingAudienceRef.current,
+          ...audienceForRent(resolved.pendingRent),
+          ...audienceForDebt(resolved.pendingDebt),
+        );
+        pendingAudienceRef.current = [];
+        const shown = presentEvent(
+          notes,
+          resolved.followUpCards,
+          landAudience,
+        );
         resolvingRef.current = false;
         if (!shown) {
           applyDebtOutcome(
@@ -1643,7 +1764,11 @@ export function App() {
       }
       pendingEscortEventRef.current = null;
       setSelectedIndex(10);
-      const shown = presentEvent(pending.notes, pending.cards);
+      const shown = presentEvent(
+        pending.notes,
+        pending.cards,
+        pending.audience,
+      );
       if (!shown) {
         applyDebtOutcome(
           pending.pendingDebt,
@@ -1672,7 +1797,7 @@ export function App() {
         auction.highBidderId,
       );
       if (!check.ok) {
-        presentEvent([check.error], []);
+        presentEvent([check.error], [], [playerId]);
         return;
       }
       if (check.tie && auction.highBidderId) {
@@ -1704,12 +1829,12 @@ export function App() {
       tiedBidderIds: null,
       passesSinceBid: 0,
     });
-    presentEvent(result.notes, []);
+    presentEvent(result.notes, [], "all");
   }, [auction, presentEvent]);
 
   const finishAuctionLot = useCallback(
     (session: AuctionSession, notes: string[]) => {
-      if (presentEvent(notes, [])) {
+      if (presentEvent(notes, [], "all")) {
         auctionAdvanceAfterModalRef.current = session;
         return;
       }
@@ -1741,6 +1866,7 @@ export function App() {
           presentEvent(
             [awarded.error, t("msg.auctionReopen")],
             [],
+            "all",
           );
           return;
         }
@@ -1783,6 +1909,7 @@ export function App() {
       presentEvent(
         [awarded.error, t("msg.auctionReopen")],
         [],
+        "all",
       );
       return;
     }
@@ -1841,7 +1968,9 @@ export function App() {
 
   const showEventToLocal =
     showEventModal &&
-    (!localPlayerId || localPlayerId === activePlayerId);
+    (!localPlayerId ||
+      eventAudience == null ||
+      eventAudience.includes(localPlayerId));
 
   const pendingRentForLocal =
     pendingRent &&
@@ -1887,6 +2016,7 @@ export function App() {
             }),
           ],
           [],
+          [pt.fromId, pt.toId],
         );
         return;
       }
@@ -1903,7 +2033,7 @@ export function App() {
       const result = applyTrade(playersRef.current, offer, resolutions);
       setPendingTrade(null);
       if (!result.ok) {
-        presentEvent([result.error], []);
+        presentEvent([result.error], [], [pt.fromId, pt.toId]);
         return;
       }
       playersRef.current = result.players;
@@ -1914,7 +2044,7 @@ export function App() {
           : turnPhase === "action"
             ? "action"
             : "roll";
-      if (presentEvent(result.notes, [])) {
+      if (presentEvent(result.notes, [], [pt.fromId, pt.toId])) {
         resumePhaseAfterModalRef.current = resume;
       }
     },
@@ -2253,6 +2383,7 @@ export function App() {
           card={drawnCard}
           notes={cardNotes}
           followUpCards={followUpCards}
+          canDismiss={isLocalActor(activePlayerId)}
           onDismiss={() => {
             if (!isLocalActor(activePlayerId)) return;
             sendIntent({ type: "dismissEvent" }, onDismissEvent);

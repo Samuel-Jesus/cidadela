@@ -253,7 +253,8 @@
     "resolution": "Space resolution",
     "keepable": "Keepable card — stays in your wallet.",
     "next": "Next",
-    "dismiss": "Got it"
+    "dismiss": "Got it",
+    "waitDismiss": "Waiting for the other player to close…"
   },
   "wallet": {
     "pickPawn": "Pick a pawn to view the wallet",

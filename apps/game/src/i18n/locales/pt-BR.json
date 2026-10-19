@@ -253,7 +253,8 @@
     "resolution": "Resolução da casa",
     "keepable": "Carta guardável — fica na sua carteira.",
     "next": "Em seguida",
-    "dismiss": "Entendi"
+    "dismiss": "Entendi",
+    "waitDismiss": "Aguardando o outro jogador fechar…"
   },
   "wallet": {
     "pickPawn": "Escolhe um peão pra ver a carteira",
