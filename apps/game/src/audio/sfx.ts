@@ -39,7 +39,6 @@ const DICE_FILES: Record<DiceSfx, string> = {
   fall: "fall_dices.ogg",
 };
 
-/** Arquivo padrão em /sounds/game; null = só toca após upload no admin. */
 const GAME_FILES: Record<GameSfx, string | null> = {
   cashGain: "ganhar_grana.ogg",
   badLuck: "sem_sorte.ogg",
@@ -431,13 +430,6 @@ export function preloadUiSfx(): void {
     for (const id of Object.keys(DICE_FILES) as DiceSfx[]) {
       getAudioResolved(diceSlot(id), DICE_FILES[id], DICE_BASE);
     }
-    for (const id of Object.keys(GAME_FILES) as GameSfx[]) {
-      const url = resolveGameUrl(id);
-      if (url) getAudioFromUrl(gameSlot(id), url);
-    }
-    CARNAVAL_TRACKS.forEach((file, i) => {
-      getAudioResolved(carnavalSlot(i), file, CARNAVAL_BASE);
-    });
   });
 }
 

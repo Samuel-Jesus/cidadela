@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Physics, useBox, usePlane } from "@react-three/cannon";
 import type { ThreeEvent } from "@react-three/fiber";
 import type { DiceRoll, DieFace } from "@cidadela/engine";
@@ -134,8 +134,19 @@ export function DiceTray({
   onRollRequest,
   onRollComplete,
 }: Props) {
+  const [physicsLive, setPhysicsLive] = useState(rolling);
+  useEffect(() => {
+    if (rolling) {
+      setPhysicsLive(true);
+      return;
+    }
+    const t = window.setTimeout(() => setPhysicsLive(false), 1800);
+    return () => window.clearTimeout(t);
+  }, [rolling]);
+
   return (
     <Physics
+      isPaused={!physicsLive}
       gravity={[0, -28, 0]}
       allowSleep
       defaultContactMaterial={{ restitution: 0.4, friction: 0.35 }}

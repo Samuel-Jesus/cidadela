@@ -59,7 +59,6 @@ type Props = {
   onForfeitToBank: () => void;
   onOpenTrade: () => void;
   onClaimRent: () => void;
-  /** Proposta já enviada — esconde o botão Negociar. */
   tradeBlocked?: boolean;
 };
 

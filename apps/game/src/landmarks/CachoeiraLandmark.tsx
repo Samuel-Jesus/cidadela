@@ -1,8 +1,8 @@
 import { useLayoutEffect, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
 import { criarCachoeira, type CachoeiraGroup } from "./cachoeira";
 import { fitToSlot } from "./FitToSlot";
+import { useLandmarkFrame } from "./useLandmarkFrame";
 
 type Props = {
   fitWidth: number;
@@ -38,16 +38,7 @@ export function CachoeiraLandmark({
     };
   }, [fitWidth, fitDepth]);
 
-  useFrame((_, dt) => {
-    built.current?.userData.tick(Math.min(dt, 0.05));
-    const g = wrap.current;
-    if (!g) return;
-    const target = accent ? 1.04 : 1;
-    const k = Math.min(1, dt * 6);
-    g.scale.x += (target - g.scale.x) * k;
-    g.scale.y = g.scale.x;
-    g.scale.z = g.scale.x;
-  });
+  useLandmarkFrame(wrap, built, accent);
 
   return (
     <group ref={wrap}>

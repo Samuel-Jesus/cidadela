@@ -6,6 +6,7 @@ import { BoardCamera, type CameraMode } from "./BoardCamera";
 import { BoardReadySignal } from "./BoardReadySignal";
 import { BoardTable } from "./BoardTable";
 import { DiceTray } from "./DiceTray";
+import { getGraphicsQuality } from "./graphicsQuality";
 import { JailEscort } from "./JailEscort";
 import type { JailEscortMission } from "./jailEscortState";
 import { computeSpaceLayouts } from "./layout";
@@ -51,14 +52,15 @@ export function BoardCanvas({
 }: Props) {
   const layouts = useMemo(() => computeSpaceLayouts(), []);
   const followId = cameraFollowPlayerId ?? activePlayerId;
+  const quality = useMemo(() => getGraphicsQuality(), []);
 
   return (
     <Canvas
-      shadows
-      dpr={[1, 1.5]}
+      shadows={quality.shadows}
+      dpr={quality.dpr}
       camera={{ position: [18, 16, 18], fov: 42, near: 0.1, far: 200 }}
       gl={{
-        antialias: true,
+        antialias: quality.antialias,
         powerPreference: "high-performance",
         stencil: false,
       }}
@@ -69,10 +71,10 @@ export function BoardCanvas({
 
       <ambientLight intensity={0.55} />
       <directionalLight
-        castShadow
+        castShadow={quality.shadows}
         position={[12, 22, 10]}
         intensity={1.35}
-        shadow-mapSize={[1024, 1024]}
+        shadow-mapSize={[quality.shadowMapSize, quality.shadowMapSize]}
         shadow-bias={-0.0003}
         shadow-camera-far={50}
         shadow-camera-left={-16}

@@ -10,8 +10,8 @@ export const STREET_SIGN_FONT =
 
 const WHITE = "#f4f6f8";
 const TILT = -0.32;
-const TEX_W = 512;
-const TEX_H = 288;
+const TEX_W = 256;
+const TEX_H = 144;
 
 const textureCache = new Map<string, CanvasTexture>();
 
@@ -109,7 +109,7 @@ function bakeSignTexture(copy: FaceCopy): CanvasTexture {
   tex.colorSpace = SRGBColorSpace;
   tex.minFilter = LinearFilter;
   tex.magFilter = LinearFilter;
-  tex.anisotropy = 4;
+  tex.anisotropy = 1;
   tex.needsUpdate = true;
   textureCache.set(key, tex);
   return tex;

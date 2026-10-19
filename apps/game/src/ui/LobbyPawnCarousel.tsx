@@ -1,6 +1,6 @@
 import { Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { ContactShadows, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import type { Group } from "three";
 import { useTranslation } from "react-i18next";
 import { getPawnDef, type PawnId } from "@cidadela/shared";
@@ -106,24 +106,22 @@ export function LobbyPawnCarousel({
       >
         <Canvas
           camera={{ position: [0, 0.42, 2.55], fov: 34 }}
-          dpr={[1, 1.75]}
+          dpr={[1, 1.25]}
           gl={{ antialias: true, alpha: true }}
         >
           <color attach="background" args={["#fff7ed"]} />
-          <ambientLight intensity={0.65} />
-          <directionalLight
-            position={[2.5, 4, 2]}
-            intensity={1.15}
-            castShadow
-          />
+          <ambientLight intensity={0.7} />
+          <directionalLight position={[2.5, 4, 2]} intensity={1.15} />
           <Suspense fallback={null}>
             <PreviewPawn pawnId={value} />
-            <ContactShadows
+            <mesh
+              rotation={[-Math.PI / 2, 0, 0]}
               position={[0, -0.02, 0]}
-              opacity={0.45}
-              scale={4}
-              blur={2.2}
-            />
+              scale={[1.2, 1.2, 1]}
+            >
+              <circleGeometry args={[0.55, 24]} />
+              <meshBasicMaterial color="#c4a574" transparent opacity={0.35} />
+            </mesh>
           </Suspense>
         </Canvas>
       </div>

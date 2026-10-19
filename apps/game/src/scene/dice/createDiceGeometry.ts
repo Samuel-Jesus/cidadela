@@ -18,7 +18,7 @@ export type DiceGeomParams = {
 };
 
 export const DEFAULT_DICE_PARAMS: DiceGeomParams = {
-  segments: 40,
+  segments: 14,
   edgeRadius: 0.07,
   notchRadius: 0.12,
   notchDepth: 0.1,

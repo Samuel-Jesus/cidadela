@@ -11,6 +11,7 @@ import {
   type Mesh,
   type Object3D,
 } from "three";
+import { getGraphicsQuality } from "../scene/graphicsQuality";
 import { fitToSlot, hideOversizedMeshes } from "./FitToSlot";
 
 type Props = {
@@ -54,12 +55,13 @@ export function GltfLandmark({
 
     if (polish) polishMaterials(root);
 
+    const shadows = getGraphicsQuality().shadows;
     root.traverse((child) => {
-      child.frustumCulled = false;
+      child.frustumCulled = true;
       const mesh = child as Mesh;
       if (mesh.isMesh) {
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+        mesh.castShadow = shadows;
+        mesh.receiveShadow = shadows;
       }
     });
 
@@ -86,22 +88,34 @@ export function GltfLandmark({
     const g = wrap.current;
     if (!g) return;
     const target = accent ? 1.04 : 1;
+    if (Math.abs(g.scale.x - target) < 0.001) {
+      if (g.scale.x !== target) g.scale.setScalar(target);
+      return;
+    }
     const k = Math.min(1, dt * 6);
     g.scale.x += (target - g.scale.x) * k;
     g.scale.y = g.scale.x;
     g.scale.z = g.scale.x;
   });
 
+  const shadowsOn = getGraphicsQuality().shadows;
+
   return (
     <group ref={wrap}>
-      <pointLight
-        position={[0.4, 1.2, 0.5]}
-        intensity={accent ? 0.55 : 0.3}
-        distance={3.5}
-        color="#fff1dd"
-      />
+      {shadowsOn || accent ? (
+        <pointLight
+          position={[0.4, 1.2, 0.5]}
+          intensity={accent ? 0.55 : 0.22}
+          distance={3.5}
+          color="#fff1dd"
+        />
+      ) : null}
       <group ref={model}>
-        <Clone object={source} castShadow receiveShadow />
+        <Clone
+          object={source}
+          castShadow={shadowsOn}
+          receiveShadow={shadowsOn}
+        />
       </group>
     </group>
   );

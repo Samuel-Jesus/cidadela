@@ -97,7 +97,6 @@ import {
   ensureSfxOverridesReady,
   playCarnavalMusic,
   playGameSfx,
-  preloadUiSfx,
   stopCarnavalMusic,
 } from "./audio/sfx";
 
@@ -112,7 +111,6 @@ const UNLUCKY_CARD_EFFECTS = new Set([
 const onlineRefForSfx: { current: OnlineSession | null } = { current: null };
 type EventAudience = "all" | readonly string[];
 
-/** Offline ou host: única fonte da verdade das regras. */
 function isAuthoritative(): boolean {
   const session = onlineRefForSfx.current;
   return !session || session.isHost;
@@ -147,7 +145,6 @@ function applyMove(
   };
 }
 
-/** Em online, SFX de dinheiro/efeitos só para o peão local; hotseat ouve tudo. */
 function sfxForLocalPlayer(playerId: string | null | undefined): boolean {
   const session = onlineRefForSfx.current;
   if (!session) return true;
@@ -349,7 +346,6 @@ export function App() {
     }
     setBoardReady(false);
     setBoardProgress(0.08);
-    preloadUiSfx();
   }, [screen]);
 
   useEffect(() => {
@@ -508,7 +504,6 @@ export function App() {
           return;
         }
         if (result.conflict) {
-          // Host é a fonte da verdade: não hidratar; adotar version e republicar.
           baseVersion = result.row.version;
           gameVersionRef.current = result.row.version;
           setGameVersion(result.row.version);
@@ -754,7 +749,6 @@ export function App() {
         return;
       }
 
-      // Não encerra o turno enquanto o dono ainda pode cobrar aluguel.
       if (pendingRentRef.current) {
         if (extraRollRef.current) {
           setTurnPhase("roll");
@@ -1274,7 +1268,6 @@ export function App() {
       setTurnPhase("debt");
       return;
     }
-    // Aluguel ainda cobrável: não avança o turno (dono pode cobrar; visitante pode rolar e perder).
     if (pendingRentRef.current) {
       if (extraRollRef.current) {
         setTurnPhase("roll");
@@ -1499,7 +1492,6 @@ export function App() {
       presentEvent(settled.notes, [], "all");
       return;
     }
-    // Se o ativo já não é o visitante, não roubar a vez dele ao fechar o modal.
     const active = activeRef.current;
     if (active && active !== claim.visitorId) {
       const phase = turnPhaseRef.current;
@@ -1511,7 +1503,6 @@ export function App() {
       extraRollRef.current = false;
       resumePhaseAfterModalRef.current = "roll";
     } else {
-      // Visitante ativo sem doubles: após o modal, encerra o turno normalmente.
       resumePhaseAfterModalRef.current = null;
     }
     presentEvent(settled.notes, [], parties);
@@ -1552,7 +1543,6 @@ export function App() {
       setDiceRolling(false);
       setDiceRoll(roll);
 
-      // Guests só reproduzem a animação; regras só no host.
       if (!isAuthoritative()) return;
 
       const playerId = activeRef.current;
@@ -1780,7 +1770,6 @@ export function App() {
         playCarnavalMusic();
       }
 
-      // Guests animam o peão, mas não resolvem a casa (evita split-brain / RNG).
       if (!isAuthoritative()) return;
 
       const pending = pendingLandingRef.current;
@@ -1893,8 +1882,6 @@ export function App() {
               landIndex,
             );
           }
-        } else if (resolved.pendingRent) {
-          // Modal de aviso: ao fechar, onDismissEvent preserva pendingRent sem pular turno.
         }
         return resolved.players;
       });
@@ -2452,9 +2439,7 @@ export function App() {
           setCameraMode(mode);
           try {
             localStorage.setItem("cidadela.cameraMode", mode);
-          } catch {
-            /* ignore */
-          }
+          } catch {}
         }}
       />
       {boardReady ? (

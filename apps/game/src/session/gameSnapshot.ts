@@ -45,7 +45,6 @@ export type PendingLanding = {
   utilityDiceTotal?: number;
 };
 
-/** Estado serializável da partida (host → Realtime → guests). */
 export type GameSnapshot = {
   v: 1;
   players: PlayerState[];
@@ -73,6 +72,7 @@ export type GameSnapshot = {
   forceEndTurn: boolean;
   resumePhaseAfterModal: TurnPhase | null;
   auctionAdvanceAfterModal: AuctionSession | null;
+  lastAppliedActionId: number | null;
 };
 
 export function createInitialSnapshot(setup: LobbySetup): GameSnapshot {
@@ -104,6 +104,7 @@ export function createInitialSnapshot(setup: LobbySetup): GameSnapshot {
     forceEndTurn: false,
     resumePhaseAfterModal: null,
     auctionAdvanceAfterModal: null,
+    lastAppliedActionId: null,
   };
 }
 

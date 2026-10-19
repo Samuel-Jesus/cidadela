@@ -243,7 +243,7 @@ export function criarFitinhaDoBonfim(): FitinhaDoBonfimGroup {
     0xe63946, 0xf4a300, 0xffd60a, 0x06d6a0, 0x118ab2, 0x9b5de5, 0xf15bb5,
     0xffffff, 0x00bbf9, 0x8ac926, 0xff7b00, 0x3a86ff,
   ].map((c) => new THREE.Color(c));
-  const NF = 1500;
+  const NF = 420;
   const fx = new Float32Array(NF);
   const fz = new Float32Array(NF);
   const fL = new Float32Array(NF);
@@ -278,13 +278,14 @@ export function criarFitinhaDoBonfim(): FitinhaDoBonfimGroup {
   fgm.setIndex(new THREE.BufferAttribute(idx, 1));
   const fita = new THREE.Mesh(
     fgm,
-    new THREE.MeshStandardMaterial({
+    new THREE.MeshBasicMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
-      roughness: 0.7,
     }),
   );
-  fita.frustumCulled = false;
+  fita.frustumCulled = true;
+  fita.castShadow = false;
+  fita.receiveShadow = false;
   g.add(fita);
 
   const atualizarFitas = (t: number) => {
