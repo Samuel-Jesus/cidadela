@@ -1,5 +1,5 @@
 import type { DiceRoll } from "@cidadela/engine";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   BANK_POUSADAS_MAX,
@@ -104,6 +104,7 @@ export function BoardHud({
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [forfeitConfirmOpen, setForfeitConfirmOpen] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
@@ -136,10 +137,62 @@ export function BoardHud({
     players.filter((p) => !p.bankrupt).length > 1 &&
     (controlsTurn ||
       (turnPhase === "debt" && pendingDebt?.debtorId === forfeitPlayer!.id));
-  const confirmForfeit = () => {
-    if (!window.confirm(t("hud.forfeitConfirm"))) return;
-    onForfeitToBank();
-  };
+  useEffect(() => {
+    if (!canForfeit) setForfeitConfirmOpen(false);
+  }, [canForfeit]);
+
+  const wrapHud = (panel: ReactNode) => (
+    <>
+      {panel}
+      {forfeitConfirmOpen ? (
+        <div
+          className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[2px]"
+          role="presentation"
+          onClick={() => setForfeitConfirmOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="forfeit-confirm-title"
+            className="hud-panel w-full max-w-sm space-y-3 p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <p className="hud-kicker">{t("brand.name")}</p>
+              <h2
+                id="forfeit-confirm-title"
+                className="hud-title mt-0.5 text-[1.35rem] leading-tight"
+              >
+                {t("hud.forfeitTitle")}
+              </h2>
+            </div>
+            <p className="m-0 text-sm font-semibold leading-relaxed text-[#5c3d2e]">
+              {t("hud.forfeitConfirm")}
+            </p>
+            <div className="flex flex-wrap justify-end gap-2 pt-0.5">
+              <button
+                type="button"
+                className="hud-btn hud-btn--soft px-3 py-2 text-sm"
+                onClick={() => setForfeitConfirmOpen(false)}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                className="hud-btn hud-btn--pink px-3 py-2 text-sm"
+                onClick={() => {
+                  setForfeitConfirmOpen(false);
+                  onForfeitToBank();
+                }}
+              >
+                {t("hud.forfeit")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
   const owner =
     selectedIndex === null ? null : findPropertyOwner(players, selectedIndex);
 
@@ -173,7 +226,7 @@ export function BoardHud({
       players.some((p) => !p.bankrupt && p.id !== active.id),
   );
   if (isNarrow) {
-    return (
+    return wrapHud(
       <aside
         className="hud-panel pointer-events-auto absolute inset-x-2 z-10 flex flex-col overflow-hidden"
         style={{
@@ -446,7 +499,7 @@ export function BoardHud({
                       {canForfeit ? (
                         <button
                           type="button"
-                          onClick={confirmForfeit}
+                          onClick={() => setForfeitConfirmOpen(true)}
                           className="hud-btn hud-btn--pink px-2 py-0.5 text-[11px]"
                           title={t("hud.forfeitTitle")}
                         >
@@ -535,11 +588,11 @@ export function BoardHud({
             ) : null}
           </div>
         </div>
-      </aside>
+      </aside>,
     );
   }
   if (desktopCollapsed) {
-    return (
+    return wrapHud(
       <aside className="hud-panel hud-panel--collapsed pointer-events-auto absolute end-4 top-4 z-10 flex w-[15.5rem] flex-col gap-2 p-2.5">
         <div className="flex items-center gap-2">
           {activeDef ? (
@@ -592,11 +645,11 @@ export function BoardHud({
                   : t("hud.roll")}
           </button>
         ) : null}
-      </aside>
+      </aside>,
     );
   }
 
-  return (
+  return wrapHud(
     <aside className="hud-panel pointer-events-auto absolute end-4 top-4 z-10 flex max-h-[calc(100dvh-2rem)] w-[19.5rem] flex-col gap-3 overflow-y-auto p-3.5">
       <header className="px-0.5">
         <div className="mb-1 flex items-start justify-between gap-2">
@@ -912,7 +965,7 @@ export function BoardHud({
             {canForfeit ? (
               <button
                 type="button"
-                onClick={confirmForfeit}
+                onClick={() => setForfeitConfirmOpen(true)}
                 className="hud-btn hud-btn--pink px-2.5 py-1.5 text-xs"
                 title={t("hud.forfeitTitle")}
               >
@@ -973,7 +1026,7 @@ export function BoardHud({
           </div>
         ) : null}
       </section>
-    </aside>
+    </aside>,
   );
 }
 
