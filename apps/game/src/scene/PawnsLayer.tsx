@@ -12,6 +12,7 @@ type Props = {
   players: PlayerState[];
   layouts: SpaceLayout[];
   activePlayerId: string | null;
+  cameraFollowPlayerId?: string | null;
   onSelectPlayer: (playerId: string) => void;
   onPawnArrive?: (playerId: string, spaceIndex: number) => void;
 };
@@ -20,6 +21,7 @@ export function PawnsLayer({
   players,
   layouts,
   activePlayerId,
+  cameraFollowPlayerId = null,
   onSelectPlayer,
   onPawnArrive,
 }: Props) {
@@ -49,6 +51,7 @@ export function PawnsLayer({
         if (!layoutsByIndex.has(player.position)) return null;
         const onSpace = slotsBySpace.get(player.position) ?? [player];
         const slotIndex = onSpace.findIndex((p) => p.id === player.id);
+        const follow = cameraFollowPlayerId === player.id;
         return (
           <Pawn
             key={player.id}
@@ -59,6 +62,7 @@ export function PawnsLayer({
             slotIndex={Math.max(0, slotIndex)}
             slotCount={onSpace.length}
             active={player.id === activePlayerId}
+            cameraFollow={follow}
             onClick={() => onSelectPlayer(player.id)}
             onArrive={(spaceIndex) => onPawnArrive?.(player.id, spaceIndex)}
           />

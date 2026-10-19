@@ -1,8 +1,8 @@
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
 import { Suspense, useMemo } from "react";
 import type { DiceRoll } from "@cidadela/engine";
 import type { PlayerState } from "@cidadela/shared";
+import { BoardCamera, type CameraMode } from "./BoardCamera";
 import { BoardReadySignal } from "./BoardReadySignal";
 import { BoardTable } from "./BoardTable";
 import { DiceTray } from "./DiceTray";
@@ -17,6 +17,8 @@ type Props = {
   onSelect: (index: number) => void;
   players: PlayerState[];
   activePlayerId: string | null;
+  cameraFollowPlayerId?: string | null;
+  cameraMode?: CameraMode;
   onSelectPlayer: (playerId: string) => void;
   diceRolling: boolean;
   diceRollId: number;
@@ -34,6 +36,8 @@ export function BoardCanvas({
   onSelect,
   players,
   activePlayerId,
+  cameraFollowPlayerId = null,
+  cameraMode = "orbit",
   onSelectPlayer,
   diceRolling,
   diceRollId,
@@ -46,6 +50,7 @@ export function BoardCanvas({
   onBoardReady,
 }: Props) {
   const layouts = useMemo(() => computeSpaceLayouts(), []);
+  const followId = cameraFollowPlayerId ?? activePlayerId;
 
   return (
     <Canvas
@@ -101,6 +106,7 @@ export function BoardCanvas({
           players={players}
           layouts={layouts}
           activePlayerId={activePlayerId}
+          cameraFollowPlayerId={followId}
           onSelectPlayer={onSelectPlayer}
           onPawnArrive={onPawnArrive}
         />
@@ -115,15 +121,7 @@ export function BoardCanvas({
         ) : null}
       </Suspense>
 
-      <OrbitControls
-        makeDefault
-        target={[0, 0.5, 0]}
-        minPolarAngle={0.35}
-        maxPolarAngle={Math.PI / 2.15}
-        minDistance={12}
-        maxDistance={42}
-        enablePan={false}
-      />
+      <BoardCamera mode={cameraMode} followPlayerId={followId} />
     </Canvas>
   );
 }

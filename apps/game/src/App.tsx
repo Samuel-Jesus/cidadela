@@ -50,6 +50,7 @@ import {
 } from "./boot/preloadAssets";
 import { AuctionOverlay } from "./ui/AuctionOverlay";
 import { BoardCanvas } from "./scene/BoardCanvas";
+import type { CameraMode } from "./scene/BoardCamera";
 import { GameSfxHud } from "./audio/GameSfxHud";
 import { BoardHud } from "./ui/BoardHud";
 import { DrawnCardModal } from "./ui/DrawnCardModal";
@@ -189,6 +190,15 @@ export function App() {
   });
   const [boardReady, setBoardReady] = useState(false);
   const [boardProgress, setBoardProgress] = useState(0);
+  const [cameraMode, setCameraMode] = useState<CameraMode>(() => {
+    try {
+      const saved = localStorage.getItem("cidadela.cameraMode");
+      if (saved === "follow" || saved === "firstPerson") return "follow";
+      return "orbit";
+    } catch {
+      return "orbit";
+    }
+  });
   const [selectedIndex, setSelectedIndex] = useState<number | null>(0);
   const [playerCount, setPlayerCount] = useState(4);
   const [players, setPlayers] = useState<PlayerState[]>([]);
@@ -2135,6 +2145,8 @@ export function App() {
         onSelect={setSelectedIndex}
         players={players}
         activePlayerId={activePlayerId}
+        cameraFollowPlayerId={localPlayerId ?? activePlayerId}
+        cameraMode={cameraMode}
         onSelectPlayer={() => { }}
         diceRolling={diceRolling}
         diceRollId={diceRollId}
@@ -2152,7 +2164,17 @@ export function App() {
         onBoardProgress={setBoardProgress}
         onBoardReady={() => setBoardReady(true)}
       />
-      <GameSfxHud />
+      <GameSfxHud
+        cameraMode={cameraMode}
+        onCameraModeChange={(mode) => {
+          setCameraMode(mode);
+          try {
+            localStorage.setItem("cidadela.cameraMode", mode);
+          } catch {
+            /* ignore */
+          }
+        }}
+      />
       {boardReady ? (
         <SpaceSelectMarker spaceIndex={selectedIndex} players={players} />
       ) : null}
@@ -2336,7 +2358,7 @@ export function App() {
         />
       ) : null}
       <p className="pointer-events-none absolute bottom-3 start-1/2 z-10 hidden -translate-x-1/2 text-center text-xs font-semibold text-[#ffe8c8]/80 max-md:bottom-[max(0.5rem,env(safe-area-inset-bottom))] md:block rtl:translate-x-1/2">
-        {t("hud.hintOrbit")}
+        {cameraMode === "follow" ? t("hud.hintOrbitFollow") : t("hud.hintOrbit")}
       </p>
       {!boardReady ? (
         <div className="absolute inset-0 z-50">

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { CameraMode } from "../scene/BoardCamera";
+import { CameraModeToggle } from "../ui/CameraModeToggle";
 import {
   getSfxVolume,
   isSfxMuted,
@@ -8,19 +10,25 @@ import {
   unlockAudio,
 } from "./sfx";
 
-export function GameSfxHud() {
+type Props = {
+  cameraMode: CameraMode;
+  onCameraModeChange: (mode: CameraMode) => void;
+};
+
+export function GameSfxHud({ cameraMode, onCameraModeChange }: Props) {
   const { t } = useTranslation();
   const [muted, setMuted] = useState(() => isSfxMuted());
   const [volume, setVolume] = useState(() => getSfxVolume());
 
   return (
     <div
-      className="game-sfx-hud pointer-events-auto absolute z-20 flex items-center gap-2"
+      className="game-sfx-hud pointer-events-auto absolute z-20 flex flex-wrap items-center gap-2"
       style={{
         top: "max(0.75rem, env(safe-area-inset-top, 0px))",
         insetInlineStart: "max(0.75rem, env(safe-area-inset-left, 0px))",
       }}
     >
+      <CameraModeToggle mode={cameraMode} onChange={onCameraModeChange} />
       <button
         type="button"
         className={`sfx-mute ${muted ? "sfx-mute--off" : ""}`.trim()}

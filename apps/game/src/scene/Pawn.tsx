@@ -10,6 +10,10 @@ import {
   yawFollowFor,
 } from "../pawns/pawnKind";
 import { BOARD_Y, type SpaceLayout } from "./layout";
+import {
+  clearPawnCameraPose,
+  setPawnCameraPose,
+} from "./pawnCameraPose";
 import { consumePawnPathDir } from "./pawnPathIntent";
 import { pawnSlotOffset } from "./pawnSlots";
 
@@ -24,6 +28,7 @@ type Props = {
   slotIndex: number;
   slotCount: number;
   active?: boolean;
+  cameraFollow?: boolean;
   onClick?: () => void;
   onArrive?: (spaceIndex: number) => void;
 };
@@ -78,6 +83,7 @@ export function Pawn({
   slotIndex,
   slotCount,
   active,
+  cameraFollow = false,
   onClick,
   onArrive,
 }: Props) {
@@ -100,6 +106,10 @@ export function Pawn({
   const bobPhase = useRef(Math.random() * Math.PI * 2);
   const onArriveRef = useRef(onArrive);
   onArriveRef.current = onArrive;
+
+  useEffect(() => {
+    return () => clearPawnCameraPose(playerId);
+  }, [playerId]);
 
   useEffect(() => {
     const layout = layoutsByIndex.get(spaceIndex);
@@ -288,6 +298,16 @@ export function Pawn({
       g.scale.setScalar(s);
     } else if (g.scale.x !== scaleTarget) {
       g.scale.setScalar(scaleTarget);
+    }
+
+    if (cameraFollow) {
+      setPawnCameraPose({
+        playerId,
+        x: g.position.x,
+        y: g.position.y,
+        z: g.position.z,
+        yaw: yawRef.current,
+      });
     }
   });
 
