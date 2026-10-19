@@ -112,6 +112,12 @@ const UNLUCKY_CARD_EFFECTS = new Set([
 const onlineRefForSfx: { current: OnlineSession | null } = { current: null };
 type EventAudience = "all" | readonly string[];
 
+/** Offline ou host: única fonte da verdade das regras. */
+function isAuthoritative(): boolean {
+  const session = onlineRefForSfx.current;
+  return !session || session.isHost;
+}
+
 function applyMove(
   player: PlayerState,
   steps: number,
@@ -314,6 +320,16 @@ export function App() {
     (actorId: string, intent: GameIntent) => void
   >(() => undefined);
   const processedActionsRef = useRef(new Set<number>());
+  const turnPhaseRef = useRef(turnPhase);
+  turnPhaseRef.current = turnPhase;
+  const diceRollingRef = useRef(diceRolling);
+  diceRollingRef.current = diceRolling;
+  const pendingRentRef = useRef(pendingRent);
+  pendingRentRef.current = pendingRent;
+  const intentQueueRef = useRef(Promise.resolve());
+  const intentQueueBusyRef = useRef(false);
+  const publishInFlightRef = useRef(false);
+  const lastAppliedActionIdRef = useRef<number | null>(null);
 
   const activePlayer =
     players.find((p) => p.id === activePlayerId) ?? null;
@@ -368,6 +384,18 @@ export function App() {
   }, [screen]);
 
   const hydrateSnapshot = useCallback((snap: GameSnapshot) => {
+    const incomingAction = snap.lastAppliedActionId ?? null;
+    if (
+      !isAuthoritative() &&
+      incomingAction != null &&
+      lastAppliedActionIdRef.current != null &&
+      incomingAction < lastAppliedActionIdRef.current
+    ) {
+      return;
+    }
+    if (incomingAction != null) {
+      lastAppliedActionIdRef.current = incomingAction;
+    }
     applyingRemoteRef.current = true;
     playersRef.current = snap.players;
     setPlayers(snap.players);
@@ -441,6 +469,7 @@ export function App() {
       forceEndTurn: forceEndTurnRef.current,
       resumePhaseAfterModal: resumePhaseAfterModalRef.current,
       auctionAdvanceAfterModal: auctionAdvanceAfterModalRef.current,
+      lastAppliedActionId: lastAppliedActionIdRef.current,
     };
   }, [
     turnPhase,
@@ -464,28 +493,35 @@ export function App() {
     const session = onlineRef.current;
     if (!session?.isHost || applyingRemoteRef.current) return;
     if (!isSupabaseConfigured()) return;
+    if (publishInFlightRef.current) return;
+    publishInFlightRef.current = true;
     setSyncStatus((s) => (s === "hostAway" ? s : "syncing"));
-    const snap = buildSnapshot();
-    const result = await pushGameState(
-      session.roomId,
-      gameVersionRef.current,
-      snap,
-    );
-    if (result.ok) {
-      gameVersionRef.current = result.version;
-      setGameVersion(result.version);
-      setSyncStatus("live");
-      return;
+    try {
+      let baseVersion = gameVersionRef.current;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const snap = buildSnapshot();
+        const result = await pushGameState(session.roomId, baseVersion, snap);
+        if (result.ok) {
+          gameVersionRef.current = result.version;
+          setGameVersion(result.version);
+          setSyncStatus("live");
+          return;
+        }
+        if (result.conflict) {
+          // Host é a fonte da verdade: não hidratar; adotar version e republicar.
+          baseVersion = result.row.version;
+          gameVersionRef.current = result.row.version;
+          setGameVersion(result.row.version);
+          continue;
+        }
+        setSyncStatus("error");
+        return;
+      }
+      setSyncStatus("error");
+    } finally {
+      publishInFlightRef.current = false;
     }
-    if (result.conflict) {
-      gameVersionRef.current = result.row.version;
-      setGameVersion(result.row.version);
-      hydrateSnapshot(result.row.state);
-      setSyncStatus("live");
-      return;
-    }
-    setSyncStatus("error");
-  }, [buildSnapshot, hydrateSnapshot]);
+  }, [buildSnapshot]);
 
   const isLocalActor = useCallback((playerId: string | null | undefined) => {
     const session = onlineRef.current;
@@ -493,6 +529,45 @@ export function App() {
     if (!playerId) return false;
     return session.localPlayerId === playerId;
   }, []);
+
+  const enqueueHostWork = useCallback(
+    (
+      work: () => void,
+      meta?: { actionId?: number; intent?: GameIntent; actorId?: string },
+    ) => {
+      const run = intentQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          intentQueueBusyRef.current = true;
+          try {
+            if (meta?.actionId != null) {
+              lastAppliedActionIdRef.current = meta.actionId;
+            }
+            if (meta?.intent) {
+              console.debug("[cidadela:intent]", {
+                id: meta.actionId,
+                type: meta.intent.type,
+                actorId: meta.actorId,
+                active: activeRef.current,
+                pendingRent: pendingRentRef.current,
+                turnPhase: turnPhaseRef.current,
+                version: gameVersionRef.current,
+              });
+            }
+            work();
+            await new Promise<void>((resolve) => {
+              queueMicrotask(() => resolve());
+            });
+            await publishSnapshot();
+          } finally {
+            intentQueueBusyRef.current = false;
+          }
+        });
+      intentQueueRef.current = run;
+      return run;
+    },
+    [publishSnapshot],
+  );
 
   const sendIntent = useCallback(
     (intent: GameIntent, localApply: () => void) => {
@@ -504,9 +579,13 @@ export function App() {
         });
         return;
       }
+      if (session?.isHost) {
+        enqueueHostWork(localApply, { intent, actorId: session.localPlayerId });
+        return;
+      }
       localApply();
     },
-    [syncStatus],
+    [syncStatus, enqueueHostWork],
   );
 
   const dismissEventUi = useCallback(() => {
@@ -675,6 +754,16 @@ export function App() {
         return;
       }
 
+      // Não encerra o turno enquanto o dono ainda pode cobrar aluguel.
+      if (pendingRentRef.current) {
+        if (extraRollRef.current) {
+          setTurnPhase("roll");
+        } else {
+          setTurnPhase("action");
+        }
+        return;
+      }
+
       if (isUnownedBuyable(playersRef.current, spaceIndex)) {
         if (player && player.position === spaceIndex) {
           setTurnPhase("action");
@@ -776,6 +865,7 @@ export function App() {
     pendingLandingRef.current = null;
     setPendingDebt(null);
     setPendingRent(null);
+    pendingRentRef.current = null;
     setAuction(null);
     pendingAuctionsRef.current = [];
     auctionAdvanceAfterModalRef.current = null;
@@ -785,6 +875,9 @@ export function App() {
     setJailError(null);
     setSelectedIndex(0);
     setTurnPhase("roll");
+    lastAppliedActionIdRef.current = null;
+    intentQueueBusyRef.current = false;
+    intentQueueRef.current = Promise.resolve();
   }, [dismissEventUi]);
 
   const startFromLobby = useCallback(
@@ -926,7 +1019,9 @@ export function App() {
   useEffect(() => {
     if (screen !== "game" || !onlineSession?.isHost) return;
     if (applyingRemoteRef.current) return;
+    if (intentQueueBusyRef.current) return;
     const t = window.setTimeout(() => {
+      if (intentQueueBusyRef.current) return;
       void publishSnapshot();
     }, 180);
     return () => window.clearTimeout(t);
@@ -966,10 +1061,20 @@ export function App() {
         return;
       }
       processedActionsRef.current.add(action.id);
-      applyRemoteIntentRef.current(action.actor_id, action.payload);
-      void markActionApplied(action.id);
+      void enqueueHostWork(
+        () => {
+          applyRemoteIntentRef.current(action.actor_id, action.payload);
+        },
+        {
+          actionId: action.id,
+          intent: action.payload,
+          actorId: action.actor_id,
+        },
+      ).then(() => {
+        void markActionApplied(action.id);
+      });
     });
-  }, [screen, onlineSession]);
+  }, [screen, onlineSession, enqueueHostWork]);
 
   const queueLanding = useCallback(
     (playerId: string, utilityDiceTotal?: number) => {
@@ -1169,6 +1274,15 @@ export function App() {
       setTurnPhase("debt");
       return;
     }
+    // Aluguel ainda cobrável: não avança o turno (dono pode cobrar; visitante pode rolar e perder).
+    if (pendingRentRef.current) {
+      if (extraRollRef.current) {
+        setTurnPhase("roll");
+      } else {
+        setTurnPhase("action");
+      }
+      return;
+    }
     applyDebtOutcome(null, undefined, playerId, spaceIndex);
   }, [
     dismissEventUi,
@@ -1344,9 +1458,10 @@ export function App() {
   );
 
   const onClaimRent = useCallback(() => {
-    if (!pendingRent) return;
-    const claim = pendingRent;
+    const claim = pendingRentRef.current;
+    if (!claim) return;
     setPendingRent(null);
+    pendingRentRef.current = null;
     const parties = audienceForRent(claim);
     const beforeClaim = playersRef.current;
     const settled = settleDebt(
@@ -1384,30 +1499,48 @@ export function App() {
       presentEvent(settled.notes, [], "all");
       return;
     }
+    // Se o ativo já não é o visitante, não roubar a vez dele ao fechar o modal.
+    const active = activeRef.current;
+    if (active && active !== claim.visitorId) {
+      const phase = turnPhaseRef.current;
+      resumePhaseAfterModalRef.current =
+        phase === "action" || phase === "debt" || phase === "roll"
+          ? phase
+          : "roll";
+    } else if (extraRollRef.current) {
+      extraRollRef.current = false;
+      resumePhaseAfterModalRef.current = "roll";
+    } else {
+      // Visitante ativo sem doubles: após o modal, encerra o turno normalmente.
+      resumePhaseAfterModalRef.current = null;
+    }
     presentEvent(settled.notes, [], parties);
-  }, [pendingRent, presentEvent, endGameIfWon, enqueueAuctions, t]);
+  }, [presentEvent, endGameIfWon, enqueueAuctions, t]);
 
   const onRollDiceLocal = useCallback(() => {
-    if (!activeRef.current || diceRolling || turnPhase !== "roll") return;
-    if (pendingRent) {
-      const space = getSpace(pendingRent.spaceIndex);
+    if (!activeRef.current || diceRollingRef.current) return;
+    if (turnPhaseRef.current !== "roll") return;
+    const rent = pendingRentRef.current;
+    if (rent) {
+      const space = getSpace(rent.spaceIndex);
       pendingNotesRef.current = [
         ...pendingNotesRef.current,
         t("msg.rentLost", {
           space: space.name,
-          amount: pendingRent.amount,
+          amount: rent.amount,
         }),
       ];
       pendingAudienceRef.current = uniqPlayerIds(
         ...pendingAudienceRef.current,
-        ...audienceForRent(pendingRent),
+        ...audienceForRent(rent),
       );
       setPendingRent(null);
+      pendingRentRef.current = null;
     }
     setTurnPhase("busy");
     setDiceRolling(true);
     setDiceRollId((id) => id + 1);
-  }, [diceRolling, turnPhase, pendingRent, t]);
+  }, [t]);
 
   const onRollDice = useCallback(() => {
     if (!isLocalActor(activeRef.current)) return;
@@ -1418,6 +1551,9 @@ export function App() {
     (roll: DiceRoll) => {
       setDiceRolling(false);
       setDiceRoll(roll);
+
+      // Guests só reproduzem a animação; regras só no host.
+      if (!isAuthoritative()) return;
 
       const playerId = activeRef.current;
       if (!playerId) return;
@@ -1644,6 +1780,9 @@ export function App() {
         playCarnavalMusic();
       }
 
+      // Guests animam o peão, mas não resolvem a casa (evita split-brain / RNG).
+      if (!isAuthoritative()) return;
+
       const pending = pendingLandingRef.current;
       if (!pending || pending.playerId !== playerId || resolvingRef.current) {
         return;
@@ -1743,12 +1882,19 @@ export function App() {
         );
         resolvingRef.current = false;
         if (!shown) {
-          applyDebtOutcome(
-            resolved.pendingDebt,
-            undefined,
-            playerId,
-            landIndex,
-          );
+          if (resolved.pendingRent && !resolved.pendingDebt) {
+            if (extraRollRef.current) setTurnPhase("roll");
+            else setTurnPhase("action");
+          } else {
+            applyDebtOutcome(
+              resolved.pendingDebt,
+              undefined,
+              playerId,
+              landIndex,
+            );
+          }
+        } else if (resolved.pendingRent) {
+          // Modal de aviso: ao fechar, onDismissEvent preserva pendingRent sem pular turno.
         }
         return resolved.players;
       });
@@ -1758,6 +1904,7 @@ export function App() {
 
   const onJailEscortComplete = useCallback(
     (escort: JailEscortMission) => {
+      if (!isAuthoritative()) return;
       const pending = pendingEscortEventRef.current;
       if (!pending || pending.playerId !== escort.playerId) {
         return;
@@ -1770,12 +1917,17 @@ export function App() {
         pending.audience,
       );
       if (!shown) {
-        applyDebtOutcome(
-          pending.pendingDebt,
-          undefined,
-          pending.playerId,
-          pending.landIndex,
-        );
+        if (pending.pendingRent && !pending.pendingDebt) {
+          if (extraRollRef.current) setTurnPhase("roll");
+          else setTurnPhase("action");
+        } else {
+          applyDebtOutcome(
+            pending.pendingDebt,
+            undefined,
+            pending.playerId,
+            pending.landIndex,
+          );
+        }
       }
     },
     [presentEvent, applyDebtOutcome],
@@ -2077,6 +2229,8 @@ export function App() {
 
   applyRemoteIntentRef.current = (actorId, intent) => {
     const active = activeRef.current;
+    const phase = turnPhaseRef.current;
+    const rent = pendingRentRef.current;
     const allowed = (() => {
       switch (intent.type) {
         case "rollDice":
@@ -2091,9 +2245,7 @@ export function App() {
         case "proposeTrade":
           return (
             actorId === active &&
-            (turnPhase === "roll" ||
-              turnPhase === "action" ||
-              turnPhase === "debt")
+            (phase === "roll" || phase === "action" || phase === "debt")
           );
         case "cancelTrade":
           return (
@@ -2111,7 +2263,7 @@ export function App() {
         case "selectSpace":
           return actorId === active;
         case "claimRent":
-          return pendingRent?.ownerId === actorId;
+          return rent?.ownerId === actorId;
         case "payDebt":
         case "liquidateForDebt":
         case "declareBankruptcy":
@@ -2120,7 +2272,7 @@ export function App() {
           return (
             playersRef.current.some((p) => p.id === actorId && !p.bankrupt) &&
             (actorId === active ||
-              (turnPhase === "debt" && pendingDebt?.debtorId === actorId))
+              (phase === "debt" && pendingDebt?.debtorId === actorId))
           );
         case "auctionBid":
         case "auctionPass":
